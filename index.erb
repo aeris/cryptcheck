@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="fr">
+	<head>
+		<meta charset="utf-8">
+		<meta http-equiv="X-UA-Compatible" content="IE=edge">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<title>Status SSL/TLS banque &amp; commerce en ligne</title>
+		<link rel="stylesheet" href="bootstrap.min.css">
+		<style>
+			body {
+				margin-top: 10px;
+			}
+
+			td {
+				text-align: center;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="container-fluid">
+			<div class="row">
+				<div class="col-md-12">
+					<table class="table table-bordered table-hover table-condensed">
+						<tbody>
+							<%
+								first = true
+								results.each do |r|
+									unless first
+							%>
+							<tr>
+								<th colspan="8">&nbsp;</th>
+							</tr>
+							<%
+									end
+									first = false
+							%>
+							<tr>
+								<th colspan="8" id="<%= r[0] %>"><%= r[0] %></th>
+							</tr>
+							<tr>
+								<th>Site (IP)</th>
+								<td>Rang</td>
+								<td>Sécurité (bits)</td>
+								<td class="danger">SSL 2/3 (obsolète)</td>
+								<td class="success">TLS 1.2 (actuel)</td>
+								<td class="danger">RC4</td>
+								<td class="success">PFS</td>
+								<td class="success">HSTS</td>
+							</tr>
+							<% r[1].each do |s|
+							   rank_color = case s.rank
+											   when 'A+' then :info
+											   when 'A', 'A-' then :success
+											   when 'B', 'C' then :warning
+											   else :danger
+											end
+							%>
+							<tr>
+								<th id="<%= s.hostname %>">
+									<a href="https://www.ssllabs.com/ssltest/analyze.html?d=<%= s.hostname %>&s=<%= s.ip %>" target="_blank">
+										<%= s.hostname %> (<%= s.ip %>)
+									</a>
+								</th>
+								<td class="<%= rank_color %>">
+									<%= s.rank %>
+								</td>
+								<td class="<%= s.bits < 128 ? :danger : :success %>">
+									<%= s.bits %>
+									(<%= s.bits < 128 ? '☹' : '☺' %>)
+								</td>
+								<td class="<%= s.ssl ? :danger : :success %>">
+									<%= s.ssl ? '✓' : '✗' %>
+									(<%= s.ssl ? '☹' : '☺' %>)
+								</td>
+								<td class="<%= s.tls ? :success : :danger %>">
+									<%= s.tls ? '✓' : '✗' %>
+									(<%= s.tls ? '☺' : '☹' %>)
+								</td>
+								<td class="<%= s.rc4 ? :danger : :success %>">
+									<%= s.rc4 ? '✓' : '✗' %>
+									(<%= s.rc4 ? '☹' : '☺' %>)
+								</td>
+								<td class="<%= s.pfs ? :success : :danger %>">
+									<%= s.pfs ? '✓' : '✗' %>
+									(<%= s.pfs ? '☺' : '☹' %>)
+								</td>
+								<td class="<%= s.hsts ? :success : :danger %>">
+									<%= s.hsts ? '✓' : '✗' %>
+									(<%= s.hsts ? '☺' : '☹' %>)
+								</td>
+							</tr>
+							<% end %>
+							<tr>
+								<th>Site (IP)</th>
+								<td>Rang</td>
+								<td>Sécurité (bits)</td>
+								<td class="danger">SSL 2/3 (obsolète)</td>
+								<td class="success">TLS 1.2 (actuel)</td>
+								<td class="danger">RC4</td>
+								<td class="success">PFS</td>
+								<td class="success">HSTS</td>
+							</tr>
+							<% end %>
+						</tbody>
+					</table>
+				</div>
+			</div>
+		</div>
+	</body>
+</html>

@@ -1,0 +1,1 @@
+require 'sslcheck/ssllabs/api'

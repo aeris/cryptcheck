@@ -1,0 +1,7 @@
+*.iml
+Gemfile.lock
+/.idea/
+/html/
+/.rspec
+/rakefile
+/output/index.html
