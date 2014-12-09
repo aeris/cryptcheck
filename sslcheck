@@ -1,55 +1,11 @@
 #!/usr/bin/env ruby
-require 'erb'
-require 'yaml'
+#ENV['LD_LIBRARY_PATH'] = '/home/aeris/Workspace/external/sslscan/openssl'
+require 'logging'
 $:.unshift 'lib'
 require 'sslcheck'
 
-SCORES = %w(A+ A A- B C D E F T M)
-def score(a); SCORES.index a.rank; end
+Logging.logger.root.appenders = Logging.appenders.stdout
+Logging.logger.root.level = :info
 
-def check(hostname)
-	hostname.strip!
-	print '  ', hostname, ' : '
-	begin
-		result = SSLCheck::SSLLabs::API.new hostname
-		puts result.rank
-		result
-	rescue SSLCheck::SSLLabs::NoEncryptionError
-		puts 'no encryption'
-		raise
-	rescue => e
-		puts e
-		raise
-	end
-end
-
-config = YAML.load_file 'hosts.yml'
-results = Hash[config.collect { |c| [c['description'], []] }]
-
-loop do
-	waiting = false
-	config.each do |c|
-		description, hosts = c['description'], c['hostnames']
-		puts description
-		hosts.clone.each do |host|
-			begin
-				results[description] << check(host)
-				hosts.delete host
-			rescue SSLCheck::SSLLabs::WaitingError
-				waiting = true
-			rescue SSLCheck::SSLLabs::Error
-			rescue => e
-				p e.backtrace
-			end
-		end
-	end
-
-	break if not waiting
-	puts 'Waiting end of analyze'
-	sleep 1*60
-end
-
-results.each { |d, _| results[d].sort! { |a, b| score(a) <=> score(b) } }
-
-puts 'Generate results'
-File.write 'output/index.html', ERB.new(File.read('index.erb')).result(binding)
+server = SSLCheck::Server.new ARGV[0]
+p SSLCheck::Grade.new server

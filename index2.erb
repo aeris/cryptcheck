@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="fr">
+	<head>
+		<meta charset="utf-8">
+		<meta http-equiv="X-UA-Compatible" content="IE=edge">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<title>Status SSL/TLS banque &amp; commerce en ligne</title>
+		<link rel="stylesheet" href="bootstrap.min.css">
+		<style>
+			body {
+				margin-top: 10px;
+			}
+
+			td {
+				text-align: center;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="container-fluid">
+			<div class="row">
+				<div class="col-md-12">
+					<table class="table table-bordered table-hover table-condensed">
+						<tbody>
+							<%
+								first = true
+								results.each do |r|
+									unless first
+							%>
+							<tr>
+								<th colspan="16">&nbsp;</th>
+							</tr>
+							<%
+									end
+									first = false
+							%>
+							<tr>
+								<th colspan="16" id="<%= r[0] %>"><%= r[0] %></th>
+							</tr>
+							<tr>
+								<th>Site (IP)</th>
+								<td>Rang</td>
+								<td>Clef (bits)</td>
+								<td>Chiff. (bits)</td>
+								<td class="danger">SSL</td>
+								<td class="success">TLS</td>
+								<td class="success">TLS 1.2</td>
+								<td class="success">TLS only</td>
+								<td class="danger">SHA1 sig</td>
+								<td class="danger">RC4</td>
+								<td class="danger">DES/3DES</td>
+								<td class="danger">MD5</td>
+								<td class="success">PFS</td>
+								<td class="success">PFS only</td>
+								<td class="success">HSTS</td>
+								<td class="success">HSTS long</td>
+							</tr>
+							<% r[1].each do |n|
+							   s = n.server
+							   rank_color = case n.grade
+											   when 'A+' then :info
+											   when 'A', 'A-' then :success
+											   when 'B', 'C' then :warning
+											   else :danger
+											end
+							%>
+							<tr>
+								<th id="<%= s.hostname %>">
+									<a href="https://www.ssllabs.com/ssltest/analyze.html?d=<%= s.hostname %>" target="_blank">
+										<%= s.hostname %>
+									</a>
+								</th>
+								<td class="<%= rank_color %>">
+									<%= n.grade %>
+								</td>
+								<td class="<%= s.key_size < 2048 ? :danger : s.key_size < 4096 ? :warning : :success %>">
+									<%= s.key_size %>
+									(<%= s.key_size < 2048 ? '☹' : '☺' %>)
+								</td>
+								<% cipher_size = s.cipher_size[:worst] %>
+								<td class="<%= cipher_size < 112 ? :danger : cipher_size < 128 ? :warning : :success %>">
+									<%= cipher_size %>
+									(<%= cipher_size < 128 ? '☹' : '☺' %>)
+								</td>
+								<td class="<%= s.ssl? ? :danger : :success %>">
+									<%= s.ssl? ? '✓' : '✗' %>
+									(<%= s.ssl? ? '☹' : '☺' %>)
+								</td>
+								<td class="<%= s.tls? ? :success : :danger %>">
+									<%= s.tls? ? '✓' : '✗' %>
+									(<%= s.tls? ? '☺' : '☹' %>)
+								</td>
+								<td class="<%= s.tlsv1_2? ? :success : :danger %>">
+									<%= s.tlsv1_2? ? '✓' : '✗' %>
+									(<%= s.tlsv1_2? ? '☺' : '☹' %>)
+								</td>
+								<td class="<%= s.tls_only? ? :success : :danger %>">
+									<%= s.tls_only? ? '✓' : '✗' %>
+									(<%= s.tls_only? ? '☺' : '☹' %>)
+								</td>
+								<td class="<%= s.sha1_sig? ? :danger : :success %>">
+									<%= s.sha1_sig? ? '✓' : '✗' %>
+									(<%= s.sha1_sig? ? '☹' : '☺' %>)
+								</td>
+								<td class="<%= s.rc4? ? :danger : :success %>">
+									<%= s.rc4? ? '✓' : '✗' %>
+									(<%= s.rc4? ? '☹' : '☺' %>)
+								</td>
+								<td class="<%= s.any_des? ? :danger : :success %>">
+									<%= s.any_des? ? '✓' : '✗' %>
+									(<%= s.any_des? ? '☹' : '☺' %>)
+								</td>
+								<td class="<%= s.md5? ? :danger : :success %>">
+									<%= s.md5? ? '✓' : '✗' %>
+									(<%= s.md5? ? '☹' : '☺' %>)
+								</td>
+								<td class="<%= s.pfs? ? :success : :danger %>">
+									<%= s.pfs? ? '✓' : '✗' %>
+									(<%= s.pfs? ? '☺' : '☹' %>)
+								</td>
+								<td class="<%= s.pfs_only? ? :success : :danger %>">
+									<%= s.pfs_only? ? '✓' : '✗' %>
+									(<%= s.pfs_only? ? '☺' : '☹' %>)
+								</td>
+								<td class="<%= s.hsts? ? :success : :danger %>">
+									<%= s.hsts? ? '✓' : '✗' %>
+									(<%= s.hsts? ? '☺' : '☹' %>)
+								</td>
+								<td class="<%= s.hsts_long? ? :success : :danger %>">
+									<%= s.hsts_long? ? '✓' : '✗' %>
+									(<%= s.hsts_long? ? '☺' : '☹' %>)
+								</td>
+							</tr>
+							<% end %>
+							<tr>
+								<th>Site</th>
+								<td>Rang</td>
+								<td>Clef (bits)</td>
+								<td>Chiff. (bits)</td>
+								<td class="danger">SSL</td>
+								<td class="success">TLS</td>
+								<td class="success">TLS 1.2</td>
+								<td class="success">TLS only</td>
+								<td class="danger">SHA1 sig</td>
+								<td class="danger">RC4</td>
+								<td class="danger">DES/3DES</td>
+								<td class="danger">MD5</td>
+								<td class="success">PFS</td>
+								<td class="success">PFS only</td>
+								<td class="success">HSTS</td>
+								<td class="success">HSTS long</td>
+							</tr>
+							<% end %>
+						</tbody>
+					</table>
+				</div>
+			</div>
+		</div>
+	</body>
+</html>

@@ -1,0 +1,66 @@
+#!/usr/bin/env ruby
+require 'erb'
+require 'yaml'
+require 'thread'
+require 'parallel'
+require 'logging'
+$:.unshift 'lib'
+require 'sslcheck'
+
+#Logging.logger.root.appenders = Logging.appenders.stdout
+#Logging.logger.root.level = :info
+
+SCORES = %w(A+ A A- B C D E F T M)
+def score(a); SCORES.index a.grade; end
+
+def check(hostname)
+	hostname.strip!
+	#print '  ', hostname, ' : '
+	begin
+		server = SSLCheck::Server.new hostname
+		note = SSLCheck::Grade.new server
+		#puts note.grade
+		note
+	rescue => e
+		puts e
+		raise
+	end
+end
+
+config = YAML.load_file 'hosts.yml'
+results = Hash[config.collect { |c| [c['description'], []] }]
+
+
+tests = []
+config.each do |c|
+	description, hosts = c['description'], c['hostnames']
+	hosts.each { |host| tests << [description, host] }
+end
+
+# tests.each do |description, host|
+# 	results[description] << check(host)
+# end
+
+semaphore = Mutex.new
+Parallel.each tests, progress: 'Testing', in_threads: 8 do |description, host|
+	begin
+		result = check host
+		semaphore.synchronize do
+			results[description] << result
+		end
+	rescue SSLCheck::Server::TLSNotAvailableException
+	rescue Exception => e
+		p host, e
+		raise
+	end
+end
+
+results.each do |d, _|
+	results[d].sort! do |a, b|
+		cmp = score(a) <=> score(b)
+		cmp != 0 ? cmp : a.server.hostname <=> b.server.hostname
+	end
+end
+
+puts 'Generate results'
+File.write 'output/index.html', ERB.new(File.read('index2.erb')).result(binding)
