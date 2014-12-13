@@ -5,12 +5,23 @@ require 'parallel'
 require 'tcp_timeout'
 
 module SSLCheck
+	class NoSslTlsServer
+		attr_reader :hostname, :port
+
+		def initialize(hostname, port=443)
+			@hostname, @port = hostname, port
+		end
+	end
+
 	class Server
+		TCP_TIMEOUT = 60
+		SSL_TIMEOUT = 2*TCP_TIMEOUT
 		EXISTING_METHODS = %i(TLSv1_2 TLSv1_1 TLSv1 SSLv3 SSLv2)
 		SUPPORTED_METHODS = OpenSSL::SSL::SSLContext::METHODS
-		TIMEOUT = 5
 		class TLSNotAvailableException < Exception; end
 		class CipherNotAvailable < Exception; end
+		class Timeout < Exception; end
+		class ConnectionError < Exception; end
 
 		attr_reader :hostname, :port, :prefered_ciphers, :cert, :hsts
 
@@ -19,12 +30,12 @@ module SSLCheck
 			@hostname = hostname
 			@port = port
 			@methods = methods
-			@log.error { "Check for #{hostname} (#{port})"}
-
+			@log.error { "Begin analysis" }
 			extract_cert
 			fetch_prefered_ciphers
 			check_supported_cipher
 			fetch_hsts
+			@log.error { "End analysis" }
 		end
 
 		def supported_methods
@@ -33,16 +44,30 @@ module SSLCheck
 			{worst: worst, best: best}
 		end
 
-		def key_size
+		def key
 			key = @cert.public_key
 			case key
 				when OpenSSL::PKey::RSA then
-					key.n.num_bits
+					[:rsa, key.n.num_bits]
 				when OpenSSL::PKey::DSA then
-					key.p.num_bits
+					[:dsa, key.p.num_bits]
 				when OpenSSL::PKey::EC then
-					key.group.degree
+					[:ecc, key.group.degree]
 			end
+		end
+
+		def key_size
+			type, size = self.key
+			if type == :ecc
+				size = case size
+					when 160 then 1024
+					when 224 then 2048
+					when 256 then 3072
+					when 384 then 7680
+					when 521 then 15360
+				end
+			end
+			size
 		end
 
 		def cipher_size
@@ -60,9 +85,9 @@ module SSLCheck
 		end
 
 		{
-			md2: %w(md2WithRSAEncryption),
-			md5: %w(md5WithRSAEncryption md5WithRSA),
-			sha1: %w(sha1WithRSAEncryption sha1WithRSA dsaWithSHA1 dsaWithSHA1_2 ecdsa_with_SHA1)
+				  md2: %w(md2WithRSAEncryption),
+				  md5: %w(md5WithRSAEncryption md5WithRSA),
+				  sha1: %w(sha1WithRSAEncryption sha1WithRSA dsaWithSHA1 dsaWithSHA1_2 ecdsa_with_SHA1)
 		}.each do |name, signature|
 			class_eval <<-RUBY_EVAL, __FILE__, __LINE__ + 1
 				def #{name}_sig?
@@ -72,12 +97,12 @@ module SSLCheck
 		end
 
 		{
-			md5: %w(MD5),
-			sha1: %w(SHA),
+				  md5: %w(MD5),
+				  sha1: %w(SHA),
 
-			rc4: %w(RC4),
-			des3: %w(3DES DES-CBC3),
-			des: %w(DES-CBC)
+				  rc4: %w(RC4),
+				  des3: %w(3DES DES-CBC3),
+				  des: %w(DES-CBC)
 		}.each do |name, ciphers|
 			class_eval <<-RUBY_EVAL, __FILE__, __LINE__ + 1
 				def #{name}?
@@ -129,8 +154,52 @@ module SSLCheck
 		end
 
 		private
-		def ssl_client(method = nil, ciphers = nil, &block)
-			ssl_context = method.nil? ? OpenSSL::SSL::SSLContext.new : OpenSSL::SSL::SSLContext.new(method)
+		def connect(family, host, port, &block)
+			socket = Socket.new family, Socket::SOCK_STREAM
+			sockaddr = Socket.sockaddr_in port, host
+			@log.debug { "Connecting to #{host}:#{port}" }
+			begin
+				status = socket.connect_nonblock sockaddr
+				@log.debug { "Connecting to #{host}:#{port} status : #{status}" }
+				raise ConnectionError.new status unless status == 0
+				@log.debug { "Connected to #{host}:#{port}" }
+				block_given? ? block.call(socket) : nil
+			rescue IO::WaitReadable
+				@log.debug { "Waiting for read to #{host}:#{port}" }
+				raise Timeout.new unless IO.select [socket], nil, nil, TCP_TIMEOUT
+				retry
+			rescue IO::WaitWritable
+				@log.debug { "Waiting for write to #{host}:#{port}" }
+				raise Timeout.new unless IO.select nil, [socket], nil, TCP_TIMEOUT
+				retry
+			ensure
+				socket.close
+			end
+		end
+
+		def ssl_connect(socket, context, method, &block)
+			ssl_socket = OpenSSL::SSL::SSLSocket.new socket, context
+			ssl_socket.hostname = @hostname unless method == :SSLv2
+			@log.debug { "SSL connecting to #{@hostname}:#{@port}" }
+			begin
+				ssl_socket.connect_nonblock
+				@log.debug { "SSL connected to #{@hostname}:#{@port}" }
+				return block_given? ? block.call(ssl_socket) : nil
+			rescue IO::WaitReadable
+				@log.debug { "Waiting for SSL read to #{@hostname}:#{@port}" }
+				raise Timeout.new unless IO.select [socket], nil, nil, SSL_TIMEOUT
+				retry
+			rescue IO::WaitWritable
+				@log.debug { "Waiting for SSL write to #{@hostname}:#{@port}" }
+				raise Timeout.new unless IO.select nil, [socket], nil, SSL_TIMEOUT
+				retry
+			ensure
+				ssl_socket.close
+			end
+		end
+
+		def ssl_client(method, ciphers = nil, &block)
+			ssl_context = OpenSSL::SSL::SSLContext.new method
 			ssl_context.ciphers = ciphers if ciphers
 			@log.debug { "Try #{method} connection with #{ciphers}" }
 
@@ -144,47 +213,15 @@ module SSLCheck
 				end
 
 				addrs.each do |addr|
-					addr = addr[3]
-					sockaddr = Socket.sockaddr_in @port, addr
-					socket = Socket.new family, Socket::SOCK_STREAM
-					begin
-						@log.debug { "Connecting to #{addr}:#{@port}" }
-						socket.connect_nonblock sockaddr
-					rescue IO::WaitWritable
-						@log.debug { "Waiting for connection to #{addr}:#{@port}" }
-						if IO.select nil, [socket], nil, TIMEOUT
-							begin
-								if socket.connect_nonblock(sockaddr) == 0
-									@log.debug { "Connected to #{addr}:#{@port}" }
-
-									ssl_socket = OpenSSL::SSL::SSLSocket.new socket, ssl_context
-									ssl_socket.hostname = @hostname
-									begin
-										@log.debug { "TLS connection to #{addr}:#{@port}" }
-										ssl_socket.connect
-										return block_given? ? block.call(ssl_socket) : nil
-									rescue OpenSSL::SSL::SSLError => e
-											@log.debug { "Cipher not supported #{addr}:#{@port} : #{e}" }
-											raise CipherNotAvailable.new e
-									ensure
-										@log.debug { "Closing TLS connection to #{addr}:#{@port}" }
-										ssl_socket.close
-									end
-								end
-							rescue Errno::ECONNRESET, Errno::ECONNREFUSED, Errno::EHOSTUNREACH => e
-								@log.debug { "Connection failure to #{addr}:#{@port} : #{e}" }
-							end
-						else
-							@log.debug { "Connection timeout to #{addr}:#{@port}" }
+					connect family, addr[3], @port do |socket|
+						ssl_connect socket, ssl_context, method do |ssl_socket|
+							return block_given? ? block.call(ssl_socket) : nil
 						end
-					ensure
-						@log.debug { "Closing connection to #{addr}:#{@port}" }
-						socket.close
 					end
 				end
 			end
 
-			@log.debug { "No TLS available on #{@hostname}" }
+			@log.debug { "No SSL available on #{@hostname}" }
 			raise CipherNotAvailable.new
 		end
 
@@ -193,9 +230,10 @@ module SSLCheck
 				next unless SUPPORTED_METHODS.include? method
 				begin
 					@cert = ssl_client(method) { |s| s.peer_cert }
-					@log.warn { "Certificate #{@cert.subject}"}
+					@log.warn { "Certificate #{@cert.subject}" }
 					break
-				rescue CipherNotAvailable
+				rescue Exception => e
+					@log.info { "Method #{method} not supported : #{e}" }
 				end
 			end
 			raise TLSNotAvailableException.new unless @cert
@@ -203,10 +241,10 @@ module SSLCheck
 
 		def prefered_cipher(method)
 			cipher = ssl_client(method, %w(ALL:COMPLEMENTOFALL)) { |s| s.cipher }
-			@log.warn { "Prefered cipher for #{method} : #{cipher[0]}"}
+			@log.warn { "Prefered cipher for #{method} : #{cipher[0]}" }
 			cipher
-		rescue CipherNotAvailable => e
-			@log.info { "Method #{method} not supported : #{e}"}
+		rescue Exception => e
+			@log.info { "Method #{method} not supported : #{e}" }
 			nil
 		end
 
@@ -216,6 +254,7 @@ module SSLCheck
 				next unless SUPPORTED_METHODS.include? method
 				@prefered_ciphers[method] = prefered_cipher method
 			end
+			raise TLSNotAvailableException.new unless @prefered_ciphers.any? { |_, c| !c.nil? }
 		end
 
 		def available_ciphers(method)
@@ -224,10 +263,10 @@ module SSLCheck
 
 		def supported_cipher?(method, cipher)
 			ssl_client method, [cipher]
-			@log.warn { "Verify #{method} / #{cipher[0]} : OK"}
+			@log.warn { "Verify #{method} / #{cipher[0]} : OK" }
 			true
-		rescue TLSNotAvailableException, CipherNotAvailable => e
-			@log.debug { "Verify #{method} / #{cipher[0]} : NOK (#{e}"}
+		rescue Exception => e
+			@log.info { "Verify #{method} / #{cipher[0]} : NOK (#{e})" }
 			false
 		end
 
@@ -247,10 +286,10 @@ module SSLCheck
 				begin
 					next unless SUPPORTED_METHODS.include? method
 					@log.debug { "Check HSTS with #{method}" }
-					response = HTTParty.head "https://#{@hostname}#{port}/", {follow_redirects: false, verify: false, ssl_version: method, timeout: TIMEOUT}
+					response = HTTParty.head "https://#{@hostname}#{port}/", {follow_redirects: false, verify: false, ssl_version: method, timeout: SSL_TIMEOUT}
 					break
-				rescue
-					@log.debug { "#{method} not supported" }
+				rescue Exception => e
+					@log.debug { "#{method} not supported : #{e}" }
 				end
 			end
 

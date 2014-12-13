@@ -1,6 +1,16 @@
+require 'timeout'
+
 module SSLCheck
+	class NoSslTlsGrade
+		attr_reader :server, :score, :grade
+
+		def initialize(server)
+			@server, @score, @grade = server, -1, 'X'
+		end
+	end
+
 	class Grade
-		attr_reader :server, :score, :grade, :warning, :good
+		attr_reader :server, :score, :grade, :warning, :success
 
 		def initialize(server)
 			@server = server

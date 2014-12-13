@@ -7,6 +7,8 @@ gem 'tcp_timeout'
 gem 'parallel'
 gem 'ruby-progressbar'
 gem 'logging'
+gem 'activerecord'
+gem 'sqlite3'
 
 group :test do
 	gem 'rspec'

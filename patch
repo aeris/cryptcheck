@@ -1,0 +1,10 @@
+--- Makefile	2014-12-13 01:20:15.025576957 +0100
++++ Makefile	2014-12-13 01:26:44.801203932 +0100
+@@ -60,6 +60,7 @@
+ sbindir = $(exec_prefix)/sbin
+ bindir = $(exec_prefix)/bin
+ archdir = $(rubyarchdir)
++top_srcdir = ../..
+ 
+ 
+ CC = gcc

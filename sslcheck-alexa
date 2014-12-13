@@ -1,0 +1,19 @@
+#!/usr/bin/env ruby
+require 'yaml'
+$:.unshift 'lib'
+require 'sslcheck'
+
+Logging.logger.root.appenders = Logging.appenders.stdout
+Logging.logger.root.level = :error
+
+hosts = []
+File.open('top-1m.csv', 'r') do |file|
+	i = 0
+	while line = file.gets
+		hosts << ['Top 100 Alexa', line.strip.split(',')[1]]
+		i += 1
+		break if i == 100
+	end
+end
+
+SSLCheck.analyze hosts, 'alexa'
