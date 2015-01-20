@@ -1,11 +1,10 @@
 #!/usr/bin/env ruby
-ENV['LD_LIBRARY_PATH'] = '/home/aeris/Workspace/external/sslscan/openssl'
-require 'logging'
 $:.unshift 'lib'
+require 'logging'
 require 'sslcheck'
 
 Logging.logger.root.appenders = Logging.appenders.stdout
 Logging.logger.root.level = :warn
 
-p server = SSLCheck::Server.new(ARGV[0])
+server = SSLCheck::Server.new(ARGV[0], ARGV[1] || 443)
 p grade = SSLCheck::Grade.new(server)

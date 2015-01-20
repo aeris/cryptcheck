@@ -1,16 +1,5 @@
 #!/usr/bin/env ruby
-require 'yaml'
 $:.unshift 'lib'
 require 'sslcheck'
-
-Logging.logger.root.appenders = Logging.appenders.stdout
-Logging.logger.root.level = :error
-
-config = YAML.load_file 'hosts.yml'
-hosts = []
-config.each do |c|
-	d, hs = c['description'], c['hostnames']
-	hs.each { |host| hosts << [d, host] }
-end
-
-SSLCheck.analyze hosts, 'results'
+name = ARGV[0] || 'index'
+SSLCheck.analyze_from_file "output/#{name}.yml", "output/#{name}.html"

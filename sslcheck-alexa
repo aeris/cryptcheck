@@ -16,4 +16,4 @@ File.open('top-1m.csv', 'r') do |file|
 	end
 end
 
-SSLCheck.analyze hosts, 'alexa'
+SSLCheck.analyze hosts, 'output/alexa.html'
