@@ -36,9 +36,12 @@ module SSLCheck
 			end
 
 			@grade = [@grade, 'B'].max if !@server.tlsv1_2? or @server.key_size < 2048
-			@grade = [@grade, 'D'].max if @server.rc4?
-			@grade = [@grade, 'E'].max if @server.des3?
+			@grade = [@grade, 'C'].max if @server.des3?
+			@grade = [@grade, 'E'].max if @server.rc4? or @server.des?
 			@grade = [@grade, 'F'].max if @server.ssl? or @server.key_size < 1024
+
+			@grade = 'M' unless @server.cert_valid
+			@grade = 'T' unless @server.cert_trusted
 		end
 
 		def warning
@@ -62,9 +65,10 @@ module SSLCheck
 			@success << :hsts_long if @server.hsts_long?
 		end
 
+		ALL_WARNING = %i(md5_sig md5 rc4 des)
 		ALL_SUCCESS = %i(pfs hsts hsts_long)
 		def perfect
-			@grade = 'A+' if @grade == 'A' and @warning.empty? and (ALL_SUCCESS & @success) == ALL_SUCCESS
+			@grade = 'A+' if @grade == 'A' and (ALL_WARNING & @warning).empty? and (ALL_SUCCESS & @success) == ALL_SUCCESS
 		end
 
 		METHODS_SCORES = { SSLv2: 0, SSLv3: 80, TLSv1: 90, TLSv1_1: 95, TLSv1_2: 100 }

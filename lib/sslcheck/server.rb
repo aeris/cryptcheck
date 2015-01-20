@@ -14,16 +14,18 @@ module SSLCheck
 	end
 
 	class Server
-		TCP_TIMEOUT = 60
+		TCP_TIMEOUT = 10
 		SSL_TIMEOUT = 2*TCP_TIMEOUT
 		EXISTING_METHODS = %i(TLSv1_2 TLSv1_1 TLSv1 SSLv3 SSLv2)
 		SUPPORTED_METHODS = OpenSSL::SSL::SSLContext::METHODS
-		class TLSNotAvailableException < Exception; end
-		class CipherNotAvailable < Exception; end
-		class Timeout < Exception; end
-		class ConnectionError < Exception; end
+		class TLSException < Exception; end
+		class TLSNotAvailableException < TLSException; end
+		class CipherNotAvailable < TLSException; end
+		class Timeout < TLSException; end
+		class TLSTimeout < TLSException; end
+		class ConnectionError < TLSException; end
 
-		attr_reader :hostname, :port, :prefered_ciphers, :cert, :hsts
+		attr_reader :hostname, :port, :prefered_ciphers, :cert, :hsts, :cert_valid, :cert_trusted
 
 		def initialize(hostname, port=443, methods: EXISTING_METHODS)
 			@log = Logging.logger[hostname]
@@ -111,10 +113,6 @@ module SSLCheck
 			RUBY_EVAL
 		end
 
-		def any_des?
-			des? or des3?
-		end
-
 		def ssl?
 			sslv2? or sslv3?
 		end
@@ -187,12 +185,14 @@ module SSLCheck
 				return block_given? ? block.call(ssl_socket) : nil
 			rescue IO::WaitReadable
 				@log.debug { "Waiting for SSL read to #{@hostname}:#{@port}" }
-				raise Timeout.new unless IO.select [socket], nil, nil, SSL_TIMEOUT
+				raise TLSTimeout.new unless IO.select [socket], nil, nil, SSL_TIMEOUT
 				retry
 			rescue IO::WaitWritable
 				@log.debug { "Waiting for SSL write to #{@hostname}:#{@port}" }
-				raise Timeout.new unless IO.select nil, [socket], nil, SSL_TIMEOUT
+				raise TLSTimeout.new unless IO.select nil, [socket], nil, SSL_TIMEOUT
 				retry
+			rescue OpenSSL::SSL::SSLError => e
+				raise TLSException, e
 			ensure
 				ssl_socket.close
 			end
@@ -229,14 +229,16 @@ module SSLCheck
 			@methods.each do |method|
 				next unless SUPPORTED_METHODS.include? method
 				begin
-					@cert = ssl_client(method) { |s| s.peer_cert }
+					@cert, @chain = ssl_client(method) { |s| [s.peer_cert, s.peer_cert_chain] }
 					@log.warn { "Certificate #{@cert.subject}" }
 					break
-				rescue Exception => e
+				rescue TLSException => e
 					@log.info { "Method #{method} not supported : #{e}" }
 				end
 			end
 			raise TLSNotAvailableException.new unless @cert
+			@cert_valid = OpenSSL::SSL.verify_certificate_identity @cert, @hostname
+			@cert_trusted = verify_trust @chain, @cert
 		end
 
 		def prefered_cipher(method)
@@ -265,7 +267,7 @@ module SSLCheck
 			ssl_client method, [cipher]
 			@log.warn { "Verify #{method} / #{cipher[0]} : OK" }
 			true
-		rescue Exception => e
+		rescue TLSException => e
 			@log.info { "Verify #{method} / #{cipher[0]} : NOK (#{e})" }
 			false
 		end
@@ -304,6 +306,29 @@ module SSLCheck
 
 			@log.info { 'No HSTS' }
 			@hsts = nil
+		end
+
+		def verify_trust(chain, cert)
+			store = OpenSSL::X509::Store.new
+			#store.purpose = OpenSSL::X509::PURPOSE_SSL_CLIENT
+			%w(mozilla cacert).each do |directory|
+				Dir.glob(File.join '/usr/share/ca-certificates', directory, '*').each do |file|
+					File.open file, 'r' do |file|
+						cert = OpenSSL::X509::Certificate.new file.read
+						begin
+							store.add_cert cert
+						rescue OpenSSL::X509::StoreError
+						end
+					end
+				end
+			end
+			chain.each do |cert|
+				begin
+					store.add_cert cert
+				rescue OpenSSL::X509::StoreError
+				end
+			end
+			store.verify cert
 		end
 	end
 end
