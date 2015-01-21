@@ -21,13 +21,13 @@
   - www.laquadrature.net
   - fsf.org
   - ubuntu-paris.org
-  - parinux.org
+  - www.parinux.org
   - aful.org
   - rmll.info
   - ubuntu-fr.org
   - linuxfr.org
   - lea-linux.org
-  - framasoft.net
+  - framasoft.org
   - gnu.org
 - description: Banques en ligne
   hostnames:
@@ -197,7 +197,6 @@
   - spideroak.com
   - hubic.com
   - box.com
-  - mega.co.nz
 - description: Divers
   hostnames:
   - www.mailden.net

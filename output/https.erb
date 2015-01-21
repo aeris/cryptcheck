@@ -84,7 +84,7 @@
 										<%= s.hostname %>
 									</a>
 								</th>
-								<% if s.is_a? SSLCheck::NoSslTlsServer %>
+								<% if s.is_a? SSLCheck::TlsNotSupportedServer %>
 								<td class="critical" colspan="16">
 									No SSL/TLS
 								</td>
@@ -94,7 +94,7 @@
 											when 'A+' then :info
 											when 'A', 'A-' then :success
 											when 'B', 'C' then :warning
-											when 'T', 'X' then :critical
+											when 'T', 'M' then :critical
 											else :danger
 										end
 								%>

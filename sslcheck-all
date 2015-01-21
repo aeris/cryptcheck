@@ -1,5 +1,0 @@
-#!/usr/bin/env ruby
-$:.unshift 'lib'
-require 'sslcheck'
-name = ARGV[0] || 'index'
-SSLCheck.analyze_from_file "output/#{name}.yml", "output/#{name}.html"
