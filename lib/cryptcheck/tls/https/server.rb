@@ -8,7 +8,7 @@ module CryptCheck
 			class Server < Tls::Server
 				attr_reader :hsts
 
-				def initialize(hostname, port=443, methods: EXISTING_METHODS)
+				def initialize(hostname, port=443)
 					super
 					fetch_hsts
 				end

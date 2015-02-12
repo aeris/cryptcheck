@@ -65,7 +65,7 @@ module CryptCheck
 			def all_warning
 				ALL_WARNING
 			end
-			ALL_SUCCESS = %i(pfs hsts hsts_long)
+			ALL_SUCCESS = %i(pfs)
 			def all_success
 				ALL_SUCCESS
 			end

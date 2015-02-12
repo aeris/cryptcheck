@@ -32,16 +32,14 @@ module CryptCheck
 
 			attr_reader :hostname, :port, :prefered_ciphers, :cert, :cert_valid, :cert_trusted
 
-			def initialize(hostname, port, methods: EXISTING_METHODS)
+			def initialize(hostname, port)
 				@log = Logging.logger[hostname]
 				@hostname = hostname
 				@port = port
-				@methods = methods
 				@log.error { "Begin analysis" }
 				extract_cert
 				fetch_prefered_ciphers
 				check_supported_cipher
-				fetch_hsts
 				@log.error { "End analysis" }
 			end
 
@@ -228,7 +226,7 @@ module CryptCheck
 			end
 
 			def extract_cert
-				@methods.each do |method|
+				EXISTING_METHODS.each do |method|
 					next unless SUPPORTED_METHODS.include? method
 					begin
 						@cert, @chain = ssl_client(method) { |s| [s.peer_cert, s.peer_cert_chain] }
@@ -254,7 +252,7 @@ module CryptCheck
 
 			def fetch_prefered_ciphers
 				@prefered_ciphers = {}
-				@methods.each do |method|
+				EXISTING_METHODS.each do |method|
 					next unless SUPPORTED_METHODS.include? method
 					@prefered_ciphers[method] = prefered_cipher method
 				end
@@ -276,7 +274,7 @@ module CryptCheck
 
 			def check_supported_cipher
 				@supported_ciphers = {}
-				@methods.each do |method|
+				EXISTING_METHODS.each do |method|
 					next unless SUPPORTED_METHODS.include? method and @prefered_ciphers[method]
 					@supported_ciphers[method] = available_ciphers(method).select { |cipher| supported_cipher? method, cipher }
 				end

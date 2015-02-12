@@ -21,17 +21,16 @@ module CryptCheck
 			def self.analyze(hosts, output, groups = nil)
 				results = {}
 				semaphore = ::Mutex.new
-				::Parallel.each hosts, progress: 'Analysing', in_threads: PARALLEL_ANALYSIS,
-				              finish: lambda { |item, _, _| puts item[1] } do |description, host|
-					              result = grade host.strip
-					              semaphore.synchronize do
-						              if results.include? description
-							              results[description] << result
-						              else
-							              results[description] = [result]
-						              end
-					              end
-				              end
+				::Parallel.each hosts, progress: 'Analysing', in_threads: PARALLEL_ANALYSIS, finish: lambda { |item, _, _| puts item[1] } do |description, host|
+					result = grade host.strip
+					semaphore.synchronize do
+						if results.include? description
+							results[description] << result
+						else
+							results[description] = [result]
+						end
+					end
+				end
 
 				results = ::Hash[groups.collect { |g| [g, results[g]] }] if groups
 
@@ -65,6 +64,7 @@ module CryptCheck
 
 			private
 			SCORES = %w(A+ A A- B C D E F T M X)
+
 			def self.score(a)
 				SCORES.index a.grade
 			end
