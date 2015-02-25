@@ -13,11 +13,11 @@ module CryptCheck
 				attr_reader :domain
 
 				def initialize(domain, type=:s2s, hostname: nil)
+					@type, @domain = type, domain
 					service, port = case type
 								  when :s2s then ['_xmpp-server', 5269]
 								  when :c2s then ['_xmpp-client', 5222]
 							  end
-					@domain = domain
 					unless hostname
 						srv = RESOLVER.getresources("#{service}._tcp.#{domain}", Resolv::DNS::Resource::IN::SRV).sort_by(&:priority).first
 						if srv
@@ -30,8 +30,20 @@ module CryptCheck
 				end
 
 				def ssl_connect(socket, context, method, &block)
-					socket.write "<?xml version='1.0' ?><stream:stream xmlns:stream='http://etherx.jabber.org/streams' xmlns='jabber:client' to='#{@domain}' version='1.0'>"
-					response = ::Nokogiri::XML socket.recv 4096
+					type = case @type
+								 when :s2s then 'jabber:server'
+								 when :c2s then 'jabber:client'
+							 end
+					socket.write "<?xml version='1.0' ?><stream:stream xmlns:stream='http://etherx.jabber.org/streams' xmlns='#{type}' to='#{@domain}' version='1.0'>"
+					response = ''
+					loop do
+						response += socket.recv 1024
+						xml = ::Nokogiri::XML response
+						unless xml.xpath('//stream:features').empty?
+							response = xml
+							break
+						end
+					end
 					starttls = response.xpath '//tls:starttls', tls: TLS_NAMESPACE
 					raise TLSNotAvailableException unless starttls
 					@required = !starttls.xpath('//tls:required', tls: TLS_NAMESPACE).nil?

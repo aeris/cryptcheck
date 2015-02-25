@@ -10,6 +10,7 @@ gem 'ruby-progressbar'
 gem 'logging'
 gem 'activerecord'
 gem 'sqlite3'
+gem 'rake'
 
 group :test do
 	gem 'rspec'
