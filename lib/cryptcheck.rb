@@ -1,6 +1,8 @@
 module CryptCheck
 	module Tls
 		autoload :Server, 'cryptcheck/tls/server'
+		autoload :TcpServer, 'cryptcheck/tls/server'
+		autoload :UdpServer, 'cryptcheck/tls/server'
 		autoload :TlsNotSupportedServer, 'cryptcheck/tls/server'
 		autoload :Grade, 'cryptcheck/tls/grade'
 		autoload :TlsNotSupportedGrade, 'cryptcheck/tls/grade'

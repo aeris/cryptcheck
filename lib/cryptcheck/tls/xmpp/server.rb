@@ -9,7 +9,7 @@ module CryptCheck
 			TLS_NAMESPACE = 'urn:ietf:params:xml:ns:xmpp-tls'
 			RESOLVER = Resolv::DNS.new
 
-			class Server < Tls::Server
+			class Server < Tls::TcpServer
 				attr_reader :domain
 
 				def initialize(domain, type=:s2s, hostname: nil)

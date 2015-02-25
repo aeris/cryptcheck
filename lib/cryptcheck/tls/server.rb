@@ -153,7 +153,7 @@ module CryptCheck
 
 			private
 			def connect(family, host, port, &block)
-				socket = ::Socket.new family, ::Socket::SOCK_STREAM
+				socket = ::Socket.new family, sock_type
 				sockaddr = ::Socket.sockaddr_in port, host
 				@log.debug { "Connecting to #{host}:#{port}" }
 				begin
@@ -301,6 +301,20 @@ module CryptCheck
 					end
 				end
 				store.verify cert
+			end
+		end
+
+		class TcpServer < Server
+			private
+			def sock_type
+				::Socket::SOCK_STREAM
+			end
+		end
+
+		class UdpServer < Server
+			private
+			def sock_type
+				::Socket::SOCK_DGRAM
 			end
 		end
 	end

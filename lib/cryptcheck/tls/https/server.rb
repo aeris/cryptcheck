@@ -5,7 +5,7 @@ require 'httparty'
 module CryptCheck
 	module Tls
 		module Https
-			class Server < Tls::Server
+			class Server < Tls::TcpServer
 				attr_reader :hsts
 
 				def initialize(hostname, port=443)
