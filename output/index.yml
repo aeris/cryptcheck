@@ -30,6 +30,42 @@
   - lea-linux.org
   - framasoft.org
   - gnu.org
+- description: Framasoft
+  hostnames:
+  - framabag.org
+  - framabin.org
+  - framabag.org
+  - framadate.org
+  - framanews.org
+  - framasphere.org
+  - framacalc.org
+  - framakey.org
+  - framapic.org
+  - framindmap.org
+  - framacolibri.org
+  - framabee.org
+  - tontonroger.org
+  - trouvons.org
+  - frama.link
+  - huit.re
+  - lite.framapad.org
+  - lite2.framapad.org
+  - lite3.framapad.org
+  - lite4.framapad.org
+  - lite5.framapad.org
+  - lite6.framapad.org
+  - quotidien.framapad.org
+  - hebdo.framapad.org
+  - mensuel.framapad.org
+  - bimensuel.framapad.org
+  - semestriel.framapad.org
+  - annuel.framapad.org
+  - git.framasoft.org
+  - participer.framasoft.org
+  - contact.framasoft.org
+  - stats.framasoft.org
+  - status.framasoft.org
+  - soutenir.framasoft.org
 - description: Banques en ligne
   hostnames:
   - www.labanquepostale.fr
