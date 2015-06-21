@@ -32,7 +32,7 @@
   - gnu.org
 - description: Banques en ligne
   hostnames:
-  - www.labanquepostale.fr
+  - voscomptesenligne.labanquepostale.fr
   - www.labanquepostale-cartesprepayees.fr
   - www.secure.bnpparibas.net
   - www.axabanque.fr
