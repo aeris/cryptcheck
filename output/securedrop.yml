@@ -1,0 +1,25 @@
+- description: SecureDrop instances
+  hostnames:
+  - securedrop.propublica.org
+  - ssl.washingtonpost.com
+  - nrkbeta.no
+  - exposefacts.org
+  - firstlook.org
+  - www.safesource.org.nz
+  - safesource.forbes.com
+  - pressfreedomfoundation.org
+  - projects.newyorker.com
+  - securedrop.theguardian.com
+  - securedrop.pogo.org
+  - bayleaks.com
+  - securedrop.radio24syv.dk
+  - tcfmailvault.info
+  - www.balkanleaks.eu
+- description: GlobalLeaks instances
+  hostnames:
+  - secure.publeaks.nl
+  - secure.wildleaks.org
+  - www.extremeleaks.org
+- description: Misc
+  hostnames:
+  - secure.frenchleaks.fr

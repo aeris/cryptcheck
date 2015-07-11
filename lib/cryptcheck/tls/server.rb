@@ -38,6 +38,7 @@ module CryptCheck
 				@port = port
 				@log.error { "Begin analysis" }
 				extract_cert
+				#@prefered_ciphers = @supported_ciphers = Hash[SUPPORTED_METHODS.collect { |m| [m, []]}]
 				fetch_prefered_ciphers
 				check_supported_cipher
 				@log.error { "End analysis" }
@@ -191,8 +192,8 @@ module CryptCheck
 					@log.debug { "Waiting for SSL write to #{@hostname}:#{@port}" }
 					raise TLSTimeout unless IO.select nil, [socket], nil, SSL_TIMEOUT
 					retry
-				rescue ::OpenSSL::SSL::SSLError => e
-					raise TLSException, e
+                rescue => e
+                    raise TLSException, e
 				ensure
 					ssl_socket.close
 				end
@@ -283,14 +284,14 @@ module CryptCheck
 			def verify_trust(chain, cert)
 				store = ::OpenSSL::X509::Store.new
 				store.purpose = OpenSSL::X509::PURPOSE_SSL_CLIENT
-				%w(mozilla cacert).each do |directory|
+				store.set_default_paths
+
+				%w(cacert).each do |directory|
 					::Dir.glob(::File.join '/usr/share/ca-certificates', directory, '*').each do |file|
-						::File.open file, 'r' do |file|
-							cert = ::OpenSSL::X509::Certificate.new file.read
-							begin
-								store.add_cert cert
-							rescue ::OpenSSL::X509::StoreError
-							end
+						cert = ::OpenSSL::X509::Certificate.new ::File.read file
+						begin
+							store.add_cert cert
+						rescue ::OpenSSL::X509::StoreError
 						end
 					end
 				end
@@ -300,7 +301,9 @@ module CryptCheck
 					rescue ::OpenSSL::X509::StoreError
 					end
 				end
-				store.verify cert
+				trusted = store.verify cert
+				p store.error_string unless trusted
+				trusted
 			end
 		end
 

@@ -1,5 +1,3 @@
-require 'socket'
-require 'openssl'
 require 'nokogiri'
 require 'resolv'
 

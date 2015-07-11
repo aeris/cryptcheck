@@ -1,4 +1,5 @@
 module CryptCheck
+	autoload :Tls, 'cryptcheck/tls'
 	module Tls
 		autoload :Server, 'cryptcheck/tls/server'
 		autoload :TcpServer, 'cryptcheck/tls/server'
@@ -17,6 +18,12 @@ module CryptCheck
 		module Xmpp
 			autoload :Server, 'cryptcheck/tls/xmpp/server'
 			autoload :Grade, 'cryptcheck/tls/xmpp/grade'
+		end
+
+		autoload :Smtp, 'cryptcheck/tls/smtp'
+		module Smtp
+			autoload :Server, 'cryptcheck/tls/smtp/server'
+			autoload :Grade, 'cryptcheck/tls/smtp/grade'
 		end
 	end
 end

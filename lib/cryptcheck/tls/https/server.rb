@@ -1,5 +1,3 @@
-require 'socket'
-require 'openssl'
 require 'httparty'
 
 module CryptCheck
@@ -17,7 +15,7 @@ module CryptCheck
 					port = @port == 443 ? '' : ":#{@port}"
 
 					response = nil
-					@methods.each do |method|
+					EXISTING_METHODS.each do |method|
 						begin
 							next unless SUPPORTED_METHODS.include? method
 							@log.debug { "Check HSTS with #{method}" }

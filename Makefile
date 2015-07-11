@@ -1,38 +1,57 @@
 PWD = $(shell pwd)
 export CPATH = $(PWD)/openssl/include
 export LIBRARY_PATH = $(PWD)/openssl
-OPENSSL_VERSION = OpenSSL_1_0_1j
-RUBY_VERSION = 2.1.5
-RUBY_OPENSSL_EXT_DIR = ruby-$(RUBY_VERSION)/ext/openssl
+OPENSSL_VERSION = 1.0.1m
+OPENSSL_DIR = openssl-$(OPENSSL_VERSION)
+RUBY_MAJOR_VERSION = 2.2
+RUBY_VERSION = $(RUBY_MAJOR_VERSION).2
+RUBY_DIR = ruby-$(RUBY_VERSION)
+RUBY_OPENSSL_EXT_DIR = $(RUBY_DIR)/ext/openssl
+export LIBRARY_PATH = $(PWD)/lib
+export C_INCLUDE_PATH = $(PWD)/$(OPENSSL_DIR)/include
 
-all: lib/libssl.so.1.0.0 lib/libcrypto.so.1.0.0 lib/openssl.so
+.SECONDARY:
+
+all: libs ext
 
 clean:
-	rm -rf ruby-$(RUBY_VERSION) openssl
+	rm -rf $(RUBY_DIR) $(OPENSSL_DIR)
 
-openssl:
-	git clone https://github.com/openssl/openssl -b $(OPENSSL_VERSION)
+mr-proper: clean
+	rm -rf lib/libcrypto.so* lib/libssl.so* lib/openssl.so
 
-openssl/Makefile: openssl
-	cd openssl; ./config shared
+$(OPENSSL_DIR)/:
+	wget https://www.openssl.org/source/$(OPENSSL_DIR).tar.gz
+	tar xf $(OPENSSL_DIR).tar.gz
+	rm -rf $(OPENSSL_DIR).tar.gz
 
-openssl/libssl.so: openssl/Makefile
-	cd openssl; $(MAKE) depend all
+$(OPENSSL_DIR)/Makefile: $(OPENSSL_DIR)/
+	cd $(OPENSSL_DIR); ./config shared
 
-lib/%.so.1.0.0: openssl/%.so
-	cp $^ $@
+$(OPENSSL_DIR)/libssl.so.1.0.0 $(OPENSSL_DIR)/libcrypto.so.1.0.0: $(OPENSSL_DIR)/Makefile
+	$(MAKE) -C $(OPENSSL_DIR) depend build_libs
 
-ruby-$(RUBY_VERSION):
-	wget http://cache.ruby-lang.org/pub/ruby/2.1/ruby-$(RUBY_VERSION).tar.gz
-	tar xf ruby-$(RUBY_VERSION).tar.gz
-	rm -f ruby-$(RUBY_VERSION).tar.gz
+lib/%.so.1.0.0: $(OPENSSL_DIR)/%.so.1.0.0
+	cp $< $@
 
-$(RUBY_OPENSSL_EXT_DIR)/Makefile: ruby-$(RUBY_VERSION)
+lib/%.so: lib/%.so.1.0.0
+	ln -s $(notdir $<) $@
+
+libs: lib/libssl.so lib/libcrypto.so
+
+$(RUBY_DIR):
+	wget http://cache.ruby-lang.org/pub/ruby/$(RUBY_MAJOR_VERSION)/$(RUBY_DIR).tar.gz
+	tar xf $(RUBY_DIR).tar.gz
+	rm -f $(RUBY_DIR).tar.gz
+
+$(RUBY_OPENSSL_EXT_DIR)/Makefile: libs $(RUBY_DIR)
 	cd $(RUBY_OPENSSL_EXT_DIR); ruby extconf.rb
 	patch $@ patch
 
-$(RUBY_OPENSSL_EXT_DIR)/openssl.so: $(RUBY_OPENSSL_EXT_DIR)/Makefile
-	cd $(RUBY_OPENSSL_EXT_DIR); $(MAKE); $(MAKE) install
+$(RUBY_OPENSSL_EXT_DIR)/openssl.so: libs $(RUBY_OPENSSL_EXT_DIR)/Makefile
+	$(MAKE) -C $(RUBY_OPENSSL_EXT_DIR)
 
 lib/openssl.so: $(RUBY_OPENSSL_EXT_DIR)/openssl.so
 	cp $< $@
+
+ext: lib/openssl.so

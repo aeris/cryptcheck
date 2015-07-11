@@ -4,7 +4,7 @@
 		<meta charset="utf-8">
 		<meta http-equiv="X-UA-Compatible" content="IE=edge">
 		<meta name="viewport" content="width=device-width, initial-scale=1">
-		<title>SSL/TLS &mdash; XMPP</title>
+		<title>SSL/TLS &mdash; SMTP</title>
 		<link rel="stylesheet" href="bootstrap.min.css">
 		<style>
 			body {
@@ -30,82 +30,69 @@
 			<div class="row">
 				<div class="col-md-12">
 					<table class="table table-bordered table-hover table-condensed">
-						<thead>
-							<tr>
-								<th rowspan="2">Host</th>
-								<td rowspan="2">Grade</td>
-								<td colspan="2">Certificate</td>
-								<td colspan="4">Protocols</td>
-								<td colspan="5">Ciphers</td>
-								<td colspan="2">Best practices</td>
-							</tr>
-							<tr>
-								<td>Key size (bits)</td>
-								<td class="warning">SHA1 sig</td>
-
-								<td class="critical">SSL v2</td>
-								<td class="critical">SSL v3</td>
-								<td class="success">TLS 1.2</td>
-								<td class="info">TLS</td>
-
-								<td>Strength (bits)</td>
-								<td class="critical">MD5</td>
-								<td class="warning">SHA1</td>
-								<td class="critical">DES/RC4</td>
-								<td class="danger">3DES</td>
-
-								<td class="info">PFS</td>
-								<td class="success">Required</td>
-							</tr>
-                        </thead>
-						<tfoot>
-							<tr>
-								<th rowspan="2">Host</th>
-								<td rowspan="2">Grade</td>
-								<td colspan="2">Certificate</td>
-								<td colspan="4">Protocols</td>
-								<td colspan="5">Ciphers</td>
-								<td colspan="2">Best practices</td>
-							</tr>
-							<tr>
-								<td>Key size (bits)</td>
-								<td class="warning">SHA1 sig</td>
-
-								<td class="critical">SSL v2</td>
-								<td class="critical">SSL v3</td>
-								<td class="success">TLS 1.2</td>
-								<td class="info">TLS</td>
-
-								<td>Strength (bits)</td>
-								<td class="critical">MD5</td>
-								<td class="warning">SHA1</td>
-								<td class="critical">DES/RC4</td>
-								<td class="danger">3DES</td>
-
-								<td class="info">PFS</td>
-								<td class="success">Required</td>
-							</tr>
-						</tfoot>
 						<tbody>
-							<% servers.each do |n|
-								s = n.server
+							<%
+								first = true
+								results.each do |r|
+									unless first
 							%>
 							<tr>
+								<th colspan="15">&nbsp;</th>
+							</tr>
+							<%
+									end
+									first = false
+							%>
+							<tr>
+								<th colspan="14" id="<%= r[0] %>"><%= r[0] %></th>
+							</tr>
+							<tr>
+								<th rowspan="2">Site</th>
+								<td rowspan="2">Grade</td>
+								<td colspan="2">Certificate</td>
+								<td colspan="4">Protocols</td>
+								<td colspan="5">Ciphers</td>
+								<td>Best practices</td>
+							</tr>
+							<tr>
+								<td>Key size (bits)</td>
+								<td class="warning">SHA1 sig</td>
+
+								<td class="critical">SSL v2</td>
+								<td class="critical">SSL v3</td>
+								<td class="success">TLS 1.2</td>
+								<td class="info">TLS</td>
+
+								<td>Strength (bits)</td>
+								<td class="critical">MD5</td>
+								<td class="warning">SHA1</td>
+								<td class="critical">DES/RC4</td>
+								<td class="danger">3DES</td>
+
+								<td class="info">PFS</td>
+							</tr>
+							<% r[1].each do |n|
+							   s = n.server
+							%>
+							<tr>
+								<% if s.is_a? Tls::TlsNotSupportedServer %>
 								<th id="<%= s.hostname %>">
 									<a href="#<%= s.hostname %>"><%= s.hostname %></a>
 								</th>
-								<% if s.is_a? Tls::TlsNotSupportedServer %>
 								<td class="critical" colspan="16">
 									No SSL/TLS
 								</td>
-								<% else
+								<%
+									else
 										rank_color = case n.grade
 											when 'A+' then :info
 											when 'A', 'A-' then :success
 											when 'B', 'C' then :warning
 											when 'T', 'M' then :critical
 											else :danger
-										end %>
+										end
+								%>
+								<th id="<%= s.domain %>"><%= s.domain %></th>
 								<td class="<%= rank_color %>">
 									<%= n.grade %>
 								</td>
@@ -163,11 +150,34 @@
 									<%= s.pfs? ? '✓' : '✗' %>
 									<span class="sr-only">(<%= s.pfs? ? '☺' : '☹' %>)</span>
 								</td>
-								<td class="<%= s.required? ? :success : :danger %>">
-									<%= s.required? ? '✓' : '✗' %>
-									<span class="sr-only">(<%= s.required? ? '☺' : '☹' %>)</span>
-								</td>
 								<% end %>
+							</tr>
+							<% end %>
+							<tr>
+								<th rowspan="2">Site</th>
+								<td rowspan="2">Grade</td>
+
+								<td>Key size (bits)</td>
+								<td class="warning">SHA1 sig</td>
+
+								<td class="critical">SSL v2</td>
+								<td class="critical">SSL v3</td>
+								<td class="success">TLS 1.2</td>
+								<td class="info">TLS</td>
+
+								<td>Strength (bits)</td>
+								<td class="critical">MD5</td>
+								<td class="warning">SHA1</td>
+								<td class="critical">DES/RC4</td>
+								<td class="danger">3DES</td>
+
+								<td class="info">PFS</td>
+							</tr>
+							<tr>
+								<td colspan="2">Certificate</td>
+								<td colspan="4">Protocols</td>
+								<td colspan="5">Ciphers</td>
+								<td>Best practices</td>
 							</tr>
 							<% end %>
 						</tbody>

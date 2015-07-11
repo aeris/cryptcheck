@@ -3,6 +3,8 @@ $:.unshift 'lib'
 require 'logging'
 require 'cryptcheck'
 
+GROUP_NAME = 'Top 100 Alexa'
+
 ::Logging.logger.root.appenders = ::Logging.appenders.stdout
 ::Logging.logger.root.level = :error
 
@@ -10,7 +12,7 @@ hosts = []
 ::File.open('top-1m.csv', 'r') do |file|
 	i = 0
 	while line = file.gets
-		hosts << ['Top 100 Alexa', line.strip.split(',')[1]]
+		hosts << [GROUP_NAME, line.strip.split(',')[1]]
 		i += 1
 		break if i == 100
 	end
