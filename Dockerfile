@@ -3,9 +3,9 @@
 
 FROM debian:jessie
 
-
 # install build env
 RUN apt-get update && \
+    apt-get dist-upgrade -y && \
     apt-get -y install wget git build-essential zlib1g-dev zlib1g zlibc locales ca-certificates
    
 # OpenSSL
@@ -13,7 +13,7 @@ RUN cd /usr/src && \
     wget https://www.openssl.org/source/openssl-1.0.1p.tar.gz && \
     tar xf openssl-1.0.1p.tar.gz && \
     cd openssl-1.0.1p && \
-    ./configure && \
+    ./config shared && \
     make && \
     make install
 
@@ -29,7 +29,9 @@ RUN cd /usr/src && \
     wget http://cache.ruby-lang.org/pub/ruby/2.2/ruby-2.2.2.tar.gz && \
     tar xf ruby-2.2.2.tar.gz && \
     cd ruby-2.2.2 && \
-    ./configure --prefix=/usr --with-openssl=yes --with-openssl-dir=/usr/local/ssl
+    ./configure --prefix=/usr --with-openssl=yes --with-openssl-dir=/usr/local/ssl && \
+    make && \
+    make install
 # gem
 RUN /usr/bin/gem install logging parallel ruby-progressbar httparty
 
