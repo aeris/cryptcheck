@@ -1,19 +1,12 @@
-#!/usr/bin/env ruby
-$:.unshift 'lib'
-require 'logging'
-require 'cryptcheck'
+#!/bin/bash
 
-name = ARGV[0] || 'index'
-file = ::File.join 'output', "#{name}.yml"
+LANG=en_US.UTF-8
+LANGUAGE=en_US:en
+LC_ALL=en_US.UTF-8
 
-if ::File.exist? file
-	::CryptCheck::Tls::Https.analyze_from_file "output/#{name}.yml", "output/#{name}.html"
-else
-	::Logging.logger.root.appenders = ::Logging.appenders.stdout
-	::Logging.logger.root.level = :warn
+export LANG=en_US.UTF-8
+export LANGUAGE=en_US:en
+export LC_ALL=en_US.UTF-8
 
-	server = ::CryptCheck::Tls::Https::Server.new(ARGV[0], ARGV[1] || 443)
-	p grade = ::CryptCheck::Tls::Https::Grade.new(server)
-end
-
-
+cd $(dirname $0)/..
+bin/check_https.rb $1
