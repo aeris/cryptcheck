@@ -36,14 +36,20 @@ RUN cd /usr/src && \
 RUN /usr/bin/gem install logging parallel ruby-progressbar httparty
 
 # Set the locale
-RUN locale-gen en_US.UTF-8  
-ENV LANG en_US.UTF-8  
-ENV LANGUAGE en_US:en  
-ENV LC_ALL en_US.UTF-8  
+RUN locale-gen en_US.UTF-8  && \
+    localedef -v -c -i en_US -f UTF-8 en_US.UTF-8
+
+ENV LANG en_US.UTF-8
+ENV LANGUAGE en_US:en
+ENV LC_ALL en_US.UTF-8
+ENV LANG C.UTF-8
 
 # clone sslcheck
 RUN cd /opt && \
-    git clone https://github.com/aeris/sslcheck
+    git clone https://github.com/yanntech/sslcheck
 
 # expose volume output
 VOLUME /opt/sslcheck/output
+
+# CMD
+CMD ["/opt/sslcheck/bin/check_https"]
