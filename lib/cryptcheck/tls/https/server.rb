@@ -44,7 +44,7 @@ module CryptCheck
 				end
 
 				def hsts_long?
-					hsts? and @hsts >= 6*30*24*60*60
+					hsts? and @hsts >= 6*30*24*60*60 # ~6month
 				end
 			end
 		end

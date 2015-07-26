@@ -81,6 +81,13 @@ module CryptCheck
 				size
 			end
 
+			#
+			# Get DHParams
+			#
+			def dhparam
+				dh = OpenSSL::PKey::DH.new
+			end
+
 			def cipher_size
 				cipher_strengths = supported_ciphers.collect { |c| c[2] }.uniq.sort
 				worst, best = cipher_strengths.first, cipher_strengths.last
@@ -239,6 +246,7 @@ module CryptCheck
 				end
 				raise TLSNotAvailableException unless @cert
 				@cert_valid = ::OpenSSL::SSL.verify_certificate_identity @cert, @hostname
+				@cert_not_after = ::OpenSSL::SSL.cert.not_after @cert, @hostname
 				@cert_trusted = verify_trust @chain, @cert
 			end
 
@@ -281,6 +289,10 @@ module CryptCheck
 				end
 			end
 
+			#
+			# Verify SSL Chain certificate
+			# based on /usr/share/ca-certificates directory
+			# 
 			def verify_trust(chain, cert)
 				store = ::OpenSSL::X509::Store.new
 				store.purpose = OpenSSL::X509::PURPOSE_SSL_CLIENT
