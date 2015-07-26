@@ -1,5 +1,8 @@
+#
 # Dockerfile
+
 # Yann Verry
+MAINTAINER Yann Verry <docker@verry.org>
 
 FROM debian:jessie
 
@@ -34,6 +37,11 @@ RUN cd /usr/src && \
     make install
 # gem
 RUN /usr/bin/gem install logging parallel ruby-progressbar httparty
+
+# Cleanup
+RUN rm -rf /usr/src/* && \
+	apt-get -y purge build-essential zlib1g-dev && \
+	apt-get -y autoremove
 
 # Set the locale
 ENV LC_ALL C.UTF-8
