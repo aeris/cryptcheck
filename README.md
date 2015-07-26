@@ -40,13 +40,31 @@ M|Critical
 
 ## Installations ##
 
+### Ruby ###
+
+We need few gems:
+
+* logging
+* parallel
+* ruby-progressbar
+* httparty
+
+Or install via bundle:
+```
+bundle install
+```
+
 ### Docker ###
 
 SSLCheck need openssl with all options (protocols,ciphers suite, ...) and ruby linked with this version. We provide an docker image
 
-Build the container image:
 ```
-docker build -t sslcheck/1.0 .
+docker pull yverry/sslcheck:latest
+```
+
+or build the container image yourself:
+```
+docker build -t sslcheck .
 ```
 
 ## Use ##
@@ -62,7 +80,19 @@ In input sslcheck need a list like **check.yml**:
 ```
 run it:
 ```
-docker run -it --rm -v $(pwd)/output:/opt/sslcheck/output sslcheck/1.0 /opt/sslcheck/bin/check_https check
+docker run -it --rm -v $(pwd)/output:/opt/sslcheck/output yverry/sslcheck:latest /opt/sslcheck/bin/check_https check
 ```
 
-In output dir you have an **check.html**
+In output dir you have **check.html**
+
+# Help #
+
+## Add custom CA ##
+
+You can add your own CA like cacert for example:
+
+````
+mkdir /usr/local/share/ca-certificates/cacert.org
+wget -P /usr/local/share/ca-certificates/cacert.org http://www.cacert.org/certs/root.crt http://www.cacert.org/certs/class3.crt
+update-ca-certificates
+```
