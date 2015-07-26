@@ -1,10 +1,10 @@
 #
 # Dockerfile
-
-# Yann Verry
-MAINTAINER Yann Verry <docker@verry.org>
+#
 
 FROM debian:jessie
+MAINTAINER Yann Verry <docker@verry.org>
+
 
 # install build env
 RUN apt-get update && \
