@@ -15,5 +15,3 @@ else
 	server = ::CryptCheck::Tls::Https::Server.new(ARGV[0], ARGV[1] || 443)
 	p grade = ::CryptCheck::Tls::Https::Grade.new(server)
 end
-
-
