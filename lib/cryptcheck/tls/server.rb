@@ -62,21 +62,22 @@ module CryptCheck
 				end
 			end
 
+			# key_size If type is ECC then convert to "rsa" strength like
 			def key_size
 				type, size = self.key
 				if type == :ecc
 					size = case size
-						       when 160 then
-							       1024
-						       when 224 then
-							       2048
-						       when 256 then
-							       3072
-						       when 384 then
-							       7680
-						       when 521 then
-							       15360
-					       end
+							when 160 then
+								1024
+							when 224 then
+								2048
+							when 256 then
+								3072
+							when 384 then
+								7680
+							when 521 then
+								15360
+							end
 				end
 				size
 			end
@@ -199,13 +200,14 @@ module CryptCheck
 					@log.debug { "Waiting for SSL write to #{@hostname}:#{@port}" }
 					raise TLSTimeout unless IO.select nil, [socket], nil, SSL_TIMEOUT
 					retry
-                rescue => e
-                    raise TLSException, e
+				rescue => e
+					raise TLSException, e
 				ensure
 					ssl_socket.close
 				end
 			end
 
+			# Open TLS connection
 			def ssl_client(method, ciphers = nil, &block)
 				ssl_context = ::OpenSSL::SSL::SSLContext.new method
 				ssl_context.ciphers = ciphers if ciphers
@@ -246,7 +248,6 @@ module CryptCheck
 				end
 				raise TLSNotAvailableException unless @cert
 				@cert_valid = ::OpenSSL::SSL.verify_certificate_identity @cert, @hostname
-				@cert_not_after = ::OpenSSL::SSL.cert.not_after @cert, @hostname
 				@cert_trusted = verify_trust @chain, @cert
 			end
 

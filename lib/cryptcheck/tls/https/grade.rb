@@ -1,3 +1,5 @@
+# This module return the grade of hsts
+
 module CryptCheck
 	module Tls
 		module Https

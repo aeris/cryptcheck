@@ -1,5 +1,11 @@
 require 'httparty'
 
+# This module open connection with httparty
+# make a HEAD and extract the HSTS
+# If HTSTS is present and >~ 6months
+#
+# @return: htsts || hsts_long
+
 module CryptCheck
 	module Tls
 		module Https
@@ -44,7 +50,7 @@ module CryptCheck
 				end
 
 				def hsts_long?
-					hsts? and @hsts >= 6*30*24*60*60 # ~6month
+					hsts? and @hsts >= 6*30*24*60*60 # ~6months
 				end
 			end
 		end

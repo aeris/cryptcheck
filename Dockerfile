@@ -5,7 +5,6 @@
 FROM debian:jessie
 MAINTAINER Yann Verry <docker@verry.org>
 
-
 # install build env
 RUN apt-get update && \
     apt-get dist-upgrade -y && \
