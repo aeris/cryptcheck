@@ -5,6 +5,9 @@
 FROM debian:jessie
 MAINTAINER Yann Verry <docker@verry.org>
 
+# Add ruby openssl patch to support DH (from aeris)
+ADD /ruby-openssl-dh.patch /tmp/ruby-openssl-dh.patch
+
 # install build env
 RUN apt-get update && \
     apt-get dist-upgrade -y && \
@@ -12,9 +15,9 @@ RUN apt-get update && \
    
 # OpenSSL
 RUN cd /usr/src && \
-    wget https://www.openssl.org/source/openssl-1.0.1p.tar.gz && \
-    tar xf openssl-1.0.1p.tar.gz && \
-    cd openssl-1.0.1p && \
+    wget https://www.openssl.org/source/openssl-1.0.2d.tar.gz && \
+    tar xf openssl-1.0.2d.tar.gz && \
+    cd openssl-1.0.2d && \
     ./config shared && \
     make && \
     make install
@@ -31,6 +34,7 @@ RUN cd /usr/src && \
     wget http://cache.ruby-lang.org/pub/ruby/2.2/ruby-2.2.2.tar.gz && \
     tar xf ruby-2.2.2.tar.gz && \
     cd ruby-2.2.2 && \
+    patch -p0 < /tmp/ruby-openssl-dh.patch && \
     ./configure --prefix=/usr --with-openssl=yes --with-openssl-dir=/usr/local/ssl && \
     make && \
     make install
@@ -39,8 +43,8 @@ RUN /usr/bin/gem install logging parallel ruby-progressbar httparty
 
 # Cleanup
 RUN rm -rf /usr/src/* && \
-	apt-get -y purge build-essential zlib1g-dev && \
-	apt-get -y autoremove
+    apt-get -y purge build-essential zlib1g-dev && \
+    apt-get -y autoremove
 
 # Set the locale
 ENV LC_ALL C.UTF-8
