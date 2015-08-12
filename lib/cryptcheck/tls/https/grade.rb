@@ -3,7 +3,7 @@ module CryptCheck
 		module Https
 			class Grade < Tls::Grade
 				private
-				def success
+				def calculate_success
 					super
 					@success << :hsts if @server.hsts?
 					@success << :hsts_long if @server.hsts_long?

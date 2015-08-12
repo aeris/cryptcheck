@@ -7,12 +7,13 @@ require 'cryptcheck'
 
 name = ARGV[0]
 if name
-	::Logging.logger.root.appenders = ::Logging.appenders.stdout
-	::Logging.logger.root.level = :warn
-
+	::CryptCheck::Logger.level = :info
 	server = ::CryptCheck::Tls::Xmpp::Server.new(name, ARGV[1] || :s2s)
-	p grade = ::CryptCheck::Tls::Xmpp::Grade.new(server)
+	grade = ::CryptCheck::Tls::Xmpp::Grade.new(server)
+	::CryptCheck::Logger.info { '' }
+	grade.display
 else
+	::CryptCheck::Logger.level = :none
 	::CryptCheck::Tls::Xmpp.analyze_from_file 'output/xmpp.yml', 'output/xmpp.html'
 end
 

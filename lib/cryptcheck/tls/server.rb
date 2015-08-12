@@ -13,9 +13,9 @@ module CryptCheck
 		end
 
 		class Server
-			TCP_TIMEOUT = 10
-			SSL_TIMEOUT = 2*TCP_TIMEOUT
-			EXISTING_METHODS = %i(TLSv1_2 TLSv1_1 TLSv1 SSLv3 SSLv2)
+			TCP_TIMEOUT       = 10
+			SSL_TIMEOUT       = 2*TCP_TIMEOUT
+			EXISTING_METHODS  = %i(TLSv1_2 TLSv1_1 TLSv1 SSLv3 SSLv2)
 			SUPPORTED_METHODS = ::OpenSSL::SSL::SSLContext::METHODS
 			class TLSException < ::Exception
 			end
@@ -33,20 +33,18 @@ module CryptCheck
 			attr_reader :hostname, :port, :prefered_ciphers, :cert, :cert_valid, :cert_trusted
 
 			def initialize(hostname, port)
-				@log = Logging.logger[hostname]
 				@hostname = hostname
-				@port = port
-				@log.error { "Begin analysis" }
+				@port     = port
+				Logger.info { "#{hostname}:#{port}".colorize :blue }
 				extract_cert
 				#@prefered_ciphers = @supported_ciphers = Hash[SUPPORTED_METHODS.collect { |m| [m, []]}]
 				fetch_prefered_ciphers
 				check_supported_cipher
-				@log.error { "End analysis" }
 			end
 
 			def supported_methods
 				worst = EXISTING_METHODS.find { |method| !@prefered_ciphers[method].nil? }
-				best = EXISTING_METHODS.reverse.find { |method| !@prefered_ciphers[method].nil? }
+				best  = EXISTING_METHODS.reverse.find { |method| !@prefered_ciphers[method].nil? }
 				{ worst: worst, best: best }
 			end
 
@@ -66,24 +64,24 @@ module CryptCheck
 				type, size = self.key
 				if type == :ecc
 					size = case size
-						       when 160 then
-							       1024
-						       when 224 then
-							       2048
-						       when 256 then
-							       3072
-						       when 384 then
-							       7680
-						       when 521 then
-							       15360
-					       end
+							   when 160 then
+								   1024
+							   when 224 then
+								   2048
+							   when 256 then
+								   3072
+							   when 384 then
+								   7680
+							   when 521 then
+								   15360
+						   end
 				end
 				size
 			end
 
 			def cipher_size
 				cipher_strengths = supported_ciphers.collect { |c| c[2] }.uniq.sort
-				worst, best = cipher_strengths.first, cipher_strengths.last
+				worst, best      = cipher_strengths.first, cipher_strengths.last
 				{ worst: worst, best: best }
 			end
 
@@ -96,29 +94,22 @@ module CryptCheck
 			end
 
 			{
-					md2: %w(md2WithRSAEncryption),
-					md5: %w(md5WithRSAEncryption md5WithRSA),
+					md2:  %w(md2WithRSAEncryption),
+					md5:  %w(md5WithRSAEncryption md5WithRSA),
 					sha1: %w(sha1WithRSAEncryption sha1WithRSA dsaWithSHA1 dsaWithSHA1_2 ecdsa_with_SHA1)
 			}.each do |name, signature|
 				class_eval <<-RUBY_EVAL, __FILE__, __LINE__ + 1
-				def #{name}_sig?
-					#{signature}.include? @cert.signature_algorithm
-				end
+					def #{name}_sig?
+						#{signature}.include? @cert.signature_algorithm
+					end
 				RUBY_EVAL
 			end
 
-			{
-					md5: %w(MD5),
-					sha1: %w(SHA),
-
-					rc4: %w(RC4),
-					des3: %w(3DES DES-CBC3),
-					des: %w(DES-CBC)
-			}.each do |name, ciphers|
+			Tls::TYPES.each do |type, _|
 				class_eval <<-RUBY_EVAL, __FILE__, __LINE__ + 1
-				def #{name}?
-					supported_ciphers.any? { |supported| #{ciphers}.any? { |available| /(^|-)#\{available\}(-|$)/ =~ supported[0] } }
-				end
+					def #{type}?
+						supported_ciphers.any? { |s| Tls.#{type}? s.first  }
+					end
 				RUBY_EVAL
 			end
 
@@ -134,14 +125,12 @@ module CryptCheck
 				tls? and !ssl?
 			end
 
-			PFS_CIPHERS = [/^DHE-RSA-/, /^DHE-DSS-/, /^ECDHE-RSA-/, /^ECDHE-ECDSA-/]
-
 			def pfs?
-				supported_ciphers.any? { |cipher| PFS_CIPHERS.any? { |pc| pc =~ cipher[0] } }
+				supported_ciphers.any? { |c| Tls.pfs? c.first }
 			end
 
 			def pfs_only?
-				supported_ciphers.all? { |cipher| PFS_CIPHERS.any? { |pc| pc =~ cipher[0] } }
+				supported_ciphers.all? { |c| Tls.pfs? c.first }
 			end
 
 			def supported_ciphers
@@ -154,21 +143,21 @@ module CryptCheck
 
 			private
 			def connect(family, host, port, &block)
-				socket = ::Socket.new family, sock_type
+				socket   = ::Socket.new family, sock_type
 				sockaddr = ::Socket.sockaddr_in port, host
-				@log.debug { "Connecting to #{host}:#{port}" }
+				Logger.trace { "Connecting to #{host}:#{port}" }
 				begin
 					status = socket.connect_nonblock sockaddr
-					@log.debug { "Connecting to #{host}:#{port} status : #{status}" }
+					Logger.trace { "Connecting to #{host}:#{port} status : #{status}" }
 					raise ConnectionError, status unless status == 0
-					@log.debug { "Connected to #{host}:#{port}" }
+					Logger.trace { "Connected to #{host}:#{port}" }
 					block_given? ? block.call(socket) : nil
 				rescue ::IO::WaitReadable
-					@log.debug { "Waiting for read to #{host}:#{port}" }
+					Logger.trace { "Waiting for read to #{host}:#{port}" }
 					raise Timeout unless IO.select [socket], nil, nil, TCP_TIMEOUT
 					retry
 				rescue ::IO::WaitWritable
-					@log.debug { "Waiting for write to #{host}:#{port}" }
+					Logger.trace { "Waiting for write to #{host}:#{port}" }
 					raise Timeout unless IO.select nil, [socket], nil, TCP_TIMEOUT
 					retry
 				ensure
@@ -177,39 +166,39 @@ module CryptCheck
 			end
 
 			def ssl_connect(socket, context, method, &block)
-				ssl_socket = ::OpenSSL::SSL::SSLSocket.new socket, context
+				ssl_socket          = ::OpenSSL::SSL::SSLSocket.new socket, context
 				ssl_socket.hostname = @hostname unless method == :SSLv2
-				@log.debug { "SSL connecting to #{@hostname}:#{@port}" }
+				Logger.trace { "SSL connecting to #{@hostname}:#{@port}" }
 				begin
 					ssl_socket.connect_nonblock
-					@log.debug { "SSL connected to #{@hostname}:#{@port}" }
+					Logger.trace { "SSL connected to #{@hostname}:#{@port}" }
 					return block_given? ? block.call(ssl_socket) : nil
 				rescue ::IO::WaitReadable
-					@log.debug { "Waiting for SSL read to #{@hostname}:#{@port}" }
+					Logger.trace { "Waiting for SSL read to #{@hostname}:#{@port}" }
 					raise TLSTimeout unless IO.select [socket], nil, nil, SSL_TIMEOUT
 					retry
 				rescue ::IO::WaitWritable
-					@log.debug { "Waiting for SSL write to #{@hostname}:#{@port}" }
+					Logger.trace { "Waiting for SSL write to #{@hostname}:#{@port}" }
 					raise TLSTimeout unless IO.select nil, [socket], nil, SSL_TIMEOUT
 					retry
-                rescue => e
-                    raise TLSException, e
+				rescue => e
+					raise TLSNotAvailableException, e
 				ensure
 					ssl_socket.close
 				end
 			end
 
 			def ssl_client(method, ciphers = nil, &block)
-				ssl_context = ::OpenSSL::SSL::SSLContext.new method
+				ssl_context         = ::OpenSSL::SSL::SSLContext.new method
 				ssl_context.ciphers = ciphers if ciphers
-				@log.debug { "Try #{method} connection with #{ciphers}" }
+				Logger.trace { "Try #{method} connection with #{ciphers}" }
 
 				[::Socket::AF_INET, ::Socket::AF_INET6].each do |family|
-					@log.debug { "Try connection for family #{family}" }
+					Logger.trace { "Try connection for family #{family}" }
 					addrs = begin
 						::Socket.getaddrinfo @hostname, nil, family, :STREAM
 					rescue ::SocketError => e
-						@log.debug { "Unable to resolv #{@hostname} : #{e}" }
+						Logger.error { "Unable to resolv #{@hostname} : #{e}" }
 						next
 					end
 
@@ -222,7 +211,7 @@ module CryptCheck
 					end
 				end
 
-				@log.debug { "No SSL available on #{@hostname}" }
+				Logger.debug { "No SSL available on #{@hostname}" }
 				raise CipherNotAvailable
 			end
 
@@ -231,27 +220,28 @@ module CryptCheck
 					next unless SUPPORTED_METHODS.include? method
 					begin
 						@cert, @chain = ssl_client(method) { |s| [s.peer_cert, s.peer_cert_chain] }
-						@log.warn { "Certificate #{@cert.subject}" }
+						Logger.debug { "Certificate #{@cert.subject}" }
 						break
 					rescue TLSException => e
-						@log.info { "Method #{method} not supported : #{e}" }
+						Logger.trace { "Method #{Tls.colorize method} not supported : #{e}" }
 					end
 				end
 				raise TLSNotAvailableException unless @cert
-				@cert_valid = ::OpenSSL::SSL.verify_certificate_identity @cert, @hostname
+				@cert_valid   = ::OpenSSL::SSL.verify_certificate_identity @cert, @hostname
 				@cert_trusted = verify_trust @chain, @cert
 			end
 
 			def prefered_cipher(method)
-				cipher = ssl_client(method, %w(ALL:COMPLEMENTOFALL)) { |s| s.cipher }
-				@log.warn { "Prefered cipher for #{method} : #{cipher[0]}" }
+				cipher = ssl_client(method, 'ALL:COMPLEMENTOFALL') { |s| s.cipher }
+				Logger.info { "Prefered cipher for #{Tls.colorize method} : #{Tls.colorize cipher.first}" }
 				cipher
-			rescue Exception => e
-				@log.info { "Method #{method} not supported : #{e}" }
+			rescue Exception
+				Logger.debug { "Method #{Tls.colorize method} not supported" }
 				nil
 			end
 
 			def fetch_prefered_ciphers
+				Logger.info { '' }
 				@prefered_ciphers = {}
 				EXISTING_METHODS.each do |method|
 					next unless SUPPORTED_METHODS.include? method
@@ -261,28 +251,33 @@ module CryptCheck
 			end
 
 			def available_ciphers(method)
-				::OpenSSL::SSL::SSLContext.new(method).ciphers
+				context         = ::OpenSSL::SSL::SSLContext.new method
+				context.ciphers = 'ALL:COMPLEMENTOFALL'
+				context.ciphers
 			end
 
 			def supported_cipher?(method, cipher)
 				ssl_client method, [cipher]
-				@log.warn { "Verify #{method} / #{cipher[0]} : OK" }
+				Logger.info { "#{Tls.colorize method} / #{Tls.colorize cipher[0]} : Supported" }
 				true
 			rescue TLSException => e
-				@log.info { "Verify #{method} / #{cipher[0]} : NOK (#{e})" }
+				Logger.debug { "#{Tls.colorize method} / #{Tls.colorize cipher[0]} : Not supported" }
 				false
 			end
 
 			def check_supported_cipher
+				Logger.info { '' }
 				@supported_ciphers = {}
 				EXISTING_METHODS.each do |method|
 					next unless SUPPORTED_METHODS.include? method and @prefered_ciphers[method]
-					@supported_ciphers[method] = available_ciphers(method).select { |cipher| supported_cipher? method, cipher }
+					ciphers = available_ciphers(method).select { |cipher| supported_cipher? method, cipher }
+					@supported_ciphers[method] = ciphers
+					Logger.info { '' } unless ciphers.empty?
 				end
 			end
 
 			def verify_trust(chain, cert)
-				store = ::OpenSSL::X509::Store.new
+				store         = ::OpenSSL::X509::Store.new
 				store.purpose = OpenSSL::X509::PURPOSE_SSL_CLIENT
 				store.set_default_paths
 

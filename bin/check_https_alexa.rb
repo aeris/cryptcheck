@@ -7,8 +7,7 @@ require 'cryptcheck'
 
 GROUP_NAME = 'Top 100 Alexa'
 
-::Logging.logger.root.appenders = ::Logging.appenders.stdout
-::Logging.logger.root.level = :error
+::CryptCheck::Logger.level = :none
 
 hosts = []
 ::File.open('top-1m.csv', 'r') do |file|

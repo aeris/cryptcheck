@@ -34,13 +34,15 @@ $(OPENSSL_DIR)/:
 $(OPENSSL_DIR)/Makefile: | $(OPENSSL_DIR)/
 	cd $(OPENSSL_DIR); ./config shared
 
-$(OPENSSL_DIR)/libssl.so.1.0.0 $(OPENSSL_DIR)/libcrypto.so.1.0.0: $(OPENSSL_DIR)/Makefile
+$(OPENSSL_DIR)/libssl.so $(OPENSSL_DIR)/libcrypto.so: $(OPENSSL_DIR)/Makefile
 	$(MAKE) -C $(OPENSSL_DIR) depend build_libs
 
+lib/%.so: $(OPENSSL_DIR)/%.so
+	cp $< $@
 lib/%.so.1.0.0: $(OPENSSL_DIR)/%.so.1.0.0
 	cp $< $@
 
-libs: lib/libssl.so.1.0.0 lib/libcrypto.so.1.0.0
+libs: lib/libssl.so lib/libcrypto.so lib/libssl.so.1.0.0 lib/libcrypto.so.1.0.0
 
 $(RUBY_DIR)/:
 	wget http://cache.ruby-lang.org/pub/ruby/$(RUBY_MAJOR_VERSION)/$(RUBY_DIR).tar.gz

@@ -5,20 +5,46 @@ require 'parallel'
 module CryptCheck
 	module Tls
 		MAX_ANALYSIS_DURATION = 600
-		PARALLEL_ANALYSIS = 10
-		@@log = ::Logging.logger[Tls]
+		PARALLEL_ANALYSIS     = 10
+
+		TYPES = {
+				md5:       %w(MD5),
+				sha1:      %w(SHA),
+
+				psk:       %w(PSK),
+				srp:       %w(SRP),
+				anonymous: %w(ADH AECDH),
+
+				dss:       %w(DSS),
+
+				null:      %w(NULL),
+				export:    %w(EXP),
+				des:       %w(DES-CBC),
+				rc4:       %w(RC4),
+				des3:      %w(3DES DES-CBC3),
+
+				pfs:       %w(DHE EDH ECDHE ECDH)
+		}
+
+		TYPES.each do |name, ciphers|
+			class_eval <<-RUBY_EVAL, __FILE__, __LINE__ + 1
+				def self.#{name}?(cipher)
+					#{ciphers}.any? { |c| /(^|-)#\{c\}(-|$)/ =~ cipher }
+				end
+			RUBY_EVAL
+		end
 
 		def self.grade(hostname, port, server_class:, grade_class:)
 			timeout MAX_ANALYSIS_DURATION do
 				grade_class.new server_class.new hostname, port
 			end
 		rescue ::Exception => e
-			@@log.error { "Error during #{hostname}:#{port} analysis : #{e}" }
+			@Logger.error { "Error during #{hostname}:#{port} analysis : #{e}" }
 			TlsNotSupportedGrade.new TlsNotSupportedServer.new hostname, port
 		end
 
 		def self.analyze(hosts, template, output, groups = nil, port:, server_class:, grade_class:)
-			results = {}
+			results   = {}
 			semaphore = ::Mutex.new
 			::Parallel.each hosts, progress: 'Analysing', in_threads: PARALLEL_ANALYSIS, finish: lambda { |item, _, _| puts item[1] } do |description, host|
 									 result = grade host.strip, port, server_class: server_class, grade_class: grade_class
@@ -51,7 +77,7 @@ module CryptCheck
 
 		def self.analyze_from_file(file, template, output, port:, server_class:, grade_class:)
 			config = ::YAML.load_file file
-			hosts = []
+			hosts  = []
 			groups = []
 			config.each do |c|
 				d, hs = c['description'], c['hostnames']
@@ -59,6 +85,26 @@ module CryptCheck
 				hs.each { |host| hosts << [d, host] }
 			end
 			self.analyze hosts, template, output, groups, port: port, server_class: server_class, grade_class: grade_class
+		end
+
+		def self.colorize(cipher)
+			colors = case
+						 when /^SSL/ =~ cipher,
+								 dss?(cipher),
+								 anonymous?(cipher),
+								 null?(cipher),
+								 export?(cipher),
+								 md5?(cipher),
+								 des?(cipher),
+								 rc4?(cipher)
+							 { color: :white, background: :red }
+						 when des3?(cipher)
+							 { color: :yellow }
+						 when :TLSv1_2 == cipher,
+								 pfs?(cipher)
+							 { color: :green }
+					 end
+			cipher.to_s.colorize colors
 		end
 
 		private

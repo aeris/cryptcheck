@@ -1,4 +1,7 @@
+require 'colorize'
+
 module CryptCheck
+	autoload :Logger, 'cryptcheck/logger'
 	autoload :Tls, 'cryptcheck/tls'
 	module Tls
 		autoload :Server, 'cryptcheck/tls/server'

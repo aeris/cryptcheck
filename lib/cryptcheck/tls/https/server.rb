@@ -14,28 +14,17 @@ module CryptCheck
 				def fetch_hsts
 					port = @port == 443 ? '' : ":#{@port}"
 
-					response = nil
-					EXISTING_METHODS.each do |method|
-						begin
-							next unless SUPPORTED_METHODS.include? method
-							@log.debug { "Check HSTS with #{method}" }
-							response = ::HTTParty.head "https://#{@hostname}#{port}/", { follow_redirects: false, verify: false, ssl_version: method, timeout: SSL_TIMEOUT }
-							break
-						rescue Exception => e
-							@log.debug { "#{method} not supported : #{e}" }
-						end
-					end
-
-					if response and header = response.headers['strict-transport-security']
+					response = ::HTTParty.head "https://#{@hostname}#{port}/", { follow_redirects: false, verify: false, timeout: SSL_TIMEOUT }
+					if header = response.headers['strict-transport-security']
 						name, value = header.split '='
 						if name == 'max-age'
 							@hsts = value.to_i
-							@log.info { "HSTS : #{@hsts}" }
+							Logger.info { "HSTS : #{@hsts.to_s.colorize hsts_long? ? :green : nil}" }
 							return
 						end
 					end
 
-					@log.info { 'No HSTS' }
+					Logger.info { 'No HSTS'.colorize :yellow }
 					@hsts = nil
 				end
 

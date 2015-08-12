@@ -6,14 +6,15 @@ require 'logging'
 require 'cryptcheck'
 
 name = ARGV[0]
-unless name
-	::CryptCheck::Tls::Smtp.analyze_from_file 'output/smtp.yml', 'output/smtp.html'
-else
-	::Logging.logger.root.appenders = ::Logging.appenders.stdout
-	::Logging.logger.root.level = :warn
-
+if name
+	::CryptCheck::Logger.level = :info
 	server = ::CryptCheck::Tls::Smtp::Server.new(ARGV[0], ARGV[1] || 25)
-	p grade = ::CryptCheck::Tls::Smtp::Grade.new(server)
+	grade = ::CryptCheck::Tls::Smtp::Grade.new server
+	::CryptCheck::Logger.info { '' }
+	grade.display
+else
+	::CryptCheck::Logger.level = :none
+	::CryptCheck::Tls::Smtp.analyze_from_file 'output/smtp.yml', 'output/smtp.html'
 end
 
 
