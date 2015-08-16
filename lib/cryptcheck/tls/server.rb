@@ -21,6 +21,8 @@ module CryptCheck
 			end
 			class TLSNotAvailableException < TLSException
 			end
+			class MethodNotAvailable < TLSException
+			end
 			class CipherNotAvailable < TLSException
 			end
 			class Timeout < TLSException
@@ -160,6 +162,12 @@ module CryptCheck
 					Logger.trace { "Waiting for write to #{host}:#{port}" }
 					raise Timeout unless IO.select nil, [socket], nil, TCP_TIMEOUT
 					retry
+				rescue => e
+					case e.message
+						when /^Connection refused/
+							raise TLSNotAvailableException, e
+					end
+					raise
 				ensure
 					socket.close
 				end
@@ -181,8 +189,22 @@ module CryptCheck
 					Logger.trace { "Waiting for SSL write to #{@hostname}:#{@port}" }
 					raise TLSTimeout unless IO.select nil, [socket], nil, SSL_TIMEOUT
 					retry
+				rescue ::OpenSSL::SSL::SSLError => e
+					case e.message
+						when /state=SSLv2 read server hello A$/,
+								/state=SSLv3 read server hello A: wrong version number$/
+							raise MethodNotAvailable, e
+						when /state=error: no ciphers available$/,
+								/state=SSLv3 read server hello A: sslv3 alert handshake failure$/
+							raise CipherNotAvailable, e
+					end
+					raise TLSException, e
 				rescue => e
-					raise TLSNotAvailableException, e
+					case e.message
+						when /^Connection reset by peer$/
+							raise MethodNotAvailable, e
+					end
+					raise TLSException, e
 				ensure
 					ssl_socket.close
 				end
@@ -222,8 +244,7 @@ module CryptCheck
 						@cert, @chain = ssl_client(method) { |s| [s.peer_cert, s.peer_cert_chain] }
 						Logger.debug { "Certificate #{@cert.subject}" }
 						break
-					rescue TLSException => e
-						Logger.trace { "Method #{Tls.colorize method} not supported : #{e}" }
+					rescue TLSException
 					end
 				end
 				raise TLSNotAvailableException unless @cert
@@ -235,8 +256,8 @@ module CryptCheck
 				cipher = ssl_client(method, 'ALL:COMPLEMENTOFALL') { |s| s.cipher }
 				Logger.info { "Prefered cipher for #{Tls.colorize method} : #{Tls.colorize cipher.first}" }
 				cipher
-			rescue Exception
-				Logger.debug { "Method #{Tls.colorize method} not supported" }
+			rescue TLSException => e
+				Logger.debug { "Method #{Tls.colorize method} not supported : #{e}" }
 				nil
 			end
 
@@ -247,7 +268,7 @@ module CryptCheck
 					next unless SUPPORTED_METHODS.include? method
 					@prefered_ciphers[method] = prefered_cipher method
 				end
-				raise TLSNotAvailableException.new unless @prefered_ciphers.any? { |_, c| !c.nil? }
+				raise TLSNotAvailableException unless @prefered_ciphers.any? { |_, c| !c.nil? }
 			end
 
 			def available_ciphers(method)
@@ -261,7 +282,7 @@ module CryptCheck
 				Logger.info { "#{Tls.colorize method} / #{Tls.colorize cipher[0]} : Supported" }
 				true
 			rescue TLSException => e
-				Logger.debug { "#{Tls.colorize method} / #{Tls.colorize cipher[0]} : Not supported" }
+				Logger.debug { "#{Tls.colorize method} / #{Tls.colorize cipher[0]} : Not supported (#{e})" }
 				false
 			end
 

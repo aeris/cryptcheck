@@ -39,7 +39,7 @@ module CryptCheck
 				grade_class.new server_class.new hostname, port
 			end
 		rescue ::Exception => e
-			@Logger.error { "Error during #{hostname}:#{port} analysis : #{e}" }
+			Logger.error { "Error during #{hostname}:#{port} analysis : #{e}" }
 			TlsNotSupportedGrade.new TlsNotSupportedServer.new hostname, port
 		end
 
