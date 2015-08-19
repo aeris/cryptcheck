@@ -1,4 +1,5 @@
 require 'colorize'
+require 'cryptcheck/tls/fixture'
 
 module CryptCheck
 	autoload :Logger, 'cryptcheck/logger'

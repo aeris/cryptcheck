@@ -35,50 +35,18 @@ module CryptCheck
 			attr_reader :hostname, :port, :prefered_ciphers, :cert, :cert_valid, :cert_trusted
 
 			def initialize(hostname, port)
-				@hostname = hostname
-				@port     = port
+				@hostname, @port = hostname, port
+				@dh = []
 				Logger.info { "#{hostname}:#{port}".colorize :blue }
 				extract_cert
-				#@prefered_ciphers = @supported_ciphers = Hash[SUPPORTED_METHODS.collect { |m| [m, []]}]
+				Logger.info { '' }
+				Logger.info { "Key : #{Tls.key_to_s @cert.public_key}" }
 				fetch_prefered_ciphers
 				check_supported_cipher
 			end
 
 			def supported_methods
-				worst = EXISTING_METHODS.find { |method| !@prefered_ciphers[method].nil? }
-				best  = EXISTING_METHODS.reverse.find { |method| !@prefered_ciphers[method].nil? }
-				{ worst: worst, best: best }
-			end
-
-			def key
-				key = @cert.public_key
-				case key
-					when ::OpenSSL::PKey::RSA then
-						[:rsa, key.n.num_bits]
-					when ::OpenSSL::PKey::DSA then
-						[:dsa, key.p.num_bits]
-					when ::OpenSSL::PKey::EC then
-						[:ecc, key.group.degree]
-				end
-			end
-
-			def key_size
-				type, size = self.key
-				if type == :ecc
-					size = case size
-							   when 160 then
-								   1024
-							   when 224 then
-								   2048
-							   when 256 then
-								   3072
-							   when 384 then
-								   7680
-							   when 521 then
-								   15360
-						   end
-				end
-				size
+				EXISTING_METHODS.select { |m| !@prefered_ciphers[m].nil? }
 			end
 
 			def cipher_size
@@ -115,6 +83,10 @@ module CryptCheck
 				RUBY_EVAL
 			end
 
+			def key_size
+				@cert.public_key.rsa_equivalent_size
+			end
+
 			def ssl?
 				sslv2? or sslv3?
 			end
@@ -137,10 +109,6 @@ module CryptCheck
 
 			def supported_ciphers
 				@supported_ciphers.values.flatten(1).uniq
-			end
-
-			def supported_ciphers_by_method
-				@supported_ciphers
 			end
 
 			private
@@ -262,7 +230,6 @@ module CryptCheck
 			end
 
 			def fetch_prefered_ciphers
-				Logger.info { '' }
 				@prefered_ciphers = {}
 				EXISTING_METHODS.each do |method|
 					next unless SUPPORTED_METHODS.include? method
@@ -278,8 +245,9 @@ module CryptCheck
 			end
 
 			def supported_cipher?(method, cipher)
-				ssl_client method, [cipher]
-				Logger.info { "#{Tls.colorize method} / #{Tls.colorize cipher[0]} : Supported" }
+				dh = ssl_client method, [cipher] { |s| s.tmp_key }
+				dh = dh ? " (#{'DH'.colorize :green} : #{Tls.key_to_s dh})" : ''
+				Logger.info { "#{Tls.colorize method} / #{Tls.colorize cipher[0]} : Supported#{dh}" }
 				true
 			rescue TLSException => e
 				Logger.debug { "#{Tls.colorize method} / #{Tls.colorize cipher[0]} : Not supported (#{e})" }

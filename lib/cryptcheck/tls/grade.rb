@@ -107,17 +107,19 @@ module CryptCheck
 				@success << :pfs if @server.pfs_only?
 			end
 
-			ALL_ERROR   = %i(md5_sig md5 anonymous dss null export des rc4)
-			ALL_WARNING = %i(sha1_sig des3)
-			ALL_SUCCESS = %i(pfs)
+			ALL_ERROR = %i(md5_sig md5 anonymous dss null export des rc4)
 
 			def all_error
 				ALL_ERROR
 			end
 
+			ALL_WARNING = %i(sha1_sig des3)
+
 			def all_warning
 				ALL_WARNING
 			end
+
+			ALL_SUCCESS = %i(pfs)
 
 			def all_success
 				ALL_SUCCESS
@@ -127,28 +129,22 @@ module CryptCheck
 				@grade = 'A+' if @grade == 'A' and @error.empty? and @warning.empty? and (ALL_SUCCESS & @success) == ALL_SUCCESS
 			end
 
-			METHODS_SCORES = { SSLv2: 0, SSLv3: 80, TLSv1: 90, TLSv1_1: 95, TLSv1_2: 100 }
+			METHODS_SCORES = { SSLv2: 0, SSLv3: 10, TLSv1: 50, TLSv1_1: 75, TLSv1_2: 100 }
 
 			def calculate_protocol_score
 				methods         = @server.supported_methods
-				worst, best     = methods[:worst], methods[:best]
+				worst, best     = methods.last, methods.first
 				@protocol_score = (METHODS_SCORES[worst] + METHODS_SCORES[best]) / 2
 			end
 
 			def calculate_key_exchange_score
 				@key_exchange_score = case @server.key_size
-										  when 0 then
-											  0
-										  when 0...512 then
-											  20
-										  when 512...1024 then
-											  40
-										  when 1024...2048 then
-											  80
-										  when 2048...4096 then
-											  90
-										  else
-											  100
+										  when 0 then 0
+										  when 0...512 then 20
+										  when 512...1024 then 40
+										  when 1024...2048 then 80
+										  when 2048...4096 then 90
+										  when 4096...::Float::INFINITY then 100
 									  end
 			end
 

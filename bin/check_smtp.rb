@@ -7,8 +7,8 @@ require 'cryptcheck'
 
 name = ARGV[0]
 if name
-	::CryptCheck::Logger.level = :info
-	server = ::CryptCheck::Tls::Smtp::Server.new(ARGV[0], ARGV[1] || 25)
+	::CryptCheck::Logger.level = (ARGV[1] || :info).to_sym
+	server = ::CryptCheck::Tls::Smtp::Server.new ARGV[0]
 	grade = ::CryptCheck::Tls::Smtp::Grade.new server
 	::CryptCheck::Logger.info { '' }
 	grade.display

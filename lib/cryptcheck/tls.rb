@@ -107,6 +107,25 @@ module CryptCheck
 			cipher.to_s.colorize colors
 		end
 
+		def self.key_to_s(key)
+			size       = key.rsa_equivalent_size
+			type_color = case key.type
+							 when :ecc
+								 { color: :green }
+							 when :dsa
+								 { color: :yellow }
+						 end
+			size_color = case size
+							 when 0...1024
+								 { color: :white, background: :red }
+							 when 1024...2048
+								 { color: :yellow }
+							 when 4096...::Float::INFINITY
+								 { color: :green }
+						 end
+			"#{key.type.to_s.upcase.colorize type_color} #{key.size.to_s.colorize size_color} bits"
+		end
+
 		private
 		SCORES = %w(A+ A A- B C D E F T M X)
 
