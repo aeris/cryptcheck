@@ -1,4 +1,5 @@
 *.iml
+*.gem
 Gemfile.lock
 /.idea/
 /html/

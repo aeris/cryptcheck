@@ -1,5 +1,4 @@
 require 'erb'
-require 'logging'
 require 'parallel'
 
 module CryptCheck
@@ -7,7 +6,6 @@ module CryptCheck
 		module Xmpp
 			MAX_ANALYSIS_DURATION = 600
 			PARALLEL_ANALYSIS = 10
-			Logger = ::Logging.logger[Xmpp]
 
 			def self.grade(hostname, type=:s2s)
 				timeout MAX_ANALYSIS_DURATION do

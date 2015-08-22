@@ -32,7 +32,7 @@ module CryptCheck
 			class ConnectionError < TLSException
 			end
 
-			attr_reader :hostname, :port, :prefered_ciphers, :cert, :cert_valid, :cert_trusted
+			attr_reader :hostname, :port, :prefered_ciphers, :cert, :cert_valid, :cert_trusted, :dh
 
 			def initialize(hostname, port)
 				@hostname, @port = hostname, port
@@ -40,19 +40,30 @@ module CryptCheck
 				Logger.info { "#{hostname}:#{port}".colorize :blue }
 				extract_cert
 				Logger.info { '' }
-				Logger.info { "Key : #{Tls.key_to_s @cert.public_key}" }
+				Logger.info { "Key : #{Tls.key_to_s self.key}" }
 				fetch_prefered_ciphers
 				check_supported_cipher
+				uniq_dh
 			end
 
-			def supported_methods
-				EXISTING_METHODS.select { |m| !@prefered_ciphers[m].nil? }
+			def key
+				@cert.public_key
 			end
 
 			def cipher_size
-				cipher_strengths = supported_ciphers.collect { |c| c[2] }.uniq.sort
-				worst, best      = cipher_strengths.first, cipher_strengths.last
-				{ worst: worst, best: best }
+				supported_ciphers.collect { |c| c.size }.sort.last
+			end
+
+			def supported_protocols
+				@supported_ciphers.keys
+			end
+
+			def supported_ciphers
+				@supported_ciphers.values.flatten 1
+			end
+
+			def supported_ciphers_by_protocol(protocol)
+				@supported_ciphers[protocol]
 			end
 
 			EXISTING_METHODS.each do |method|
@@ -75,10 +86,10 @@ module CryptCheck
 				RUBY_EVAL
 			end
 
-			Tls::TYPES.each do |type, _|
+			Cipher::TYPES.each do |type, _|
 				class_eval <<-RUBY_EVAL, __FILE__, __LINE__ + 1
 					def #{type}?
-						supported_ciphers.any? { |s| Tls.#{type}? s.first  }
+						supported_ciphers.any? { |c| c.#{type}? }
 					end
 				RUBY_EVAL
 			end
@@ -100,15 +111,11 @@ module CryptCheck
 			end
 
 			def pfs?
-				supported_ciphers.any? { |c| Tls.pfs? c.first }
+				supported_ciphers.any? { |c| c.pfs? }
 			end
 
 			def pfs_only?
-				supported_ciphers.all? { |c| Tls.pfs? c.first }
-			end
-
-			def supported_ciphers
-				@supported_ciphers.values.flatten(1).uniq
+				supported_ciphers.all? { |c| c.pfs? }
 			end
 
 			private
@@ -221,8 +228,8 @@ module CryptCheck
 			end
 
 			def prefered_cipher(method)
-				cipher = ssl_client(method, 'ALL:COMPLEMENTOFALL') { |s| s.cipher }
-				Logger.info { "Prefered cipher for #{Tls.colorize method} : #{Tls.colorize cipher.first}" }
+				cipher = ssl_client(method, 'ALL:COMPLEMENTOFALL') { |s| Cipher.new method, s.cipher, s.tmp_key }
+				Logger.info { "Prefered cipher for #{Tls.colorize method} : #{cipher.colorize}" }
 				cipher
 			rescue TLSException => e
 				Logger.debug { "Method #{Tls.colorize method} not supported : #{e}" }
@@ -246,12 +253,14 @@ module CryptCheck
 
 			def supported_cipher?(method, cipher)
 				dh = ssl_client method, [cipher] { |s| s.tmp_key }
+				@dh << dh if dh
+				cipher = Cipher.new method, cipher, dh
 				dh = dh ? " (#{'DH'.colorize :green} : #{Tls.key_to_s dh})" : ''
-				Logger.info { "#{Tls.colorize method} / #{Tls.colorize cipher[0]} : Supported#{dh}" }
-				true
+				Logger.info { "#{Tls.colorize method} / #{cipher.colorize} : Supported#{dh}" }
+				cipher
 			rescue TLSException => e
-				Logger.debug { "#{Tls.colorize method} / #{Tls.colorize cipher[0]} : Not supported (#{e})" }
-				false
+				Logger.debug { "#{Tls.colorize method} / #{cipher.colorize} : Not supported (#{e})" }
+				nil
 			end
 
 			def check_supported_cipher
@@ -259,9 +268,9 @@ module CryptCheck
 				@supported_ciphers = {}
 				EXISTING_METHODS.each do |method|
 					next unless SUPPORTED_METHODS.include? method and @prefered_ciphers[method]
-					ciphers = available_ciphers(method).select { |cipher| supported_cipher? method, cipher }
-					@supported_ciphers[method] = ciphers
-					Logger.info { '' } unless ciphers.empty?
+					supported_ciphers = available_ciphers(method).collect { |c| supported_cipher? method, c }.reject { |c| c.nil? }
+					Logger.info { '' } unless supported_ciphers.empty?
+					@supported_ciphers[method] = supported_ciphers
 				end
 			end
 
@@ -270,7 +279,7 @@ module CryptCheck
 				store.purpose = OpenSSL::X509::PURPOSE_SSL_CLIENT
 				store.set_default_paths
 
-				%w(cacert).each do |directory|
+				%w(cacert mozilla).each do |directory|
 					::Dir.glob(::File.join '/usr/share/ca-certificates', directory, '*').each do |file|
 						cert = ::OpenSSL::X509::Certificate.new ::File.read file
 						begin
@@ -288,6 +297,18 @@ module CryptCheck
 				trusted = store.verify cert
 				p store.error_string unless trusted
 				trusted
+			end
+
+			def uniq_dh
+				dh, find = [], []
+				@dh.each do |k|
+					f = [k.type, k.size]
+					unless find.include? f
+						dh << k
+						find << f
+					end
+				end
+				@dh = dh
 			end
 		end
 

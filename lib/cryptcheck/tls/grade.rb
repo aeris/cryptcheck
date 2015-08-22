@@ -21,21 +21,15 @@ module CryptCheck
 				calculate_warning
 				calculate_success
 				calculate_grade
-				calculate_perfect
 			end
 
 			def display
 				color = case self.grade
-							when 'A+'
-								:blue
-							when 'A'
-								:green
-							when 'B', 'C'
-								:yellow
-							when 'E', 'F'
-								:red
-							when 'M', 'T'
-								{ color: :white, background: :red }
+							when 'A+' then :blue
+							when 'A' then :green
+							when 'B', 'C' then :yellow
+							when 'E', 'F' then :red
+							when 'M', 'T' then { color: :white, background: :red }
 						end
 
 				Logger.info { "Grade : #{self.grade.colorize color }" }
@@ -53,18 +47,12 @@ module CryptCheck
 			private
 			def calculate_grade
 				@grade = case @score
-							 when 0...20 then
-								 'F'
-							 when 20...35 then
-								 'E'
-							 when 35...50 then
-								 'D'
-							 when 50...65 then
-								 'C'
-							 when 65...80 then
-								 'B'
-							 else
-								 'A'
+							 when 0...20 then 'F'
+							 when 20...35 then 'E'
+							 when 35...50 then 'D'
+							 when 50...65 then 'C'
+							 when 65...80 then 'B'
+							 else 'A'
 						 end
 
 				@grade = [@grade, 'B'].max if !@server.tlsv1_2? or @server.key_size < 2048
@@ -73,6 +61,8 @@ module CryptCheck
 
 				@grade = 'M' unless @server.cert_valid
 				@grade = 'T' unless @server.cert_trusted
+
+				@grade = 'A+' if @grade == 'A' and @error.empty? and @warning.empty? and (all_success & @success) == all_success
 			end
 
 			def calculate_error
@@ -108,63 +98,44 @@ module CryptCheck
 			end
 
 			ALL_ERROR = %i(md5_sig md5 anonymous dss null export des rc4)
-
 			def all_error
 				ALL_ERROR
 			end
 
 			ALL_WARNING = %i(sha1_sig des3)
-
 			def all_warning
 				ALL_WARNING
 			end
 
 			ALL_SUCCESS = %i(pfs)
-
 			def all_success
 				ALL_SUCCESS
 			end
 
-			def calculate_perfect
-				@grade = 'A+' if @grade == 'A' and @error.empty? and @warning.empty? and (ALL_SUCCESS & @success) == ALL_SUCCESS
-			end
-
-			METHODS_SCORES = { SSLv2: 0, SSLv3: 10, TLSv1: 50, TLSv1_1: 75, TLSv1_2: 100 }
-
+			METHODS_SCORES = { SSLv2: 0, SSLv3: 20, TLSv1: 60, TLSv1_1: 80, TLSv1_2: 100 }
 			def calculate_protocol_score
-				methods         = @server.supported_methods
-				worst, best     = methods.last, methods.first
-				@protocol_score = (METHODS_SCORES[worst] + METHODS_SCORES[best]) / 2
+				@protocol_score = @server.supported_protocols.collect { |p| METHODS_SCORES[p] }.min
 			end
 
 			def calculate_key_exchange_score
 				@key_exchange_score = case @server.key_size
 										  when 0 then 0
-										  when 0...512 then 20
-										  when 512...1024 then 40
-										  when 1024...2048 then 80
+										  when 0...512 then 10
+										  when 512...1024 then 20
+										  when 1024...2048 then 50
 										  when 2048...4096 then 90
-										  when 4096...::Float::INFINITY then 100
+										  else 100
 									  end
 			end
 
-			def calculate_cipher_strength_score(cipher_strength)
-				case cipher_strength
-					when 0 then
-						0
-					when 0...128 then
-						20
-					when 128...256 then
-						80
-					else
-						100
-				end
-			end
-
 			def calculate_cipher_strengths_score
-				strength                = @server.cipher_size
-				worst, best             = strength[:min], strength[:max]
-				@cipher_strengths_score = (calculate_cipher_strength_score(worst) + calculate_cipher_strength_score(best)) / 2
+				@cipher_strengths_score = case @server.cipher_size
+					when 0 then 0
+					when 0...112 then 10
+					when 112...128 then 50
+					when 128...256 then 90
+					else 100
+				end
 			end
 		end
 	end

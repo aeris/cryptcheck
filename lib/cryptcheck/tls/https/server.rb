@@ -14,14 +14,17 @@ module CryptCheck
 				def fetch_hsts
 					port = @port == 443 ? '' : ":#{@port}"
 
-					response = ::HTTParty.head "https://#{@hostname}#{port}/", { follow_redirects: false, verify: false, timeout: SSL_TIMEOUT }
-					if header = response.headers['strict-transport-security']
-						name, value = header.split '='
-						if name == 'max-age'
-							@hsts = value.to_i
-							Logger.info { "HSTS : #{@hsts.to_s.colorize hsts_long? ? :green : nil}" }
-							return
+					begin
+						response = ::HTTParty.head "https://#{@hostname}#{port}/", { follow_redirects: false, verify: false, timeout: SSL_TIMEOUT }
+						if header = response.headers['strict-transport-security']
+							name, value = header.split '='
+							if name == 'max-age'
+								@hsts = value.to_i
+								Logger.info { "HSTS : #{@hsts.to_s.colorize hsts_long? ? :green : nil}" }
+								return
+							end
 						end
+					rescue ::Net::OpenTimeout
 					end
 
 					Logger.info { 'No HSTS'.colorize :yellow }

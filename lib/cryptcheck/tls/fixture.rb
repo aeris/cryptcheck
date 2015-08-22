@@ -1,3 +1,5 @@
+require 'openssl'
+
 class ::OpenSSL::PKey::EC
 	def type
 		:ecc
@@ -14,6 +16,7 @@ class ::OpenSSL::PKey::EC
 			when 256 then 3072
 			when 384 then 7680
 			when 521 then 15360
+			when 571 then 21000
 		end
 	end
 

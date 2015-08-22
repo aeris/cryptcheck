@@ -1,38 +1,10 @@
 require 'erb'
-require 'logging'
 require 'parallel'
 
 module CryptCheck
 	module Tls
 		MAX_ANALYSIS_DURATION = 600
 		PARALLEL_ANALYSIS     = 10
-
-		TYPES = {
-				md5:       %w(MD5),
-				sha1:      %w(SHA),
-
-				psk:       %w(PSK),
-				srp:       %w(SRP),
-				anonymous: %w(ADH AECDH),
-
-				dss:       %w(DSS),
-
-				null:      %w(NULL),
-				export:    %w(EXP),
-				des:       %w(DES-CBC),
-				rc4:       %w(RC4),
-				des3:      %w(3DES DES-CBC3),
-
-				pfs:       %w(DHE EDH ECDHE ECDH)
-		}
-
-		TYPES.each do |name, ciphers|
-			class_eval <<-RUBY_EVAL, __FILE__, __LINE__ + 1
-				def self.#{name}?(cipher)
-					#{ciphers}.any? { |c| /(^|-)#\{c\}(-|$)/ =~ cipher }
-				end
-			RUBY_EVAL
-		end
 
 		def self.grade(hostname, port, server_class:, grade_class:)
 			timeout MAX_ANALYSIS_DURATION do
@@ -89,20 +61,8 @@ module CryptCheck
 
 		def self.colorize(cipher)
 			colors = case
-						 when /^SSL/ =~ cipher,
-								 dss?(cipher),
-								 anonymous?(cipher),
-								 null?(cipher),
-								 export?(cipher),
-								 md5?(cipher),
-								 des?(cipher),
-								 rc4?(cipher)
-							 { color: :white, background: :red }
-						 when des3?(cipher)
-							 { color: :yellow }
-						 when :TLSv1_2 == cipher,
-								 pfs?(cipher)
-							 { color: :green }
+						 when /^SSL/ =~ cipher then { color: :white, background: :red }
+						 when :TLSv1_2 == cipher then { color: :green }
 					 end
 			cipher.to_s.colorize colors
 		end
@@ -110,18 +70,13 @@ module CryptCheck
 		def self.key_to_s(key)
 			size       = key.rsa_equivalent_size
 			type_color = case key.type
-							 when :ecc
-								 { color: :green }
-							 when :dsa
-								 { color: :yellow }
+							 when :ecc then { color: :green }
+							 when :dsa then { color: :yellow }
 						 end
 			size_color = case size
-							 when 0...1024
-								 { color: :white, background: :red }
-							 when 1024...2048
-								 { color: :yellow }
-							 when 4096...::Float::INFINITY
-								 { color: :green }
+							 when 0...1024 then { color: :white, background: :red }
+							 when 1024...2048 then { color: :yellow }
+							 when 4096...::Float::INFINITY then { color: :green }
 						 end
 			"#{key.type.to_s.upcase.colorize type_color} #{key.size.to_s.colorize size_color} bits"
 		end
