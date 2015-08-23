@@ -259,6 +259,7 @@ module CryptCheck
 				Logger.info { "#{Tls.colorize method} / #{cipher.colorize} : Supported#{dh}" }
 				cipher
 			rescue TLSException => e
+				cipher = Cipher.new method, cipher
 				Logger.debug { "#{Tls.colorize method} / #{cipher.colorize} : Not supported (#{e})" }
 				nil
 			end

@@ -23,7 +23,7 @@ module CryptCheck
 
 			attr_reader :protocol, :name, :size, :dh
 
-			def initialize(protocol, cipher, dh)
+			def initialize(protocol, cipher, dh=nil)
 				@protocol, @dh  = protocol, dh
 				@name, _, @size = cipher
 			end
