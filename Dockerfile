@@ -8,7 +8,7 @@ MAINTAINER Yann Verry <docker@verry.org>
 # install build env
 RUN apt-get update && \
     apt-get dist-upgrade -y && \
-    apt-get -y install wget git build-essential zlib1g-dev zlib1g zlibc locales ca-certificates
+    apt-get -y install wget git build-essential zlib1g-dev zlib1g zlibc locales ca-certificates libreadline-dev
    
 # clone sslcheck
 RUN cd /opt && \
@@ -40,11 +40,11 @@ RUN cd /usr/src && \
     make && \
     make install
 # gem
-RUN /usr/bin/gem install logging parallel ruby-progressbar httparty
+RUN /usr/bin/gem install logging parallel ruby-progressbar httparty --no-ri --no-rdoc
 
 # Cleanup
 RUN rm -rf /usr/src/* && \
-    apt-get -y purge build-essential zlib1g-dev && \
+    apt-get -y purge build-essential zlib1g-dev krb5-locales && \
     apt-get -y autoremove
 
 # Set the locale
