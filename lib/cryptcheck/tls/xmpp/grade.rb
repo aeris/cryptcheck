@@ -2,7 +2,7 @@ module CryptCheck
 	module Tls
 		module Xmpp
 			class Grade < Tls::Grade
-				def success
+				def calculate_success
 					super
 					@success << :required if @server.required?
 				end

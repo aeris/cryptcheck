@@ -25,6 +25,8 @@ module CryptCheck
 						end
 					end
 					super hostname, port
+					Logger.info { '' }
+					Logger.info { self.required? ? 'Required'.colorize(:green) : 'Not required'.colorize(:yellow) }
 				end
 
 				def ssl_connect(socket, context, method, &block)

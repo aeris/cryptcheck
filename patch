@@ -1,0 +1,42 @@
+--- Makefile	2014-12-12 22:58:34.000000000 +0100
++++ Makefile	2015-08-03 23:40:32.177619138 +0200
+@@ -61,6 +61,7 @@
+ sbindir = $(exec_prefix)/sbin
+ bindir = $(exec_prefix)/bin
+ archdir = $(rubyarchdir)
++top_srcdir = ../..
+ 
+ 
+ CC = gcc
+--- ossl_ssl.c	2014-12-12 22:58:34.000000000 +0100
++++ ossl_ssl.c	2015-08-03 23:40:32.177619138 +0200
+@@ -1878,6 +1878,19 @@
+ # endif
+ #endif /* !defined(OPENSSL_NO_SOCK) */
+
++#if OPENSSL_VERSION_NUMBER >= 0x10002000L
++static VALUE
++ossl_ssl_tmp_key(VALUE self)
++{
++       SSL *ssl;
++       EVP_PKEY *key;
++       ossl_ssl_data_get_struct(self, ssl);
++       if (!SSL_get_server_tmp_key(ssl, &key))
++               return Qnil;
++       return ossl_pkey_new(key);
++}
++#endif
++
+ void
+ Init_ossl_ssl(void)
+ {
+@@ -2238,6 +2241,9 @@
+     rb_define_method(cSSLSocket, "session=",    ossl_ssl_set_session, 1);
+     rb_define_method(cSSLSocket, "verify_result", ossl_ssl_get_verify_result, 0);
+     rb_define_method(cSSLSocket, "client_ca", ossl_ssl_get_client_ca_list, 0);
++#if OPENSSL_VERSION_NUMBER >= 0x10002000L
++    rb_define_method(cSSLSocket, "tmp_key", ossl_ssl_tmp_key, 0);
++#endif
+ # ifdef HAVE_OPENSSL_NPN_NEGOTIATED
+     rb_define_method(cSSLSocket, "npn_protocol", ossl_ssl_npn_protocol, 0);
+ # endif

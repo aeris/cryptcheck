@@ -1,5 +1,4 @@
 require 'erb'
-require 'logging'
 require 'parallel'
 
 module CryptCheck
@@ -7,14 +6,13 @@ module CryptCheck
 		module Xmpp
 			MAX_ANALYSIS_DURATION = 600
 			PARALLEL_ANALYSIS = 10
-			@@log = ::Logging.logger[Xmpp]
 
 			def self.grade(hostname, type=:s2s)
 				timeout MAX_ANALYSIS_DURATION do
 					Grade.new Server.new hostname, type
 				end
 			rescue ::Exception => e
-				@@log.error { "Error during #{hostname}:#{type} analysis : #{e}" }
+				Logger.error { "Error during #{hostname}:#{type} analysis : #{e}" }
 				TlsNotSupportedGrade.new TlsNotSupportedServer.new hostname, type
 			end
 

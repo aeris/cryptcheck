@@ -1,24 +1,22 @@
 require 'erb'
-require 'logging'
 require 'parallel'
 
 module CryptCheck
 	module Tls
 		MAX_ANALYSIS_DURATION = 600
-		PARALLEL_ANALYSIS = 10
-		@@log = ::Logging.logger[Tls]
+		PARALLEL_ANALYSIS     = 10
 
 		def self.grade(hostname, port, server_class:, grade_class:)
 			timeout MAX_ANALYSIS_DURATION do
 				grade_class.new server_class.new hostname, port
 			end
 		rescue ::Exception => e
-			@@log.error { "Error during #{hostname}:#{port} analysis : #{e}" }
+			Logger.error { "Error during #{hostname}:#{port} analysis : #{e}" }
 			TlsNotSupportedGrade.new TlsNotSupportedServer.new hostname, port
 		end
 
 		def self.analyze(hosts, template, output, groups = nil, port:, server_class:, grade_class:)
-			results = {}
+			results   = {}
 			semaphore = ::Mutex.new
 			::Parallel.each hosts, progress: 'Analysing', in_threads: PARALLEL_ANALYSIS, finish: lambda { |item, _, _| puts item[1] } do |description, host|
 									 result = grade host.strip, port, server_class: server_class, grade_class: grade_class
@@ -51,7 +49,7 @@ module CryptCheck
 
 		def self.analyze_from_file(file, template, output, port:, server_class:, grade_class:)
 			config = ::YAML.load_file file
-			hosts = []
+			hosts  = []
 			groups = []
 			config.each do |c|
 				d, hs = c['description'], c['hostnames']
@@ -59,6 +57,28 @@ module CryptCheck
 				hs.each { |host| hosts << [d, host] }
 			end
 			self.analyze hosts, template, output, groups, port: port, server_class: server_class, grade_class: grade_class
+		end
+
+		def self.colorize(cipher)
+			colors = case
+						 when /^SSL/ =~ cipher then { color: :white, background: :red }
+						 when :TLSv1_2 == cipher then { color: :green }
+					 end
+			cipher.to_s.colorize colors
+		end
+
+		def self.key_to_s(key)
+			size       = key.rsa_equivalent_size
+			type_color = case key.type
+							 when :ecc then { color: :green }
+							 when :dsa then { color: :yellow }
+						 end
+			size_color = case size
+							 when 0...1024 then { color: :white, background: :red }
+							 when 1024...2048 then { color: :yellow }
+							 when 4096...::Float::INFINITY then { color: :green }
+						 end
+			"#{key.type.to_s.upcase.colorize type_color} #{key.size.to_s.colorize size_color} bits"
 		end
 
 		private

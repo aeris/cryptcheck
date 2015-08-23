@@ -1,6 +1,11 @@
+require 'colorize'
+require 'cryptcheck/tls/fixture'
+
 module CryptCheck
+	autoload :Logger, 'cryptcheck/logger'
 	autoload :Tls, 'cryptcheck/tls'
 	module Tls
+		autoload :Cipher, 'cryptcheck/tls/cipher'
 		autoload :Server, 'cryptcheck/tls/server'
 		autoload :TcpServer, 'cryptcheck/tls/server'
 		autoload :UdpServer, 'cryptcheck/tls/server'

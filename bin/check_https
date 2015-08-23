@@ -1,6 +1,0 @@
-#!/bin/bash
-# 
-# This script fix path requires
-
-cd $(dirname $0)/..
-bin/check_https.rb $1

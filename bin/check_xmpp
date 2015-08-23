@@ -1,16 +1,1 @@
-#!/usr/bin/env ruby
-$:.unshift 'lib'
-require 'logging'
-require 'cryptcheck'
-
-name = ARGV[0]
-if name
-	::Logging.logger.root.appenders = ::Logging.appenders.stdout
-	::Logging.logger.root.level = :warn
-
-	server = ::CryptCheck::Tls::Xmpp::Server.new(name, ARGV[1] || :s2s)
-	p grade = ::CryptCheck::Tls::Xmpp::Grade.new(server)
-else
-	::CryptCheck::Tls::Xmpp.analyze_from_file 'output/xmpp.yml', 'output/xmpp.html'
-end
-
+runner

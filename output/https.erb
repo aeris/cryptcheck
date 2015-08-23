@@ -97,10 +97,10 @@
 									<%= n.grade %>
 								</td>
 
-								<td class="<%= s.key_size < 2048 ? :danger : s.key_size < 4096 ? :warning : :success %>">
-									<% type, size = s.key %>
-									<%= "#{size} (#{type.to_s.upcase})" %>
-									<span class="sr-only">(<%= s.key_size < 2048 ? '☹' : '☺' %>)</span>
+								<% key = s.key %>
+								<td class="<%= key.rsa_equivalent_size < 2048 ? :danger : key.rsa_equivalent_size < 4096 ? :warning : :success %>">
+									<%= "#{key.size} (#{key.type.to_s.upcase})" %>
+									<span class="sr-only">(<%= key.size < 2048 ? '☹' : '☺' %>)</span>
 								</td>
 								<td class="<%= s.sha1_sig? ? :warning : :success %>">
 									<%= s.sha1_sig? ? '✓' : '✗' %>
@@ -124,10 +124,9 @@
 									<span class="sr-only">(<%= s.tls? ? '☺' : '☹' %>)</span>
 								</td>
 
-								<% cipher_size = s.cipher_size[:worst] %>
-								<td class="<%= cipher_size < 112 ? :danger : cipher_size < 128 ? :warning : :success %>">
-									<%= cipher_size %>
-									<span class="sr-only">(<%= cipher_size < 128 ? '☹' : '☺' %>)</span>
+								<td class="<%= s.cipher_size < 112 ? :danger : s.cipher_size < 128 ? :warning : :success %>">
+									<%= s.cipher_size %>
+									<span class="sr-only">(<%= s.cipher_size < 128 ? '☹' : '☺' %>)</span>
 								</td>
 								<td class="<%= s.md5? ? :critical : :success %>">
 									<%= s.md5? ? '✓' : '✗' %>
