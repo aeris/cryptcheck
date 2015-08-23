@@ -32,18 +32,17 @@ bundle install
 ```
 
 ## Running the scripts
-In order to use the openssl library we built, we need to set the ```lib``` folder asa substitute.  
 Checking https:  
 ```
-LD_LIBRARY_PATH=lib bin/check_https google.com
+bin/check_https google.com
 ```
 Checking xmpp:  
 ```
-LD_LIBRARY_PATH=lib bin/check_xmpp google.com
+bin/check_xmpp google.com
 ```
 Checking smtp:  
 ```
-LD_LIBRARY_PATH=lib bin/check_smtp google.com
+bin/check_smtp google.com
 ```
 
 ## Understanding results
