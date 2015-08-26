@@ -69,7 +69,7 @@ module CryptCheck
 				ok = Proc.new { |n| self.send "#{n}?" }
 				{ success: %i(pfs).select { |n| ok.call n },
 				  warning: %i(des3 sha1).select { |n| ok.call n },
-				  danger: %i(md5 psk srp anonymous null export des rc2 rc4).select { |n| ok.call n }
+				  danger: %i(dss md5 psk srp anonymous null export des rc2 rc4).select { |n| ok.call n }
 				}
 			end
 		end

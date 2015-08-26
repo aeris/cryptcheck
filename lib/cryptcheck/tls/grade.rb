@@ -69,11 +69,11 @@ module CryptCheck
 				@error = []
 
 				@error << :md5_sig if @server.md5_sig?
+				@error << :sslv2 if @server.sslv2?
+				@error << :sslv3 if @server.sslv3?
 
 				@error << :md5 if @server.md5?
-
 				@error << :anonymous if @server.anonymous?
-
 				@error << :dss if @server.dss?
 
 				@error << :null if @server.null?
