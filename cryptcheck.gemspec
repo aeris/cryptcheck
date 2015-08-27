@@ -35,4 +35,5 @@ Gem::Specification.new do |spec|
 	spec.add_dependency 'parallel', '~> 1.3', '>= 1.3.4'
 	spec.add_dependency 'ruby-progressbar', '~> 1.7', '>= 1.7.1'
 	spec.add_dependency 'colorize', '~> 0.7', '>= 0.7.7'
+	spec.add_dependency 'net-ssh', '~> 2.9', '>= 2.9.2'
 end
