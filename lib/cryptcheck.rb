@@ -31,4 +31,10 @@ module CryptCheck
 			autoload :Grade, 'cryptcheck/tls/smtp/grade'
 		end
 	end
+
+	module Ssh
+		autoload :Packet, 'cryptcheck/ssh/packet'
+		autoload :Server, 'cryptcheck/ssh/server'
+		autoload :SshNotSupportedServer, 'cryptcheck/ssh/server'
+	end
 end

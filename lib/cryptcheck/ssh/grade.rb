@@ -1,6 +1,6 @@
 module CryptCheck
-	module Tls
-		class TlsNotSupportedGrade
+	module Ssh
+		class SshNotSupportedGrade
 			attr_reader :server, :score, :grade
 
 			def initialize(server)
@@ -13,14 +13,6 @@ module CryptCheck
 
 			def initialize(server)
 				@server = server
-				calculate_protocol_score
-				calculate_key_exchange_score
-				calculate_cipher_strengths_score
-				@score = @protocol_score*0.3 + @key_exchange_score*0.3 + @cipher_strengths_score*0.4
-				calculate_error
-				calculate_warning
-				calculate_success
-				calculate_grade
 			end
 
 			def display
