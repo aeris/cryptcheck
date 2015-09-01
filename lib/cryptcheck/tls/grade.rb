@@ -9,7 +9,7 @@ module CryptCheck
 		end
 
 		class Grade
-			attr_reader :server, :protocol_score, :key_exchange_score, :cipher_strengths_score, :score, :grade, :error, :warning, :success
+			attr_reader :server, :protocol_score, :key_exchange_score, :cipher_strengths_score, :score, :grade, :error, :danger, :warning, :success
 
 			def initialize(server)
 				@server = server
@@ -17,9 +17,7 @@ module CryptCheck
 				calculate_key_exchange_score
 				calculate_cipher_strengths_score
 				@score = @protocol_score*0.3 + @key_exchange_score*0.3 + @cipher_strengths_score*0.4
-				calculate_error
-				calculate_warning
-				calculate_success
+				calculate_states
 				calculate_grade
 			end
 
@@ -65,36 +63,17 @@ module CryptCheck
 				@grade = 'A+' if @grade == 'A' and @error.empty? and @warning.empty? and (all_success & @success) == all_success
 			end
 
-			def calculate_error
-				@error = []
+			def calculate_states
+				ok = Proc.new { |n| @server.send "#{n}?" }
+				state = {
+						success: %i().select { |n| ok.call n },
+						warning: %i(sha1_sig).select { |n| ok.call n },
+						danger:  %i(des3).select { |n| ok.call n },
+						error:   %i(md5_sig md5 sslv2 sslv3 anonymous dss null export des rc4).select { |n| ok.call n }
+				}
+				state[:success] << :pfs if @server.pfs_only?
 
-				@error << :md5_sig if @server.md5_sig?
-				@error << :sslv2 if @server.sslv2?
-				@error << :sslv3 if @server.sslv3?
-
-				@error << :md5 if @server.md5?
-				@error << :anonymous if @server.anonymous?
-				@error << :dss if @server.dss?
-
-				@error << :null if @server.null?
-				@error << :export if @server.export?
-				@error << :des if @server.des?
-				@error << :rc4 if @server.rc4?
-			end
-
-			def calculate_warning
-				@warning = []
-
-				@warning << :sha1_sig if @server.sha1_sig?
-
-				#@warning << :sha1 if @server.sha1?
-
-				@warning << :des3 if @server.des3?
-			end
-
-			def calculate_success
-				@success = []
-				@success << :pfs if @server.pfs_only?
+				@success, @warning, @danger, @error = state[:success], state[:warning], state[:danger], state[:error]
 			end
 
 			ALL_ERROR = %i(md5_sig md5 anonymous dss null export des rc4)
