@@ -8,5 +8,5 @@ Gemfile.lock
 /output/*.html
 /db/*.sqlite3
 /db/schema.rb
-/lib/*.so
-/lib/*.so.1.0.0
+/lib/**/*.so
+/lib/**/*.so.1.0.0
