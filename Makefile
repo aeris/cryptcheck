@@ -39,10 +39,9 @@ $(OPENSSL_DIR)/libssl.so $(OPENSSL_DIR)/libcrypto.so: $(OPENSSL_DIR)/Makefile
 
 lib/%.so: $(OPENSSL_DIR)/%.so
 	cp $< $@
-lib/%.so.1.0.0: $(OPENSSL_DIR)/%.so.1.0.0
-	cp $< $@
+	cp $<.1.0.0 $@.1.0.0
 
-libs: lib/libssl.so lib/libcrypto.so lib/libssl.so.1.0.0 lib/libcrypto.so.1.0.0
+libs: lib/libssl.so lib/libcrypto.so
 
 $(RUBY_DIR)/:
 	wget http://cache.ruby-lang.org/pub/ruby/$(RUBY_MAJOR_VERSION)/$(RUBY_DIR).tar.gz
