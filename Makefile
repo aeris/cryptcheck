@@ -18,13 +18,13 @@ clean:
 	rm -rf $(RUBY_DIR) $(OPENSSL_DIR)
 clean-libs:
 	find $(OPENSSL_DIR) \( -name "*.o" -o -name "*.so" \) -delete
-	rm -f lib/libcrypto.so lib/libssl.so
+	rm -f lib/libcrypto.so lib/libssl.so lib/libcrypto.so.1.0.0 lib/libssl.so.1.0.0
 clean-ext:
 	find $(RUBY_OPENSSL_EXT_DIR) \( -name "*.o" -o -name "*.so" \) -delete
 	rm -f lib/openssl.so
 
 mr-proper: clean
-	rm -rf lib/libcrypto.so lib/libssl.so lib/openssl.so
+	rm -rf lib/libcrypto.so lib/libssl.so lib/libcrypto.so.1.0.0 lib/libssl.so.1.0.0 lib/openssl.so
 
 $(OPENSSL_DIR)/:
 	wget https://www.openssl.org/source/$(OPENSSL_DIR).tar.gz
@@ -34,11 +34,15 @@ $(OPENSSL_DIR)/:
 $(OPENSSL_DIR)/Makefile: | $(OPENSSL_DIR)/
 	cd $(OPENSSL_DIR); ./config shared
 
-$(OPENSSL_DIR)/libssl.so $(OPENSSL_DIR)/libcrypto.so: $(OPENSSL_DIR)/Makefile
+$(OPENSSL_DIR)/libssl.so \
+$(OPENSSL_DIR)/libcrypto.so \
+$(OPENSSL_DIR)/libssl.so.1.0.0 \
+$(OPENSSL_DIR)/libcrypto.so.1.0.0: $(OPENSSL_DIR)/Makefile
 	$(MAKE) -C $(OPENSSL_DIR) depend build_libs
 
 lib/%.so: $(OPENSSL_DIR)/%.so
 	cp $< $@
+
 lib/%.so.1.0.0: $(OPENSSL_DIR)/%.so.1.0.0
 	cp $< $@
 
