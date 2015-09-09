@@ -39,6 +39,8 @@ module CryptCheck
 					loop do
 						response += socket.recv 1024
 						xml = ::Nokogiri::XML response
+						error = xml.xpath '//stream:error'
+						raise Exception, error.text unless error.empty?
 						unless xml.xpath('//stream:features').empty?
 							response = xml
 							break
