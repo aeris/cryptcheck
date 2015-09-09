@@ -4,11 +4,16 @@ require 'rubygems'
 require 'bundler/setup'
 require 'cryptcheck'
 
-name = ARGV[0]
+name, type, level = case ARGV.length
+						when 1 then [ARGV[0], :s2s, :info]
+						when 2 then [ARGV[0], ARGV[1].to_sym, :info]
+						when 3 then [ARGV[0], ARGV[1].to_sym, ARGV[2].to_sym]
+					end
+
 if name
-	::CryptCheck::Logger.level = :info
-	server = ::CryptCheck::Tls::Xmpp::Server.new(name, ARGV[1] || :s2s)
-	grade = ::CryptCheck::Tls::Xmpp::Grade.new(server)
+	::CryptCheck::Logger.level = level
+	server = ::CryptCheck::Tls::Xmpp::Server.new name, type
+	grade = ::CryptCheck::Tls::Xmpp::Grade.new server
 	::CryptCheck::Logger.info { '' }
 	grade.display
 else
