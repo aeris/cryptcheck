@@ -15,7 +15,13 @@ module CryptCheck
 					port = @port == 443 ? '' : ":#{@port}"
 
 					begin
-						response = ::HTTParty.head "https://#{@hostname}#{port}/", { follow_redirects: false, verify: false, timeout: SSL_TIMEOUT }
+						response = ::HTTParty.head "https://#{@hostname}#{port}/",
+												   {
+														   follow_redirects: false,
+														   verify:           false,
+														   timeout:          SSL_TIMEOUT,
+														   ssl_version:      self.supported_protocols.first
+												   }
 						if header = response.headers['strict-transport-security']
 							name, value = header.split '='
 							if name == 'max-age'
@@ -24,7 +30,7 @@ module CryptCheck
 								return
 							end
 						end
-					rescue ::Net::OpenTimeout
+					rescue
 					end
 
 					Logger.info { 'No HSTS'.colorize :yellow }
