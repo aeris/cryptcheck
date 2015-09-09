@@ -67,11 +67,44 @@ module CryptCheck
 
 			def state
 				ok = Proc.new { |n| self.send "#{n}?" }
-				{ success: %i(pfs).select { |n| ok.call n },
-				  warning: %i(sha1).select { |n| ok.call n },
-				  danger: %i(des3).select { |n| ok.call n },
-				  error: %i(dss md5 psk srp anonymous null export des rc2 rc4).select { |n| ok.call n }
+				{
+						success: %i(pfs).select { |n| ok.call n },
+						warning: %i(sha1).select { |n| ok.call n },
+						danger:  %i(des3).select { |n| ok.call n },
+						error:   %i(dss md5 psk srp anonymous null export des rc2 rc4).select { |n| ok.call n }
 				}
+			end
+
+			def score
+				state = self.state
+				return :error unless state[:error].empty?
+				return :danger unless state[:danger].empty?
+				return :warning unless state[:warning].empty?
+				return :success unless state[:success].empty?
+				:none
+			end
+
+			PRIORITY = { success: 1, none: 2, warning: 3, danger: 4, error: 5 }
+			def self.sort(ciphers)
+				ciphers.sort do |a, b|
+					error_a, error_b = PRIORITY[a.score], PRIORITY[b.score]
+					compare = error_a <=> error_b
+					next compare unless compare == 0
+
+					size_a, size_b = a.size, b.size
+					compare = size_b <=> size_a
+					next compare unless compare == 0
+
+					dh_a, dh_b = a.dh, b.dh
+					next -1 if not dh_a and dh_b
+					next 1 if dh_a and not dh_b
+					next a.name <=> b.name if not dh_a and not dh_b
+
+					compare = b.dh.size <=> a.dh.size
+					next compare unless compare == 0
+
+					a.name <=> b.name
+				end
 			end
 		end
 	end
