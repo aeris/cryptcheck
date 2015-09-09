@@ -19,52 +19,52 @@ module CryptCheck
 
 			KEX = {
 					'curve25519-sha256@libssh.org'         => :green,
-					'diffie-hellman-group1-sha1'           => :yellow,
-					'diffie-hellman-group14-sha1'          => :yellow,
-					'diffie-hellman-group-exchange-sha1'   => :yellow,
-					'diffie-hellman-group-exchange-sha256' => :green,
-					'ecdh-sha2-nistp256'                   => :yellow,
-					'ecdh-sha2-nistp384'                   => :yellow,
-					'ecdh-sha2-nistp521'                   => :yellow
+					'ecdh-sha2-nistp521'                   => nil,		# NIST
+					'ecdh-sha2-nistp384'                   => nil,		# NIST
+					'ecdh-sha2-nistp256'                   => nil,		# NIST
+					'diffie-hellman-group-exchange-sha256' => :green,	# DLP (PFS)
+					'diffie-hellman-group-exchange-sha1'   => :yellow,	# DLP (PFS)
+					'diffie-hellman-group14-sha1'          => :yellow,	# 2048 bits < 3072 bits
+					'diffie-hellman-group1-sha1'           => :red		# 768 bits < 1024 bits
 			}
 
 			ENCRYPTION = {
-					'3des-cbc'                      => :red,
-					'aes128-cbc'                    => :yellow,
-					'aes192-cbc'                    => :yellow,
-					'aes256-cbc'                    => :yellow,
-					'aes128-ctr'                    => :yellow,
-					'aes192-ctr'                    => :yellow,
-					'aes256-ctr'                    => :yellow,
-					'aes128-gcm@openssh.com'        => :green,
+					'chacha20-poly1305@openssh.com' => :green,
 					'aes256-gcm@openssh.com'        => :green,
-					'arcfour'                       => :red,
-					'arcfour128'                    => :red,
-					'arcfour256'                    => :red,
-					'blowfish-cbc'                  => :yellow,
-					'cast128-cbc'                   => nil,
-					'chacha20-poly1305@openssh.com' => :green
+					'aes128-gcm@openssh.com'        => :green,
+					'aes256-ctr'                    => nil,		# CTR < GCM
+					'aes192-ctr'                    => nil,		# CTR < GCM
+					'aes128-ctr'                    => nil,		# CTR < GCM
+					'aes256-cbc'                    => :yellow,	# CBC
+					'aes192-cbc'                    => :yellow,	# CBC
+					'aes128-cbc'                    => :yellow,	# CBC
+					'blowfish-cbc'                  => :yellow,	# CBC
+					'cast128-cbc'                   => :yellow,	# CBC
+					'3des-cbc'                      => :red,	# 3DES
+					'arcfour'                       => :red,	# RC4
+					'arcfour128'                    => :red,	# RC4
+					'arcfour256'                    => :red		# RC4
 			}
 
 			HMAC = {
-					'hmac-md5'                       => :red,
-					'hmac-md5-96'                    => :red,
-					'hmac-ripemd160'                 => :green,
-					'hmac-sha1'                      => :yellow,
-					'hmac-sha1-96'                   => :red,
-					'hmac-sha2-256'                  => :green,
-					'hmac-sha2-512'                  => :green,
-					'umac-64@openssh.com'            => :red,
-					'umac-128@openssh.com'           => nil,
-					'hmac-md5-etm@openssh.com'       => :red,
-					'hmac-md5-96-etm@openssh.com'    => :red,
-					'hmac-ripemd160-etm@openssh.com' => :green,
-					'hmac-sha1-etm@openssh.com'      => :yellow,
-					'hmac-sha1-96-etm@openssh.com'   => :red,
-					'hmac-sha2-256-etm@openssh.com'  => :green,
 					'hmac-sha2-512-etm@openssh.com'  => :green,
-					'umac-64-etm@openssh.com'        => :red,
-					'umac-128-etm@openssh.com'       => nil
+					'hmac-sha2-256-etm@openssh.com'  => :green,
+					'hmac-sha2-512'                  => nil,
+					'hmac-sha2-256'                  => nil,
+					'hmac-sha1-etm@openssh.com'      => :green,
+					'hmac-sha1'                      => nil,
+					'hmac-sha1-96-etm@openssh.com'   => :red,	# EXPORT
+					'hmac-sha1-96'                   => :red,	# EXPORT
+					'hmac-ripemd160-etm@openssh.com' => :green,
+					'hmac-ripemd160'                 => nil,
+					'hmac-md5-etm@openssh.com'       => :red,	# MD5
+					'hmac-md5'                       => :red,	# MD5
+					'hmac-md5-96-etm@openssh.com'    => :red,	# MD5 + EXPORT
+					'hmac-md5-96'                    => :red,	# MD5 + EXPORT
+					'umac-128-etm@openssh.com'       => :green,
+					'umac-128@openssh.com'           => nil,
+					'umac-64-etm@openssh.com'        => :red,	# < 128 bits
+					'umac-64@openssh.com'            => :red	# < 128 bits
 			}
 
 			COMPRESSION = {
@@ -73,20 +73,20 @@ module CryptCheck
 			}
 
 			KEY = {
-					'ecdsa-sha2-nistp256-cert-v01@openssh.com' => :yellow,
-					'ecdsa-sha2-nistp384-cert-v01@openssh.com' => :yellow,
-					'ecdsa-sha2-nistp521-cert-v01@openssh.com' => :yellow,
-					'ssh-ed25519-cert-v01@openssh.com'         => :green,
-					'ssh-rsa-cert-v01@openssh.com'             => :yellow,
-					'ssh-dss-cert-v01@openssh.com'             => :red,
-					'ssh-rsa-cert-v00@openssh.com'             => :yellow,
-					'ssh-dss-cert-v00@openssh.com'             => :red,
-					'ecdsa-sha2-nistp256'                      => :yellow,
-					'ecdsa-sha2-nistp384'                      => :yellow,
-					'ecdsa-sha2-nistp521'                      => :yellow,
 					'ssh-ed25519'                              => :green,
-					'ssh-rsa'                                  => :yellow,
-					'ssh-dss'                                  => :red
+					'ssh-ed25519-cert-v01@openssh.com'         => :green,
+					'ecdsa-sha2-nistp256'                      => nil,		# NIST
+					'ecdsa-sha2-nistp384'                      => nil,		# NIST
+					'ecdsa-sha2-nistp521'                      => nil,		# NIST
+					'ssh-rsa'                                  => :yellow,	# RSA
+					'ssh-dss'                                  => :red,		# DSA
+					'ecdsa-sha2-nistp256-cert-v01@openssh.com' => nil,		# NIST
+					'ecdsa-sha2-nistp384-cert-v01@openssh.com' => nil,		# NIST
+					'ecdsa-sha2-nistp521-cert-v01@openssh.com' => nil,		# NIST
+					'ssh-rsa-cert-v01@openssh.com'             => :yellow,	# RSA
+					'ssh-rsa-cert-v00@openssh.com'             => :yellow,	# RSA
+					'ssh-dss-cert-v01@openssh.com'             => :red,		# DSA
+					'ssh-dss-cert-v00@openssh.com'             => :red,		# DSA
 			}
 
 			def initialize(hostname, port)
