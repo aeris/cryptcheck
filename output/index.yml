@@ -24,6 +24,9 @@
   - aplu.fr
   - tdelmas.ovh
   - gordon.re
+  - fiat-tux.fr
+  - erco.xyz
+  - demo.lufi.io
 - description: Associations
   hostnames:
   - april.org
@@ -66,7 +69,7 @@
   - quotidien.framapad.org
   - hebdo.framapad.org
   - mensuel.framapad.org
-  - bimensuel.framapad.org
+  - bimestriel.framapad.org
   - semestriel.framapad.org
   - annuel.framapad.org
   - git.framasoft.org
