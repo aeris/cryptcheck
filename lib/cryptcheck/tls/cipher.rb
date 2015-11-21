@@ -18,7 +18,7 @@ module CryptCheck
 					rc4:       %w(RC4),
 					des3:      %w(3DES DES-CBC3),
 
-					pfs:       %w(DHE EDH ECDHE ECDH)
+					pfs:       %w(DHE EDH ECDHE)
 			}
 
 			attr_reader :protocol, :name, :size, :dh
