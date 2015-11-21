@@ -51,7 +51,7 @@ module CryptCheck
 			end
 
 			def cipher_size
-				supported_ciphers.collect { |c| c.size }.sort.last
+				supported_ciphers.collect { |c| c.size }.min
 			end
 
 			def supported_protocols
