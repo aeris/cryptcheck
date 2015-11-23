@@ -101,8 +101,8 @@ module CryptCheck
 										  when 0 then 0
 										  when 0...512 then 10
 										  when 512...1024 then 20
-										  when 1024...2048 then 50
-										  when 2048...4096 then 90
+										  when 1024...3072 then 50
+										  when 3072...4096 then 90
 										  else 100
 									  end
 			end
