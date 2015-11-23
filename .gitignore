@@ -1,9 +1,10 @@
 *.iml
 *.gem
 Gemfile.lock
-/.idea/
+.rakeTasks
+.idea/
 /html/
-/.rspec
+.rspec
 /rakefile
 /output/*.html
 /db/*.sqlite3
