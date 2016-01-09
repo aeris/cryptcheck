@@ -280,8 +280,8 @@ module CryptCheck
 				store.purpose = OpenSSL::X509::PURPOSE_SSL_CLIENT
 				store.set_default_paths
 
-				%w(cacert mozilla).each do |directory|
-					::Dir.glob(::File.join '/usr/share/ca-certificates', directory, '*').each do |file|
+				%w(/etc/ssl/certs).each do |directory|
+					::Dir.glob(::File.join directory, '*.pem').each do |file|
 						cert = ::OpenSSL::X509::Certificate.new ::File.read file
 						begin
 							store.add_cert cert

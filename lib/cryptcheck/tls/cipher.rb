@@ -106,6 +106,13 @@ module CryptCheck
 					a.name <=> b.name
 				end
 			end
+
+			def self.list(cipher_suite = 'ALL:COMPLEMENTOFALL', protocol: :TLSv1_2)
+				context = OpenSSL::SSL::SSLContext.new protocol
+				context.ciphers = cipher_suite
+				ciphers = context.ciphers.collect { |c| self.new protocol, c }
+				self.sort ciphers
+			end
 		end
 	end
 end

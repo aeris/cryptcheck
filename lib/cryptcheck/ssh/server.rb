@@ -89,7 +89,7 @@ module CryptCheck
 					'ssh-dss-cert-v00@openssh.com'             => :red,		# DSA
 			}
 
-			def initialize(hostname, port)
+			def initialize(hostname, port=22)
 				@hostname, @port = hostname, port
 
 				Logger.info { "#{hostname}:#{port}".colorize :blue }
