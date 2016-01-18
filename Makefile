@@ -27,7 +27,7 @@ mr-proper: clean
 	rm -rf lib/libcrypto.so lib/libssl.so lib/libcrypto.so.1.0.0 lib/libssl.so.1.0.0 lib/openssl.so
 
 $(OPENSSL_DIR)/:
-	wget https://www.openssl.org/source/$(OPENSSL_DIR).tar.gz
+	wget https://www.openssl.org/source/old/1.0.2/$(OPENSSL_DIR).tar.gz
 	tar xf $(OPENSSL_DIR).tar.gz
 	rm -rf $(OPENSSL_DIR).tar.gz
 
