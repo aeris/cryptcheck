@@ -1,22 +1,12 @@
-require 'resolv'
-
 module CryptCheck
 	module Tls
 		module Smtp
 			class Server < Tls::TcpServer
-				RESOLVER = Resolv::DNS.new
-
 				attr_reader :domain
 
-				def initialize(domain, port=25)
+				def initialize(family, ip, port, hostname: nil, domain:)
 					@domain = domain
-					srv = RESOLVER.getresources(domain, Resolv::DNS::Resource::IN::MX).sort_by(&:preference).first
-					if srv
-						hostname = srv.exchange.to_s
-					else # DNS is not correctly set, guess config…
-						hostname = domain
-					end
-					super hostname, port
+					super family, ip, port, hostname: hostname
 				end
 
 				def ssl_connect(socket, context, method, &block)

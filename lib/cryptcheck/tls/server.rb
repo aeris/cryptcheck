@@ -7,8 +7,8 @@ module CryptCheck
 		class TlsNotSupportedServer
 			attr_reader :hostname, :port
 
-			def initialize(hostname, port)
-				@hostname, @port = hostname, port
+			def initialize(host, port)
+				@hostname, @port = host, port
 			end
 		end
 
@@ -32,12 +32,12 @@ module CryptCheck
 			class ConnectionError < TLSException
 			end
 
-			attr_reader :hostname, :port, :prefered_ciphers, :cert, :cert_valid, :cert_trusted, :dh
+			attr_reader :family, :ip, :port, :hostname, :prefered_ciphers, :cert, :cert_valid, :cert_trusted, :dh
 
-			def initialize(hostname, port)
-				@hostname, @port = hostname, port
+			def initialize(family, ip, port, hostname: nil)
+				@family, @ip, @port, @hostname = family, ip, port, hostname
 				@dh = []
-				Logger.info { "#{hostname}:#{port}".colorize :blue }
+				Logger.info { name.colorize :blue }
 				extract_cert
 				Logger.info { '' }
 				Logger.info { "Key : #{Tls.key_to_s self.key}" }
@@ -119,22 +119,28 @@ module CryptCheck
 			end
 
 			private
-			def connect(family, host, port, &block)
-				socket   = ::Socket.new family, sock_type
-				sockaddr = ::Socket.sockaddr_in port, host
-				Logger.trace { "Connecting to #{host}:#{port}" }
+			def name
+				name = "#{@hostname || @ip}:#@port"
+				name += " [#@ip]" if @hostname
+				name
+			end
+
+			def connect(&block)
+				socket   = ::Socket.new @family, sock_type
+				sockaddr = ::Socket.sockaddr_in @port, @ip
+				Logger.trace { "Connecting to #{name}" }
 				begin
 					status = socket.connect_nonblock sockaddr
-					Logger.trace { "Connecting to #{host}:#{port} status : #{status}" }
+					Logger.trace { "Connecting to #{name} status : #{status}" }
 					raise ConnectionError, status unless status == 0
-					Logger.trace { "Connected to #{host}:#{port}" }
+					Logger.trace { "Connected to #{name}" }
 					block_given? ? block.call(socket) : nil
 				rescue ::IO::WaitReadable
-					Logger.trace { "Waiting for read to #{host}:#{port}" }
+					Logger.trace { "Waiting for read to #{name}" }
 					raise Timeout unless IO.select [socket], nil, nil, TCP_TIMEOUT
 					retry
 				rescue ::IO::WaitWritable
-					Logger.trace { "Waiting for write to #{host}:#{port}" }
+					Logger.trace { "Waiting for write to #{name}" }
 					raise Timeout unless IO.select nil, [socket], nil, TCP_TIMEOUT
 					retry
 				rescue => e
@@ -150,18 +156,18 @@ module CryptCheck
 
 			def ssl_connect(socket, context, method, &block)
 				ssl_socket          = ::OpenSSL::SSL::SSLSocket.new socket, context
-				ssl_socket.hostname = @hostname unless method == :SSLv2
-				Logger.trace { "SSL connecting to #{@hostname}:#{@port}" }
+				ssl_socket.hostname = @hostname if @hostname and method != :SSLv2
+				Logger.trace { "SSL connecting to #{name}" }
 				begin
 					ssl_socket.connect_nonblock
-					Logger.trace { "SSL connected to #{@hostname}:#{@port}" }
+					Logger.trace { "SSL connected to #{name}" }
 					return block_given? ? block.call(ssl_socket) : nil
 				rescue ::IO::WaitReadable
-					Logger.trace { "Waiting for SSL read to #{@hostname}:#{@port}" }
+					Logger.trace { "Waiting for SSL read to #{name}" }
 					raise TLSTimeout unless IO.select [socket], nil, nil, SSL_TIMEOUT
 					retry
 				rescue ::IO::WaitWritable
-					Logger.trace { "Waiting for SSL write to #{@hostname}:#{@port}" }
+					Logger.trace { "Waiting for SSL write to #{name}" }
 					raise TLSTimeout unless IO.select nil, [socket], nil, SSL_TIMEOUT
 					retry
 				rescue ::OpenSSL::SSL::SSLError => e
@@ -189,26 +195,13 @@ module CryptCheck
 				ssl_context         = ::OpenSSL::SSL::SSLContext.new method
 				ssl_context.ciphers = ciphers if ciphers
 				Logger.trace { "Try #{method} connection with #{ciphers}" }
-
-				[::Socket::AF_INET, ::Socket::AF_INET6].each do |family|
-					Logger.trace { "Try connection for family #{family}" }
-					addrs = begin
-						::Socket.getaddrinfo @hostname, nil, family, :STREAM
-					rescue ::SocketError => e
-						Logger.error { "Unable to resolv #{@hostname} : #{e}" }
-						next
-					end
-
-					addrs.each do |addr|
-						connect family, addr[3], @port do |socket|
-							ssl_connect socket, ssl_context, method do |ssl_socket|
-								return block_given? ? block.call(ssl_socket) : nil
-							end
-						end
+				connect do |socket|
+					ssl_connect socket, ssl_context, method do |ssl_socket|
+						return block_given? ? block.call(ssl_socket) : nil
 					end
 				end
 
-				Logger.debug { "No SSL available on #{@hostname}" }
+				Logger.debug { "No SSL available on #{name}" }
 				raise CipherNotAvailable
 			end
 
@@ -223,7 +216,7 @@ module CryptCheck
 					end
 				end
 				raise TLSNotAvailableException unless @cert
-				@cert_valid   = ::OpenSSL::SSL.verify_certificate_identity @cert, @hostname
+				@cert_valid   = ::OpenSSL::SSL.verify_certificate_identity @cert, (@hostname || @ip)
 				@cert_trusted = verify_trust @chain, @cert
 			end
 

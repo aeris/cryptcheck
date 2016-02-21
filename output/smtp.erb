@@ -92,7 +92,9 @@
 											else :danger
 										end
 								%>
-								<th id="<%= s.domain %>"><%= s.domain %></th>
+								<th id="<%= s.domain %>">
+									<a href="#<%= s.domain %>"><%= s.domain %></a>
+								</th>
 								<td class="<%= rank_color %>">
 									<%= n.grade %>
 								</td>

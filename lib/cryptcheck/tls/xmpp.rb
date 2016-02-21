@@ -4,49 +4,36 @@ require 'parallel'
 module CryptCheck
 	module Tls
 		module Xmpp
-			MAX_ANALYSIS_DURATION = 600
-			PARALLEL_ANALYSIS = 10
-
-			def self.grade(hostname, type=:s2s)
-				timeout MAX_ANALYSIS_DURATION do
-					Grade.new Server.new hostname, type
+			def self.analyze(host, port=nil, domain: nil, type: :s2s)
+				domain ||= host
+				::CryptCheck.analyze host, port do |family, ip, host|
+					s = Server.new family, ip, port, hostname: host, type: type, domain: domain
+					g = Grade.new s
+					Logger.info { '' }
+					g.display
+					g
 				end
-			rescue ::Exception => e
-				Logger.error { "Error during #{hostname}:#{type} analysis : #{e}" }
-				TlsNotSupportedGrade.new TlsNotSupportedServer.new hostname, type
 			end
 
-			def self.analyze(hosts, output)
-				servers = []
-				semaphore = ::Mutex.new
-				::Parallel.each hosts, progress: 'Analysing', in_threads: PARALLEL_ANALYSIS, finish: lambda { |item, _, _| puts item } do |host|
-										 result = grade host.strip
-										 semaphore.synchronize { servers << result }
-									 end
-				servers.sort! do |a, b|
-					cmp = score(a) <=> score(b)
-					if cmp == 0
-						cmp = b.score <=> a.score
-						if cmp == 0
-							cmp = a.server.hostname <=> b.server.hostname
-						end
-					end
-					cmp
+			def self.analyze_domain(domain, type: :s2s)
+				service, port = case type
+									when :s2s
+										['_xmpp-server', 5269]
+									when :c2s
+										['_xmpp-client', 5222]
+								end
+				srv = Resolv::DNS.new.getresources("#{service}._tcp.#{domain}", Resolv::DNS::Resource::IN::SRV)
+							  .sort_by(&:priority).first
+				if srv
+					hostname, port = srv.target.to_s, srv.port
+				else # DNS is not correctly set, guess config…
+					hostname = domain
 				end
-
-				::File.write output, ::ERB.new(::File.read('output/xmpp.erb')).result(binding)
+				self.analyze hostname, port, domain: domain, type: type
 			end
 
-			def self.analyze_from_file(file, output)
-				hosts = ::YAML.load_file file
-				self.analyze hosts, output
-			end
-
-			private
-			SCORES = %w(A+ A A- B C D E F T M X)
-
-			def self.score(a)
-				SCORES.index a.grade
+			def self.analyze_file(input, output)
+				::CryptCheck.analyze_file(input, 'output/xmpp.erb', output) { |host| self.analyze_domain host }
 			end
 		end
 	end

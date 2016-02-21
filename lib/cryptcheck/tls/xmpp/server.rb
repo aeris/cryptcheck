@@ -1,45 +1,40 @@
 require 'nokogiri'
-require 'resolv'
 
 module CryptCheck
 	module Tls
 		module Xmpp
 			TLS_NAMESPACE = 'urn:ietf:params:xml:ns:xmpp-tls'
-			RESOLVER = Resolv::DNS.new
 
 			class Server < Tls::TcpServer
 				attr_reader :domain
 
-				def initialize(domain, type=:s2s, hostname: nil)
+				def initialize(family, ip, port=nil, hostname: nil, domain: nil, type: :s2s)
+					domain         ||= hostname
 					@type, @domain = type, domain
-					service, port = case type
-								  when :s2s then ['_xmpp-server', 5269]
-								  when :c2s then ['_xmpp-client', 5222]
-							  end
-					unless hostname
-						srv = RESOLVER.getresources("#{service}._tcp.#{domain}", Resolv::DNS::Resource::IN::SRV).sort_by(&:priority).first
-						if srv
-							hostname, port = srv.target.to_s, srv.port
-						else # DNS is not correctly set, guess config…
-							hostname = domain
-						end
-					end
-					super hostname, port
+					port           = case type
+										 when :s2s
+											 5269
+										 when :c2s
+											 5222
+									 end unless port
+					super family, ip, port, hostname: hostname
 					Logger.info { '' }
 					Logger.info { self.required? ? 'Required'.colorize(:green) : 'Not required'.colorize(:yellow) }
 				end
 
 				def ssl_connect(socket, context, method, &block)
 					type = case @type
-								 when :s2s then 'jabber:server'
-								 when :c2s then 'jabber:client'
-							 end
+							   when :s2s then
+								   'jabber:server'
+							   when :c2s then
+								   'jabber:client'
+						   end
 					socket.write "<?xml version='1.0' ?><stream:stream xmlns:stream='http://etherx.jabber.org/streams' xmlns='#{type}' to='#{@domain}' version='1.0'>"
 					response = ''
 					loop do
 						response += socket.recv 1024
-						xml = ::Nokogiri::XML response
-						error = xml.xpath '//stream:error'
+						xml      = ::Nokogiri::XML response
+						error    = xml.xpath '//stream:error'
 						raise Exception, error.text unless error.empty?
 						unless xml.xpath('//stream:features').empty?
 							response = xml

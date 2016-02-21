@@ -3,10 +3,10 @@ require 'socket'
 module CryptCheck
 	module Ssh
 		class SshNotSupportedServer
-			attr_reader :hostname, :port
+			attr_reader :host, :port
 
-			def initialize(hostname, port)
-				@hostname, @port = hostname, port
+			def initialize(host, port)
+				@host, @port = host, port
 			end
 		end
 
@@ -15,7 +15,7 @@ module CryptCheck
 			class SshNotAvailableException < Exception
 			end
 
-			attr_reader :hostname, :port, :kex, :encryption, :hmac, :compression, :key
+			attr_reader :ip, :port, :hostname, :kex, :encryption, :hmac, :compression, :key
 
 			KEX = {
 					'curve25519-sha256@libssh.org'         => :green,
@@ -89,11 +89,11 @@ module CryptCheck
 					'ssh-dss-cert-v00@openssh.com'             => :red,		# DSA
 			}
 
-			def initialize(hostname, port=22)
-				@hostname, @port = hostname, port
+			def initialize(ip, port=22, hostname:)
+				@ip, @port, @hostname = ip, port, hostname
 
-				Logger.info { "#{hostname}:#{port}".colorize :blue }
-				kex = ::Socket.tcp hostname, port, connect_timeout: TCP_TIMEOUT do |socket|
+				Logger.info { name.colorize :blue }
+				kex = ::Socket.tcp ip, port, connect_timeout: TCP_TIMEOUT do |socket|
 					socket.readline
 					socket.write "SSH-2.0-CryptCheck\r\n"
 					Packet.read_kex_init socket
@@ -114,6 +114,13 @@ module CryptCheck
 			rescue => e
 				Logger.debug { "SSH not supported : #{e}" }
 				raise SshNotAvailableException, e
+			end
+
+			private
+			def name
+				name = "#{@hostname || @ip}:#@port"
+				name += " [#@ip]" if @hostname
+				name
 			end
 		end
 	end

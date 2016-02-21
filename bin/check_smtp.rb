@@ -4,16 +4,14 @@ require 'rubygems'
 require 'bundler/setup'
 require 'cryptcheck'
 
-name = ARGV[0]
-if name
-	::CryptCheck::Logger.level = (ARGV[1] || :info).to_sym
-	server = ::CryptCheck::Tls::Smtp::Server.new ARGV[0]
-	grade = ::CryptCheck::Tls::Smtp::Grade.new server
-	::CryptCheck::Logger.info { '' }
-	grade.display
+name = ARGV[0] || 'smtp'
+file = ::File.join 'output', "#{name}.yml"
+if ::File.exist? file
+	::CryptCheck::Logger.level = ENV['LOG'] || :none
+	::CryptCheck::Tls::Smtp.analyze_file file, "output/#{name}.html"
 else
-	::CryptCheck::Logger.level = :none
-	::CryptCheck::Tls::Smtp.analyze_from_file 'output/smtp.yml', 'output/smtp.html'
+	::CryptCheck::Logger.level = ENV['LOG'] || :info
+	::CryptCheck::Tls::Smtp.analyze ARGV[0]
 end
 
 

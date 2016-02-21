@@ -30,143 +30,155 @@
 			<div class="row">
 				<div class="col-md-12">
 					<table class="table table-bordered table-hover table-condensed">
-						<thead>
-							<tr>
-								<th rowspan="2">Host</th>
-								<td rowspan="2">Grade</td>
-								<td colspan="2">Certificate</td>
-								<td colspan="4">Protocols</td>
-								<td colspan="5">Ciphers</td>
-								<td colspan="2">Best practices</td>
-							</tr>
-							<tr>
-								<td>Key size (bits)</td>
-								<td class="warning">SHA1 sig</td>
-
-								<td class="critical">SSL v2</td>
-								<td class="critical">SSL v3</td>
-								<td class="success">TLS 1.2</td>
-								<td class="info">TLS</td>
-
-								<td>Strength (bits)</td>
-								<td class="critical">MD5</td>
-								<td class="warning">SHA1</td>
-								<td class="critical">DES/RC4</td>
-								<td class="danger">3DES</td>
-
-								<td class="info">PFS</td>
-								<td class="success">Required</td>
-							</tr>
-                        </thead>
-						<tfoot>
-							<tr>
-								<th rowspan="2">Host</th>
-								<td rowspan="2">Grade</td>
-								<td colspan="2">Certificate</td>
-								<td colspan="4">Protocols</td>
-								<td colspan="5">Ciphers</td>
-								<td colspan="2">Best practices</td>
-							</tr>
-							<tr>
-								<td>Key size (bits)</td>
-								<td class="warning">SHA1 sig</td>
-
-								<td class="critical">SSL v2</td>
-								<td class="critical">SSL v3</td>
-								<td class="success">TLS 1.2</td>
-								<td class="info">TLS</td>
-
-								<td>Strength (bits)</td>
-								<td class="critical">MD5</td>
-								<td class="warning">SHA1</td>
-								<td class="critical">DES/RC4</td>
-								<td class="danger">3DES</td>
-
-								<td class="info">PFS</td>
-								<td class="success">Required</td>
-							</tr>
-						</tfoot>
 						<tbody>
-							<% servers.each do |n|
+							<%
+								first = true
+								results.each do |r|
+									unless first
+							%>
+							<tr>
+								<th colspan="15">&nbsp;</th>
+							</tr>
+							<%
+								end
+								first = false
+							%>
+							<tr>
+								<th colspan="15" id="<%= r[0] %>"><%= r[0] %></th>
+							</tr>
+							<tr>
+								<th rowspan="2">Host</th>
+								<td rowspan="2">Grade</td>
+								<td colspan="2">Certificate</td>
+								<td colspan="4">Protocols</td>
+								<td colspan="5">Ciphers</td>
+								<td colspan="2">Best practices</td>
+							</tr>
+							<tr>
+								<td>Key size (bits)</td>
+								<td class="warning">SHA1 sig</td>
+
+								<td class="critical">SSL v2</td>
+								<td class="critical">SSL v3</td>
+								<td class="success">TLS 1.2</td>
+								<td class="info">TLS</td>
+
+								<td>Strength (bits)</td>
+								<td class="critical">MD5</td>
+								<td class="warning">SHA1</td>
+								<td class="critical">DES/RC4</td>
+								<td class="danger">3DES</td>
+
+								<td class="info">PFS</td>
+								<td class="success">Required</td>
+							</tr>
+							<% r[1].each do |n|
 								s = n.server
 							%>
 							<tr>
-								<th id="<%= s.hostname %>">
-									<a href="#<%= s.hostname %>"><%= s.hostname %></a>
+								<th id="<%= s.domain %>">
+									<a href="#<%= s.domain %>"><%= s.domain %></a>
 								</th>
 								<% if s.is_a? Tls::TlsNotSupportedServer %>
-								<td class="critical" colspan="16">
-									No SSL/TLS
-								</td>
+									<td class="critical" colspan="16">
+										No SSL/TLS
+									</td>
 								<% else
-										rank_color = case n.grade
-											when 'A+' then :info
-											when 'A', 'A-' then :success
-											when 'B', 'C' then :warning
-											when 'T', 'M' then :critical
-											else :danger
-										end %>
-								<td class="<%= rank_color %>">
-									<%= n.grade %>
-								</td>
+									   rank_color = case n.grade
+														when 'A+' then :info
+														when 'A', 'A-' then :success
+														when 'B', 'C' then :warning
+														when 'T', 'M' then :critical
+														else :danger
+													end %>
+									<td class="<%= rank_color %>">
+										<%= n.grade %>
+									</td>
 
-								<% key = s.key %>
-								<td class="<%= key.rsa_equivalent_size < 2048 ? :danger : key.rsa_equivalent_size < 4096 ? :warning : :success %>">
-									<%= "#{key.size} (#{key.type.to_s.upcase})" %>
-									<span class="sr-only">(<%= key.size < 2048 ? '☹' : '☺' %>)</span>
-								</td>
-								<td class="<%= s.sha1_sig? ? :warning : :success %>">
-									<%= s.sha1_sig? ? '✓' : '✗' %>
-									<span class="sr-only">(<%= s.sha1_sig? ? '☹' : '☺' %>)</span>
-								</td>
+									<% key = s.key %>
+									<td class="<%= key.rsa_equivalent_size < 2048 ? :danger : key.rsa_equivalent_size < 4096 ? :warning : :success %>">
+										<%= "#{key.size} (#{key.type.to_s.upcase})" %>
+										<span class="sr-only">(<%= key.size < 2048 ? '☹' : '☺' %>)</span>
+									</td>
+									<td class="<%= s.sha1_sig? ? :warning : :success %>">
+										<%= s.sha1_sig? ? '✓' : '✗' %>
+										<span class="sr-only">(<%= s.sha1_sig? ? '☹' : '☺' %>)</span>
+									</td>
 
-								<td class="<%= s.sslv2? ? :critical : :success %>">
-									<%= s.sslv2? ? '✓' : '✗' %>
-									<span class="sr-only">(<%= s.sslv2? ? '☹' : '☺' %>)</span>
-								</td>
-								<td class="<%= s.sslv3? ? :critical : :success %>">
-									<%= s.sslv3? ? '✓' : '✗' %>
-									<span class="sr-only">(<%= s.sslv3? ? '☹' : '☺' %>)</span>
-								</td>
-								<td class="<%= s.tlsv1_2? ? :success : :danger %>">
-									<%= s.tlsv1_2? ? '✓' : '✗' %>
-									<span class="sr-only">(<%= s.tlsv1_2? ? '☺' : '☹' %>)</span>
-								</td>
-								<td class="<%= s.tls? ? (s.tls_only? ? :info : :success) : :danger %>">
-									<%= s.tls? ? '✓' : '✗' %>
-									<span class="sr-only">(<%= s.tls? ? '☺' : '☹' %>)</span>
-								</td>
+									<td class="<%= s.sslv2? ? :critical : :success %>">
+										<%= s.sslv2? ? '✓' : '✗' %>
+										<span class="sr-only">(<%= s.sslv2? ? '☹' : '☺' %>)</span>
+									</td>
+									<td class="<%= s.sslv3? ? :critical : :success %>">
+										<%= s.sslv3? ? '✓' : '✗' %>
+										<span class="sr-only">(<%= s.sslv3? ? '☹' : '☺' %>)</span>
+									</td>
+									<td class="<%= s.tlsv1_2? ? :success : :danger %>">
+										<%= s.tlsv1_2? ? '✓' : '✗' %>
+										<span class="sr-only">(<%= s.tlsv1_2? ? '☺' : '☹' %>)</span>
+									</td>
+									<td class="<%= s.tls? ? (s.tls_only? ? :info : :success) : :danger %>">
+										<%= s.tls? ? '✓' : '✗' %>
+										<span class="sr-only">(<%= s.tls? ? '☺' : '☹' %>)</span>
+									</td>
 
-								<td class="<%= s.cipher_size < 112 ? :danger : s.cipher_size < 128 ? :warning : :success %>">
-									<%= s.cipher_size %>
-									<span class="sr-only">(<%= s.cipher_size < 128 ? '☹' : '☺' %>)</span>
-								</td>
-								<td class="<%= s.md5? ? :critical : :success %>">
-									<%= s.md5? ? '✓' : '✗' %>
-									<span class="sr-only">(<%= s.md5? ? '☹' : '☺' %>)</span>
-								</td>
-								<td class="<%= s.sha1? ? :warning : :success %>">
-									<%= s.sha1? ? '✓' : '✗' %>
-									<span class="sr-only">(<%= s.sha1? ? '☹' : '☺' %>)</span>
-								</td>
-								<td class="<%= (s.rc4? or s.des?) ? :critical : :success %>">
-									<%= (s.rc4? or s.des?) ? '✓' : '✗' %>
-									<span class="sr-only">(<%= (s.rc4? or s.des?) ? '☹' : '☺' %>)</span>
-								</td>
-								<td class="<%= s.des3? ? :danger : :success %>">
-									<%= s.des3? ? '✓' : '✗' %>
-									<span class="sr-only">(<%= s.des3? ? '☹' : '☺' %>)</span>
-								</td>
+									<td class="<%= s.cipher_size < 112 ? :danger : s.cipher_size < 128 ? :warning : :success %>">
+										<%= s.cipher_size %>
+										<span class="sr-only">(<%= s.cipher_size < 128 ? '☹' : '☺' %>)</span>
+									</td>
+									<td class="<%= s.md5? ? :critical : :success %>">
+										<%= s.md5? ? '✓' : '✗' %>
+										<span class="sr-only">(<%= s.md5? ? '☹' : '☺' %>)</span>
+									</td>
+									<td class="<%= s.sha1? ? :warning : :success %>">
+										<%= s.sha1? ? '✓' : '✗' %>
+										<span class="sr-only">(<%= s.sha1? ? '☹' : '☺' %>)</span>
+									</td>
+									<td class="<%= (s.rc4? or s.des?) ? :critical : :success %>">
+										<%= (s.rc4? or s.des?) ? '✓' : '✗' %>
+										<span class="sr-only">(<%= (s.rc4? or s.des?) ? '☹' : '☺' %>)</span>
+									</td>
+									<td class="<%= s.des3? ? :danger : :success %>">
+										<%= s.des3? ? '✓' : '✗' %>
+										<span class="sr-only">(<%= s.des3? ? '☹' : '☺' %>)</span>
+									</td>
 
-								<td class="<%= s.pfs? ? (s.pfs_only? ? :info : :success) : :danger %>">
-									<%= s.pfs? ? '✓' : '✗' %>
-									<span class="sr-only">(<%= s.pfs? ? '☺' : '☹' %>)</span>
-								</td>
-								<td class="<%= s.required? ? :success : :danger %>">
-									<%= s.required? ? '✓' : '✗' %>
-									<span class="sr-only">(<%= s.required? ? '☺' : '☹' %>)</span>
-								</td>
+									<td class="<%= s.pfs? ? (s.pfs_only? ? :info : :success) : :danger %>">
+										<%= s.pfs? ? '✓' : '✗' %>
+										<span class="sr-only">(<%= s.pfs? ? '☺' : '☹' %>)</span>
+									</td>
+									<td class="<%= s.required? ? :success : :danger %>">
+										<%= s.required? ? '✓' : '✗' %>
+										<span class="sr-only">(<%= s.required? ? '☺' : '☹' %>)</span>
+									</td>
 								<% end %>
+							</tr>
+							<% end %>
+							<tr>
+								<th rowspan="2">Host</th>
+								<td rowspan="2">Grade</td>
+								<td colspan="2">Certificate</td>
+								<td colspan="4">Protocols</td>
+								<td colspan="5">Ciphers</td>
+								<td colspan="2">Best practices</td>
+							</tr>
+							<tr>
+								<td>Key size (bits)</td>
+								<td class="warning">SHA1 sig</td>
+
+								<td class="critical">SSL v2</td>
+								<td class="critical">SSL v3</td>
+								<td class="success">TLS 1.2</td>
+								<td class="info">TLS</td>
+
+								<td>Strength (bits)</td>
+								<td class="critical">MD5</td>
+								<td class="warning">SHA1</td>
+								<td class="critical">DES/RC4</td>
+								<td class="danger">3DES</td>
+
+								<td class="info">PFS</td>
+								<td class="success">Required</td>
 							</tr>
 							<% end %>
 						</tbody>

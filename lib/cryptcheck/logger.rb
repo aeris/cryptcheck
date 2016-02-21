@@ -4,7 +4,7 @@ module CryptCheck
 		@@level = :info
 
 		def self.level=(level)
-			@@level = level
+			@@level = level.to_sym
 		end
 
 		def self.log(level, string=nil, output: $stdout, &block)
