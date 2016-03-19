@@ -48,20 +48,12 @@ module CryptCheck
 			end
 
 			def colorize
-				colors = case
-							 when dss?,
-									 anonymous?,
-									 null?,
-									 export?,
-									 md5?,
-									 des?,
-									 rc4?
-								 { color: :white, background: :red }
-							 when des3?
-								 { color: :yellow }
-							 when pfs?
-								 { color: :green }
-						 end
+				colors = case self.score
+					when :error then { color: :white, background: :red }
+					when :danger then { color: :red }
+					when :warning then { color: :yellow }
+					when :success then { color: :green }
+				end
 				@name.colorize colors
 			end
 
