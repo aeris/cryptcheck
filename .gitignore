@@ -11,3 +11,4 @@ Gemfile.lock
 /db/schema.rb
 /lib/**/*.so
 /lib/**/*.so.1.0.0
+/build/

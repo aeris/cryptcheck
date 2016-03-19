@@ -1,21 +1,23 @@
-- imirhil.fr
-- magicbox.okhin.fr
-- cyphercat.eu
-- jabber.ccc.de
-- jbfavre.im
-- axelsimon.net
-- google.com
-- ecuri.es
-- dattaz.fr
-- jabber.lqdn.fr
-- mailfr.com
-- arysthaar.pw
-- startcom.org
-- riseup.net
-- citronna.de
-- matlink.fr
-- verry.org
-- keuse.fr
-- cappuccino.uk.to
-- corzntin.fr
-- fralef.me
+- description: XMPP
+  hostnames:
+  - imirhil.fr
+  - magicbox.okhin.fr
+  - cyphercat.eu
+  - jabber.ccc.de
+  - jbfavre.im
+  - axelsimon.net
+  - google.com
+  - ecuri.es
+  - dattaz.fr
+  - jabber.lqdn.fr
+  - mailfr.com
+  - arysthaar.pw
+  - startcom.org
+  - riseup.net
+  - citronna.de
+  - matlink.fr
+  - verry.org
+  - keuse.fr
+  - cappuccino.uk.to
+  - corzntin.fr
+  - fralef.me

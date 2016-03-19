@@ -76,8 +76,8 @@
 								s = n.server
 							%>
 							<tr>
-								<th id="<%= s.domain %>">
-									<a href="#<%= s.domain %>"><%= s.domain %></a>
+								<th id="<%= s.hostname %>">
+									<a href="#<%= s.hostname %>"><%= s.hostname %></a>
 								</th>
 								<% if s.is_a? Tls::TlsNotSupportedServer %>
 									<td class="critical" colspan="16">
