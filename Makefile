@@ -34,11 +34,15 @@ mr-proper:
 build/:
 	mkdir $@
 
+build/chacha-poly.patch: | build/
+	wget https://github.com/cloudflare/sslconfig/raw/master/patches/openssl__chacha20_poly1305_draft_and_rfc_ossl102g.patch -O $@
+
 build/$(OPENSSL_NAME).tar.gz: | build/
 	wget https://www.openssl.org/source/$(OPENSSL_NAME).tar.gz -O $@
 
-$(OPENSSL_DIR)/: build/$(OPENSSL_NAME).tar.gz
+$(OPENSSL_DIR)/: build/$(OPENSSL_NAME).tar.gz build/chacha-poly.patch
 	tar -C build -xf build/$(OPENSSL_NAME).tar.gz
+	patch -d $(OPENSSL_DIR) -p1 < build/chacha-poly.patch
 
 $(OPENSSL_DIR)/Makefile: | $(OPENSSL_DIR)/
 	cd $(OPENSSL_DIR); ./Configure enable-ssl3 enable-ssl2 enable-shared linux-x86_64
