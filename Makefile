@@ -34,11 +34,11 @@ mr-proper:
 build/:
 	mkdir $@
 
-$(OPENSSL_DIR)/: | build/
-	cd build && \
-		wget https://www.openssl.org/source/$(OPENSSL_NAME).tar.gz && \
-		tar xf $(OPENSSL_NAME).tar.gz && \
-		rm -rf $(OPENSSL_NAME).tar.gz
+build/$(OPENSSL_NAME).tar.gz: | build/
+	wget https://www.openssl.org/source/$(OPENSSL_NAME).tar.gz -O $@
+
+$(OPENSSL_DIR)/: build/$(OPENSSL_NAME).tar.gz
+	tar -C build -xf build/$(OPENSSL_NAME).tar.gz
 
 $(OPENSSL_DIR)/Makefile: | $(OPENSSL_DIR)/
 	cd $(OPENSSL_DIR); ./Configure enable-ssl3 enable-ssl2 enable-shared linux-x86_64
@@ -53,18 +53,18 @@ lib/%.so.1.0.0:
 	ln -fs $(notdir $(subst .1.0.0,, $@)) $@
 libs: lib/libssl.so lib/libcrypto.so lib/libssl.so.1.0.0 lib/libcrypto.so.1.0.0
 
-$(RUBY_DIR)/: | build/
-	cd build && \
-		wget http://cache.ruby-lang.org/pub/ruby/$(RUBY_MAJOR_VERSION)/$(RUBY_NAME).tar.gz && \
-		tar xf $(RUBY_NAME).tar.gz && \
-		rm -f $(RUBY_NAME).tar.gz
+build/$(RUBY_NAME).tar.gz: | build/
+	wget http://cache.ruby-lang.org/pub/ruby/$(RUBY_MAJOR_VERSION)/$(RUBY_NAME).tar.gz -O $@
+
+$(RUBY_DIR)/: build/$(RUBY_NAME).tar.gz
+	tar -C build -xf $<
 
 $(RUBY_OPENSSL_EXT_DIR)/Makefile: libs | $(RUBY_DIR)/
+	patch -d $(RUBY_DIR)/ -p1 < patch
 	cd $(RUBY_OPENSSL_EXT_DIR); ruby extconf.rb
-	patch -p0 -d $(RUBY_OPENSSL_EXT_DIR) < patch
 
 $(RUBY_OPENSSL_EXT_DIR)/openssl.so: libs $(RUBY_OPENSSL_EXT_DIR)/Makefile
-	$(MAKE) -C $(RUBY_OPENSSL_EXT_DIR)
+	top_srcdir=../.. $(MAKE) -C $(RUBY_OPENSSL_EXT_DIR)
 
 lib/openssl.so: $(RUBY_OPENSSL_EXT_DIR)/openssl.so
 	cp $< $@
