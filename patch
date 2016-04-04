@@ -1,42 +1,98 @@
---- Makefile	2014-12-12 22:58:34.000000000 +0100
-+++ Makefile	2015-08-03 23:40:32.177619138 +0200
-@@ -61,6 +61,7 @@
- sbindir = $(exec_prefix)/sbin
- bindir = $(exec_prefix)/bin
- archdir = $(rubyarchdir)
-+top_srcdir = ../..
-
-
- CC = gcc
---- ossl_ssl.c	2014-12-12 22:58:34.000000000 +0100
-+++ ossl_ssl.c	2015-08-03 23:40:32.177619138 +0200
-@@ -1915,6 +1915,19 @@
+diff --git a/ext/openssl/extconf.rb b/ext/openssl/extconf.rb
+index 7bb6cd8..3b18a53 100644
+--- a/ext/openssl/extconf.rb
++++ b/ext/openssl/extconf.rb
+@@ -114,6 +114,7 @@
+ unless have_func("SSL_set_tlsext_host_name", ['openssl/ssl.h'])
+   have_macro("SSL_set_tlsext_host_name", ['openssl/ssl.h']) && $defs.push("-DHAVE_SSL_SET_TLSEXT_HOST_NAME")
+ end
++have_macro("SSL_get_server_tmp_key", ['openssl/ssl.h']) && $defs.push("-DHAVE_SSL_GET_SERVER_TMP_KEY")
+ if have_header("openssl/engine.h")
+   have_func("ENGINE_add")
+   have_func("ENGINE_load_builtin_engines")
+diff --git a/ext/openssl/ossl_ssl.c b/ext/openssl/ossl_ssl.c
+index 4075d6f..982e011 100644
+--- a/ext/openssl/ossl_ssl.c
++++ b/ext/openssl/ossl_ssl.c
+@@ -1910,6 +1910,25 @@ ossl_ssl_alpn_protocol(VALUE self)
+ 	return rb_str_new((const char *) out, outlen);
+ }
  # endif
- #endif /* !defined(OPENSSL_NO_SOCK) */
-
-+#if OPENSSL_VERSION_NUMBER >= 0x10002000L
++
++# ifdef HAVE_SSL_GET_SERVER_TMP_KEY
++/*
++ * call-seq:
++ *    ssl.tmp_key => PKey or nil
++ *
++ * Returns the ephemeral key used in case of forward secrecy cipher
++ */
 +static VALUE
 +ossl_ssl_tmp_key(VALUE self)
 +{
-+       SSL *ssl;
-+       EVP_PKEY *key;
-+       ossl_ssl_data_get_struct(self, ssl);
-+       if (!SSL_get_server_tmp_key(ssl, &key))
-+               return Qnil;
-+       return ossl_pkey_new(key);
++   SSL *ssl;
++   EVP_PKEY *key;
++   ossl_ssl_data_get_struct(self, ssl);
++   if (!SSL_get_server_tmp_key(ssl, &key))
++       return Qnil;
++   return ossl_pkey_new(key);
 +}
-+#endif
-+
++# endif /* defined(HAVE_SSL_GET_SERVER_TMP_KEY) */
+ #endif /* !defined(OPENSSL_NO_SOCK) */
+ 
  void
- Init_ossl_ssl(void)
- {
-@@ -2301,6 +2314,9 @@
+@@ -2304,6 +2323,9 @@ Init_ossl_ssl(void)
      rb_define_method(cSSLSocket, "session=",    ossl_ssl_set_session, 1);
      rb_define_method(cSSLSocket, "verify_result", ossl_ssl_get_verify_result, 0);
      rb_define_method(cSSLSocket, "client_ca", ossl_ssl_get_client_ca_list, 0);
-+#if OPENSSL_VERSION_NUMBER >= 0x10002000L
++# ifdef HAVE_SSL_GET_SERVER_TMP_KEY
 +    rb_define_method(cSSLSocket, "tmp_key", ossl_ssl_tmp_key, 0);
-+#endif
++# endif
  # ifdef HAVE_SSL_CTX_SET_ALPN_SELECT_CB
      rb_define_method(cSSLSocket, "alpn_protocol", ossl_ssl_alpn_protocol, 0);
  # endif
+diff --git a/test/openssl/test_ssl.rb b/test/openssl/test_ssl.rb
+index 58fcc08..3ce4e21 100644
+--- a/test/openssl/test_ssl.rb
++++ b/test/openssl/test_ssl.rb
+@@ -1167,6 +1167,29 @@ def test_sync_close_without_connect
+     }
+   end
+ 
++  def test_get_ephemeral_key
++    return unless OpenSSL::SSL::SSLSocket.method_defined?(:tmp_key)
++    ciphers = {
++        'ECDHE-RSA-AES128-SHA' => OpenSSL::PKey::EC,
++        'DHE-RSA-AES128-SHA' => OpenSSL::PKey::DH,
++        'AES128-SHA' => nil
++    }
++    conf_proc = Proc.new { |ctx| ctx.ciphers = 'ALL' }
++    start_server(OpenSSL::SSL::VERIFY_NONE, true, :ctx_proc => conf_proc){|server, port|
++        ciphers.each do |cipher, ephemeral|
++            ctx = OpenSSL::SSL::SSLContext.new
++            ctx.ciphers = cipher
++            server_connect(port, ctx) { |ssl|
++                if ephemeral
++                    assert_equal(ephemeral, ssl.tmp_key.class)
++                else
++                    assert_nil(ssl.tmp_key)
++                end
++            }
++        end
++    }
++  end
++
+   private
+ 
+   def start_server_version(version, ctx_proc=nil, server_proc=nil, &blk)
+diff --git a/test/openssl/utils.rb b/test/openssl/utils.rb
+index 0802c1b..c081e4f 100644
+--- a/test/openssl/utils.rb
++++ b/test/openssl/utils.rb
+@@ -284,6 +284,7 @@ def start_server(verify_mode, start_immediately, args = {}, &block)
+         ctx.cert = @svr_cert
+         ctx.key = @svr_key
+         ctx.tmp_dh_callback = proc { OpenSSL::TestUtils::TEST_KEY_DH1024 }
++        ctx.tmp_ecdh_callback = proc { OpenSSL::TestUtils::TEST_KEY_EC_P256V1 }
+         ctx.verify_mode = verify_mode
+         ctx_proc.call(ctx) if ctx_proc
+ 
