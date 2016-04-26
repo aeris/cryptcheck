@@ -64,8 +64,8 @@ $(RUBY_DIR)/: build/$(RUBY_NAME).tar.gz
 	tar -C build -xf $<
 
 $(RUBY_OPENSSL_EXT_DIR)/Makefile: libs | $(RUBY_DIR)/
-	patch -d $(RUBY_DIR)/ -p1 < patch
-	cd $(RUBY_OPENSSL_EXT_DIR); ruby extconf.rb
+	patch -d $(RUBY_DIR)/ -p1 < tmp_key.patch
+	cd $(RUBY_OPENSSL_EXT_DIR) && ruby extconf.rb
 
 $(RUBY_OPENSSL_EXT_DIR)/openssl.so: libs $(RUBY_OPENSSL_EXT_DIR)/Makefile
 	top_srcdir=../.. $(MAKE) -C $(RUBY_OPENSSL_EXT_DIR)
