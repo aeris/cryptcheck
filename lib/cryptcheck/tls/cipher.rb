@@ -4,27 +4,42 @@ module CryptCheck
 			TYPES = {
 					md5:       %w(MD5),
 					sha1:      %w(SHA),
+					sha256:    %w(SHA256),
+					sha384:    %w(SHA384),
+					poly1305:  %w(POLY1305),
 
 					psk:       %w(PSK),
 					srp:       %w(SRP),
 					anonymous: %w(ADH AECDH),
-
 					dss:       %w(DSS),
+					rsa:       %w(RSA),
+					ecdsa:     %w(ECDSA),
+					dh:        %w(DH ADH),
+					ecdh:      %w(ECDH AECDH),
+					dhe:       %w(DHE EDH ADH),
+					ecdhe:     %w(ECDHE AECDH),
 
 					null:      %w(NULL),
 					export:    %w(EXP),
-					des:       %w(DES-CBC),
 					rc2:       %w(RC2),
 					rc4:       %w(RC4),
+					des:       %w(DES-CBC),
 					des3:      %w(3DES DES-CBC3),
+					aes:       %w(AES(128|256) AES-(128|256)),
+					camellia:  %w(CAMELLIA(128|256)),
+					seed:      %w(SEED),
+					idea:      %w(IDEA),
+					chacha20:  %w(CHACHA20),
 
-					pfs:       %w(DHE EDH ECDHE)
+					cbc:       %w(CBC),
+					gcm:       %w(GCM),
+					ccm:       %w(CCM)
 			}
 
-			attr_reader :protocol, :name, :size, :dh
+			attr_reader :protocol, :name, :size, :key, :dh
 
-			def initialize(protocol, cipher, dh=nil)
-				@protocol, @dh  = protocol, dh
+			def initialize(protocol, cipher, dh=nil, key=nil)
+				@protocol, @dh, @key    = protocol, dh, key
 				@name, _, @size = cipher
 			end
 
@@ -47,13 +62,21 @@ module CryptCheck
 				tlsv1? or tlsv1_1? or tlsv1_2?
 			end
 
+			def pfs?
+				dhe? or ecdhe?
+			end
+
 			def colorize
 				colors = case self.score
-					when :error then { color: :white, background: :red }
-					when :danger then { color: :red }
-					when :warning then { color: :yellow }
-					when :success then { color: :green }
-				end
+							 when :error then
+								 { color: :white, background: :red }
+							 when :danger then
+								 { color: :red }
+							 when :warning then
+								 { color: :yellow }
+							 when :success then
+								 { color: :green }
+						 end
 				@name.colorize colors
 			end
 
@@ -77,14 +100,15 @@ module CryptCheck
 			end
 
 			PRIORITY = { success: 1, none: 2, warning: 3, danger: 4, error: 5 }
+
 			def self.sort(ciphers)
 				ciphers.sort do |a, b|
 					error_a, error_b = PRIORITY[a.score], PRIORITY[b.score]
-					compare = error_a <=> error_b
+					compare          = error_a <=> error_b
 					next compare unless compare == 0
 
 					size_a, size_b = a.size, b.size
-					compare = size_b <=> size_a
+					compare        = size_b <=> size_a
 					next compare unless compare == 0
 
 					dh_a, dh_b = a.dh, b.dh
@@ -100,10 +124,87 @@ module CryptCheck
 			end
 
 			def self.list(cipher_suite = 'ALL:COMPLEMENTOFALL', protocol: :TLSv1_2)
-				context = OpenSSL::SSL::SSLContext.new protocol
+				context         = OpenSSL::SSL::SSLContext.new protocol
 				context.ciphers = cipher_suite
-				ciphers = context.ciphers.collect { |c| self.new protocol, c }
+				ciphers         = context.ciphers.collect { |c| self.new protocol, c }
 				self.sort ciphers
+			end
+
+			def params
+				key_exchange   = case
+									 when ecdhe? || ecdh?
+										 [:ecdh, dh]
+									 when dhe? || dh?
+										 [:dh, dh]
+									 when dss?
+										 [:dss, key]
+									 else
+										 [:rsa, key]
+								 end
+				authentication = case
+									 when ecdsa?
+										 [:ecdsa, key]
+									 when rsa?
+										 [:rsa, key]
+									 when dss?
+										 [:dss, key]
+									 when anonymous?
+										 nil
+									 else
+										 [:rsa, key]
+								 end
+				encryption     = case
+									 when chacha20?
+										 :chacha20
+									 when aes?
+										 :aes
+									 when camellia?
+										 :camellia
+									 when seed?
+										 :seed
+									 when idea?
+										 :idea
+									 when des3?
+										 :'3des'
+									 when des?
+										 :des
+									 when rc4?
+										 :rc4
+									 when rc2?
+										 :rc2
+								 end
+				mode           = case
+									 when gcm?
+										 :gcm
+									 when ccm?
+										 :ccm
+									 when rc4? || chacha20?
+										 nil
+									 else
+										 :cbc
+								 end
+				b              = case encryption
+									 when :rc4
+										 nil
+									 when :'3des', :idea, :rc2
+										 64
+									 when :aes, :camellia, :seed
+										 128
+								 end
+				encryption     = [encryption, size, b, mode] if encryption
+				mac            = case
+									 when poly1305?
+										 [:poly1305, 128]
+									 when sha384?
+										 [:sha384, 384]
+									 when sha256?
+										 [:sha256, 256]
+									 when sha1?
+										 [:sha1, 160]
+									 when md5?
+										 [:md5, 128]
+								 end
+				{ kex: key_exchange, auth: authentication, enc: encryption, mac: mac, pfs: pfs? }
 			end
 		end
 	end
