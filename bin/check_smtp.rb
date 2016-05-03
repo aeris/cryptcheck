@@ -11,7 +11,5 @@ if ::File.exist? file
 	::CryptCheck::Tls::Smtp.analyze_file file, "output/#{name}.html"
 else
 	::CryptCheck::Logger.level = ENV['LOG'] || :info
-	::CryptCheck::Tls::Smtp.analyze ARGV[0]
+	::CryptCheck::Tls::Smtp.analyze_domain ARGV[0]
 end
-
-
