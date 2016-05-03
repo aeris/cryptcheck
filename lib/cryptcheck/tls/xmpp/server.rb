@@ -8,7 +8,7 @@ module CryptCheck
 			class Server < Tls::TcpServer
 				attr_reader :domain
 
-				def initialize(family, ip, port=nil, hostname: nil, domain: nil, type: :s2s)
+				def initialize(hostname, family, ip, port=nil, domain: nil, type: :s2s)
 					domain         ||= hostname
 					@type, @domain = type, domain
 					port           = case type

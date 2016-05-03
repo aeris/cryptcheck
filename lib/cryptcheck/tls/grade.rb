@@ -1,13 +1,5 @@
 module CryptCheck
 	module Tls
-		class TlsNotSupportedGrade
-			attr_reader :server, :score, :grade
-
-			def initialize(server)
-				@server, @score, @grade = server, -1, 'X'
-			end
-		end
-
 		class Grade
 			attr_reader :server, :protocol_score, :key_exchange_score, :cipher_strengths_score, :score, :grade, :error, :danger, :warning, :success
 

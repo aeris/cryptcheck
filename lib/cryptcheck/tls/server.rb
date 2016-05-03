@@ -4,14 +4,6 @@ require 'httparty'
 
 module CryptCheck
 	module Tls
-		class TlsNotSupportedServer
-			attr_reader :hostname, :port
-
-			def initialize(host, port)
-				@hostname, @port = host, port
-			end
-		end
-
 		class Server
 			TCP_TIMEOUT       = 10
 			SSL_TIMEOUT       = 2*TCP_TIMEOUT
@@ -25,18 +17,18 @@ module CryptCheck
 			end
 			class CipherNotAvailable < TLSException
 			end
-			class Timeout < TLSException
+			class Timeout < Exception
 			end
-			class TLSTimeout < TLSException
+			class TLSTimeout < Timeout
 			end
-			class ConnectionError < TLSException
+			class ConnectionError < Exception
 			end
 
 			attr_reader :family, :ip, :port, :hostname, :prefered_ciphers, :cert, :cert_valid, :cert_trusted, :dh
 
-			def initialize(family, ip, port, hostname: nil)
-				@family, @ip, @port, @hostname = family, ip, port, hostname
-				@dh = []
+			def initialize(hostname, family, ip, port)
+				@hostname, @family, @ip, @port = hostname, family, ip, port
+				@dh                            = []
 				Logger.info { name.colorize :blue }
 				extract_cert
 				Logger.info { '' }
@@ -128,27 +120,21 @@ module CryptCheck
 			def connect(&block)
 				socket   = ::Socket.new @family, sock_type
 				sockaddr = ::Socket.sockaddr_in @port, @ip
-				Logger.trace { "Connecting to #{name}" }
+				Logger.trace { "Connecting to #{@ip}:#{@port}" }
 				begin
 					status = socket.connect_nonblock sockaddr
-					Logger.trace { "Connecting to #{name} status : #{status}" }
+					Logger.trace { "Connecting to #{@ip}:#{@port} status : #{status}" }
 					raise ConnectionError, status unless status == 0
-					Logger.trace { "Connected to #{name}" }
+					Logger.trace { "Connected to #{@ip}:#{@port}" }
 					block_given? ? block.call(socket) : nil
 				rescue ::IO::WaitReadable
-					Logger.trace { "Waiting for read to #{name}" }
-					raise Timeout unless IO.select [socket], nil, nil, TCP_TIMEOUT
+					Logger.trace { "Waiting for read to #{@ip}:#{@port}" }
+					raise Timeout, "Timeout when connect to #{@ip}:#{@port} (max #{TCP_TIMEOUT.humanize})" unless IO.select [socket], nil, nil, TCP_TIMEOUT
 					retry
 				rescue ::IO::WaitWritable
-					Logger.trace { "Waiting for write to #{name}" }
-					raise Timeout unless IO.select nil, [socket], nil, TCP_TIMEOUT
+					Logger.trace { "Waiting for write to #{@ip}:#{@port}" }
+					raise Timeout, "Timeout when connect to #{@ip}:#{@port} (max #{TCP_TIMEOUT.humanize})" unless IO.select nil, [socket], nil, TCP_TIMEOUT
 					retry
-				rescue => e
-					case e.message
-						when /^Connection refused/
-							raise TLSNotAvailableException, e
-					end
-					raise
 				ensure
 					socket.close
 				end
@@ -164,14 +150,14 @@ module CryptCheck
 					return block_given? ? block.call(ssl_socket) : nil
 				rescue ::IO::WaitReadable
 					Logger.trace { "Waiting for SSL read to #{name}" }
-					raise TLSTimeout unless IO.select [socket], nil, nil, SSL_TIMEOUT
+					raise TLSTimeout, "Timeout when TLS connect to #{@ip}:#{@port} (max #{SSL_TIMEOUT.humanize})" unless IO.select [ssl_socket], nil, nil, SSL_TIMEOUT
 					retry
 				rescue ::IO::WaitWritable
 					Logger.trace { "Waiting for SSL write to #{name}" }
-					raise TLSTimeout unless IO.select nil, [socket], nil, SSL_TIMEOUT
+					raise TLSTimeout, "Timeout when TLS connect to #{@ip}:#{@port} (max #{SSL_TIMEOUT.humanize})" unless IO.select nil, [ssl_socket], nil, SSL_TIMEOUT
 					retry
 				rescue ::OpenSSL::SSL::SSLError => e
-					case e.message
+					case e
 						when /state=SSLv2 read server hello A$/,
 								/state=SSLv3 read server hello A: wrong version number$/
 							raise MethodNotAvailable, e
@@ -179,13 +165,11 @@ module CryptCheck
 								/state=SSLv3 read server hello A: sslv3 alert handshake failure$/
 							raise CipherNotAvailable, e
 					end
-					raise TLSException, e
 				rescue => e
-					case e.message
+					case e
 						when /^Connection reset by peer$/
 							raise MethodNotAvailable, e
 					end
-					raise TLSException, e
 				ensure
 					ssl_socket.close
 				end
@@ -248,7 +232,7 @@ module CryptCheck
 				dh = ssl_client method, [cipher] { |s| s.tmp_key }
 				@dh << dh if dh
 				cipher = Cipher.new method, cipher, dh
-				dh = dh ? " (#{'DH'.colorize :green} : #{Tls.key_to_s dh})" : ''
+				dh     = dh ? " (#{'DH'.colorize :green} : #{Tls.key_to_s dh})" : ''
 				Logger.info { "#{Tls.colorize method} / #{cipher.colorize} : Supported#{dh}" }
 				cipher
 			rescue TLSException => e

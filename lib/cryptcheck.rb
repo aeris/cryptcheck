@@ -5,8 +5,20 @@ require 'yaml'
 require 'cryptcheck/tls/fixture'
 
 module CryptCheck
-	MAX_ANALYSIS_DURATION = 600
+	MAX_ANALYSIS_DURATION = 120
 	PARALLEL_ANALYSIS     = 10
+
+	class AnalysisFailure
+		attr_reader :error
+
+		def initialize(error)
+			@error = error
+		end
+
+		def to_s
+			@error.to_s
+		end
+	end
 
 	autoload :Logger, 'cryptcheck/logger'
 	autoload :Tls, 'cryptcheck/tls'
@@ -50,38 +62,54 @@ module CryptCheck
 	def self.addresses(host)
 		begin
 			ip = IPAddr.new host
-			[[ip.family, ip.to_s, nil]]
+			return [[ip.family, ip.to_s, nil]]
 		rescue IPAddr::InvalidAddressError
+		end
+		::Addrinfo.getaddrinfo(host, nil, nil, :STREAM)
+				.collect { |a| [a.afamily, a.ip_address, host] }
+	end
+
+	def self.analyze_addresses(host, addresses, port, server, grade, *args, **kargs)
+		first = true
+		addresses.collect do |family, ip|
+			first ? (first = false) : Logger.info { '' }
+			key = [host, ip, port]
+			a   = [host, family, ip, port, *args]
 			begin
-				::Addrinfo.getaddrinfo(host, nil, nil, :STREAM)
-						.collect { |a| [a.afamily, a.ip_address, host] }
-			rescue ::SocketError => e
-				Logger.error { "Unable to resolv #{host} : #{e}" }
-				[]
+				::Timeout::timeout MAX_ANALYSIS_DURATION do
+					s = if kargs.empty?
+							server.new *a
+						else
+							server.new *a, **kargs
+						end
+					g = grade.new s
+					Logger.info { '' }
+					g.display
+					[key, g]
+				end
+			rescue Exception => e
+				e = "Too long analysis (max #{MAX_ANALYSIS_DURATION.humanize})" if e.message == 'execution expired'
+				Logger.error e
+				[key, AnalysisFailure.new(e)]
 			end
-		end
+		end.to_h
 	end
 
-	def self.analyze_addresses(host, addresses, port, on_error = TLS_NOT_AVAILABLE, &block)
-		begin
-			::Timeout::timeout MAX_ANALYSIS_DURATION do
-				addresses.each { |family, ip, host| return block.call family, ip, host }
-			end
-		rescue ::Exception => e
-			Logger.error e
+	def self.analyze(host, port, server, grade, *args, **kargs)
+		addresses = begin
+			addresses host
+		rescue ::SocketError => e
+			Logger::error e
+			return AnalysisFailure.new "Unable to resolve #{host}"
 		end
-		on_error.call host, port
-	end
-
-	def self.analyze(host, port, on_error = Tls::TLS_NOT_AVAILABLE, &block)
-		analyze_addresses host, addresses(host), port, on_error, &block
+		analyze_addresses host, addresses, port, server, grade, *args, **kargs
 	end
 
 	def self.analyze_hosts(hosts, template, output, groups: nil, &block)
 		results   = {}
 		semaphore = ::Mutex.new
 		::Parallel.each hosts, progress: 'Analysing', in_threads: PARALLEL_ANALYSIS, finish: lambda { |item, _, _| puts item[1] } do |description, host|
-		#hosts.each do |description, host|
+			#hosts.each do |description, host|
 			result = block.call host.strip
 			semaphore.synchronize do
 				if results.include? description

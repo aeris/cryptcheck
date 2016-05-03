@@ -4,9 +4,9 @@ module CryptCheck
 			class Server < Tls::TcpServer
 				attr_reader :domain
 
-				def initialize(family, ip, port, hostname: nil, domain:)
+				def initialize(hostname, family, ip, port, domain:)
 					@domain = domain
-					super family, ip, port, hostname: hostname
+					super
 				end
 
 				def ssl_connect(socket, context, method, &block)

@@ -2,14 +2,6 @@ require 'socket'
 
 module CryptCheck
 	module Ssh
-		class SshNotSupportedServer
-			attr_reader :host, :port
-
-			def initialize(host, port)
-				@host, @port = host, port
-			end
-		end
-
 		class Server
 			TCP_TIMEOUT = 10
 			class SshNotAvailableException < Exception

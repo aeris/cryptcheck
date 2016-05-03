@@ -3,18 +3,8 @@ require 'parallel'
 
 module CryptCheck
 	module Tls
-		TLS_NOT_AVAILABLE = Proc.new { |host, port|
-			TlsNotSupportedGrade.new TlsNotSupportedServer.new host, port
-		}
-
 		def self.analyze(host, port)
-			::CryptCheck.analyze host, port do |family, ip, host|
-				s = TcpServer.new family, ip, port, hostname: host
-				g = Grade.new s
-				Logger.info { '' }
-				g.display
-				g
-			end
+			::CryptCheck.analyze host, port, TcpServer, Grade
 		end
 
 		def self.colorize(cipher)

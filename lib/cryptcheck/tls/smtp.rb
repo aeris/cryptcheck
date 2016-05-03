@@ -2,20 +2,13 @@ module CryptCheck
 	module Tls
 		module Smtp
 			def self.analyze(host, port=25, domain: nil)
-				domain ||= host
-				::CryptCheck.analyze host, port do |family, ip, host|
-					s = Server.new family, ip, port, hostname: host, domain: domain
-					g = Grade.new s
-					Logger.info { '' }
-					g.display
-					g
-				end
+				::CryptCheck.analyze host, port, Server, Grade, domain: domain
 			end
 
 			def self.analyze_domain(domain)
-				srv = Resolv::DNS.new.getresources(domain, Resolv::DNS::Resource::IN::MX).sort_by(&:preference).first
-				hostname = srv ? srv.exchange.to_s : domain
-				self.analyze hostname, domain: domain
+				srv = Resolv::DNS.new.getresources(domain, Resolv::DNS::Resource::IN::MX).sort_by &:preference
+				hosts = srv.empty? ? [domain] : srv.collect { |s| s.exchange.to_s }
+				hosts.collect { |h| self.analyze h, domain: domain }.flatten(1)
 			end
 
 			def self.analyze_file(input, output)
