@@ -2,6 +2,7 @@ $:.unshift File.expand_path File.join File.dirname(__FILE__), '../lib'
 require 'rubygems'
 require 'bundler/setup'
 require 'cryptcheck'
+Dir['./spec/**/support/**/*.rb'].sort.each { |f| require f }
 
 CryptCheck::Logger.level = ENV['LOG'] || :none
 
@@ -54,7 +55,8 @@ module Helpers
 	def server(key: 'rsa-1024', domain: 'localhost', # Key & certificate
 			   host: '127.0.0.1', port: 5000, # Binding
 			   version: :TLSv1_2, ciphers: 'AES128-SHA', # TLS version and ciphers
-			   dh: 1024, ecdh: 'secp256r1') # DHE & ECDHE
+			   dh: 1024, ecdh: 'secp256r1', # DHE & ECDHE
+			   process: nil)
 		key  = key key
 		cert = certificate key, domain
 
@@ -75,7 +77,7 @@ module Helpers
 		IO.pipe do |stop_pipe_r, stop_pipe_w|
 			threads = []
 
-			mutex = Mutex.new
+			mutex   = Mutex.new
 			started = ConditionVariable.new
 
 			threads << Thread.start do
@@ -88,7 +90,12 @@ module Helpers
 					readable, = IO.select [ssl_server, stop_pipe_r]
 					break if readable.include? stop_pipe_r
 					begin
-						ssl_server.accept
+						socket = ssl_server.accept
+						begin
+							process.call socket if process
+						ensure
+							socket.close
+						end
 					rescue
 					end
 				end
@@ -106,11 +113,11 @@ module Helpers
 		end
 	end
 
-	def plain_server(host: '127.0.0.1', port: 5000)
+	def plain_server(host: '127.0.0.1', port: 5000, process: nil)
 		IO.pipe do |stop_pipe_r, stop_pipe_w|
 			threads = []
 
-			mutex = Mutex.new
+			mutex   = Mutex.new
 			started = ConditionVariable.new
 
 			threads << Thread.start do
@@ -120,8 +127,14 @@ module Helpers
 				loop do
 					readable, = IO.select [tcp_server, stop_pipe_r]
 					break if readable.include? stop_pipe_r
+
 					begin
-						tcp_server.accept
+						socket = tcp_server.accept
+						begin
+							process.call socket if process
+						ensure
+							socket.close
+						end
 					rescue
 					end
 				end
@@ -138,16 +151,25 @@ module Helpers
 		end
 	end
 
+	def grade(grades, host, ip, port)
+		grades[[host, ip, port]]
+	end
+
 	def expect_grade(grades, host, ip, port, family)
-		server = grades[[host, ip, port]].server
+		grade = grade grades, host, ip, port
+		expect(grade).to_not be nil
+		server = grade.server
 		expect(server).to be_a CryptCheck::Tls::Server
 		expect(server.hostname).to eq host
 		expect(server.ip).to eq ip
 		expect(server.port).to eq port
 		expect(server.family).to eq case family
-										when :ipv4 then Socket::AF_INET
-										when :ipv6 then Socket::AF_INET6
+										when :ipv4 then
+											Socket::AF_INET
+										when :ipv6 then
+											Socket::AF_INET6
 									end
+		[grade, server]
 	end
 
 	def expect_grade_error(grades, host, ip, port, error)

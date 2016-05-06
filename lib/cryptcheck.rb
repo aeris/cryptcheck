@@ -87,7 +87,7 @@ module CryptCheck
 					g.display
 					[key, g]
 				end
-			rescue Exception => e
+			rescue => e
 				e = "Too long analysis (max #{MAX_ANALYSIS_DURATION.humanize})" if e.message == 'execution expired'
 				Logger.error e
 				[key, AnalysisFailure.new(e)]

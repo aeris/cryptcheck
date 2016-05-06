@@ -9,15 +9,18 @@ module CryptCheck
 			SSL_TIMEOUT       = 2*TCP_TIMEOUT
 			EXISTING_METHODS  = %i(TLSv1_2 TLSv1_1 TLSv1 SSLv3 SSLv2)
 			SUPPORTED_METHODS = ::OpenSSL::SSL::SSLContext::METHODS
-			class TLSException < ::Exception
+			class TLSException < ::StandardError
 			end
 			class TLSNotAvailableException < TLSException
+				def to_s
+					'TLS seems not supported on this server'
+				end
 			end
 			class MethodNotAvailable < TLSException
 			end
 			class CipherNotAvailable < TLSException
 			end
-			class Timeout < Exception
+			class Timeout < ::StandardError
 			end
 			class TLSTimeout < Timeout
 			end
@@ -112,8 +115,8 @@ module CryptCheck
 
 			private
 			def name
-				name = "#{@hostname || @ip}:#@port"
-				name += " [#@ip]" if @hostname
+				name = "#@ip:#@port"
+				name += " [#@hostname]" if @hostname
 				name
 			end
 
@@ -165,7 +168,7 @@ module CryptCheck
 								/state=SSLv3 read server hello A: sslv3 alert handshake failure$/
 							raise CipherNotAvailable, e
 					end
-				rescue => e
+				rescue SystemCallError => e
 					case e
 						when /^Connection reset by peer$/
 							raise MethodNotAvailable, e
