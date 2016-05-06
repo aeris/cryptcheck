@@ -17,7 +17,7 @@ module CryptCheck
 										 when :c2s
 											 5222
 									 end unless port
-					super family, ip, port, hostname: hostname
+					super hostname, family, ip, port
 					Logger.info { '' }
 					Logger.info { self.required? ? 'Required'.colorize(:green) : 'Not required'.colorize(:yellow) }
 				end
@@ -29,13 +29,13 @@ module CryptCheck
 							   when :c2s then
 								   'jabber:client'
 						   end
-					socket.write "<?xml version='1.0' ?><stream:stream xmlns:stream='http://etherx.jabber.org/streams' xmlns='#{type}' to='#{@domain}' version='1.0'>"
+					socket.puts "<?xml version='1.0' ?><stream:stream xmlns:stream='http://etherx.jabber.org/streams' xmlns='#{type}' to='#{@domain}' version='1.0'>"
 					response = ''
 					loop do
 						response += socket.recv 1024
 						xml      = ::Nokogiri::XML response
 						error    = xml.xpath '//stream:error'
-						raise Exception, error.text unless error.empty?
+						raise ConnectionError, error.first.child.to_s unless error.empty?
 						unless xml.xpath('//stream:features').empty?
 							response = xml
 							break
@@ -43,7 +43,7 @@ module CryptCheck
 					end
 					starttls = response.xpath '//tls:starttls', tls: TLS_NAMESPACE
 					raise TLSNotAvailableException unless starttls
-					@required = !starttls.xpath('//tls:required', tls: TLS_NAMESPACE).nil?
+					@required = !starttls.xpath('//tls:required', tls: TLS_NAMESPACE).empty?
 					socket.write "<starttls xmlns='urn:ietf:params:xml:ns:xmpp-tls' />\r\n"
 					response = ::Nokogiri::XML socket.recv 4096
 					raise TLSNotAvailableException unless response.xpath '//tls:proceed', tls: TLS_NAMESPACE

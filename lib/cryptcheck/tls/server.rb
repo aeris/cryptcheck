@@ -24,7 +24,7 @@ module CryptCheck
 			end
 			class TLSTimeout < Timeout
 			end
-			class ConnectionError < Exception
+			class ConnectionError < ::StandardError
 			end
 
 			attr_reader :family, :ip, :port, :hostname, :prefered_ciphers, :cert, :cert_valid, :cert_trusted, :dh

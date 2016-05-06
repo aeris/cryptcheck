@@ -11,5 +11,5 @@ if ::File.exist? file
 	::CryptCheck::Tls::Xmpp.analyze_file file, "output/#{name}.html"
 else
 	::CryptCheck::Logger.level = ENV['LOG'] || :info
-	::CryptCheck::Tls::Xmpp.analyze ARGV[0], type: (ARGV[1] || :s2s).to_sym
+	::CryptCheck::Tls::Xmpp.analyze_domain ARGV[0], type: (ARGV[1] || :s2s).to_sym
 end

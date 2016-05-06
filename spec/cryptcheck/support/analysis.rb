@@ -1,7 +1,7 @@
 RSpec.shared_examples :analysis do
 	describe '#analyze' do
 		it 'return 1 grade with IPv4' do
-			grades = server host: '127.0.0.1', process: process do
+			grades = server host: '127.0.0.1' do
 				analyze '127.0.0.1', 5000
 			end
 
@@ -10,7 +10,7 @@ RSpec.shared_examples :analysis do
 		end
 
 		it 'return 1 grade with IPv6' do
-			grades = server host: '::1', process: process do
+			grades = server host: '::1' do
 				analyze '::1', 5000
 			end
 
@@ -24,7 +24,7 @@ RSpec.shared_examples :analysis do
 				addresses.collect { |a| Addrinfo.new Socket.sockaddr_in(nil, a) }
 			end
 
-			grades = server host: '::', process: process do
+			grades = server host: '::' do
 				analyze 'localhost', 5000
 			end
 
@@ -36,7 +36,7 @@ RSpec.shared_examples :analysis do
 			allow(Addrinfo).to receive(:getaddrinfo).with('localhost', nil, nil, :STREAM)
 									   .and_raise SocketError, 'getaddrinfo: Name or service not known'
 
-			grades = server process: process do
+			grades = server do
 				analyze 'localhost', 5000
 			end
 
@@ -48,7 +48,7 @@ RSpec.shared_examples :analysis do
 			stub_const 'CryptCheck::MAX_ANALYSIS_DURATION', 1
 			allow(CryptCheck::Tls::Server).to receive(:new) { sleep 2 }
 
-			grades = server process: process do
+			grades = server do
 				analyze 'localhost', 5000
 			end
 
@@ -62,7 +62,7 @@ RSpec.shared_examples :analysis do
 				addresses.collect { |a| Addrinfo.new Socket.sockaddr_in(nil, a) }
 			end
 
-			grades = server host: '::1', process: process do
+			grades = server host: '::1' do
 				analyze 'localhost', 5000
 			end
 
@@ -84,7 +84,7 @@ RSpec.shared_examples :analysis do
 				original.call *args, &block
 			end
 
-			grades = server host: '::', process: process do
+			grades = server host: '::' do
 				analyze 'localhost', 5000
 			end
 
@@ -106,7 +106,7 @@ RSpec.shared_examples :analysis do
 				original.call *args, &block
 			end
 
-			grades = server host: '::', process: process do
+			grades = server host: '::' do
 				analyze 'localhost', 5000
 			end
 
@@ -122,8 +122,8 @@ RSpec.shared_examples :analysis do
 				addresses.collect { |a| Addrinfo.new Socket.sockaddr_in(nil, a) }
 			end
 
-			grades = plain_server host: '127.0.0.1', process: process do
-				server host: '::1', process: process do
+			grades = plain_server host: '127.0.0.1' do
+				server host: '::1' do
 					analyze 'localhost', 5000
 				end
 			end

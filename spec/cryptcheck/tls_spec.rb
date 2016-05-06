@@ -1,5 +1,10 @@
 describe CryptCheck::Tls do
-	def process
+	def server(*args, &block)
+		tls_serv *args, &block
+	end
+
+	def plain_server(*args, &block)
+		plain_serv *args, &block
 	end
 
 	def analyze(*args)

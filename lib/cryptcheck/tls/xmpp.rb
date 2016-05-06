@@ -6,13 +6,7 @@ module CryptCheck
 		module Xmpp
 			def self.analyze(host, port=nil, domain: nil, type: :s2s)
 				domain ||= host
-				::CryptCheck.analyze host, port do |family, ip, host|
-					s = Server.new family, ip, port, hostname: host, type: type, domain: domain
-					g = Grade.new s
-					Logger.info { '' }
-					g.display
-					g
-				end
+				::CryptCheck.analyze host, port, Server, Grade, domain: domain, type: type
 			end
 
 			def self.analyze_domain(domain, type: :s2s)

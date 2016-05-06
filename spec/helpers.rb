@@ -52,11 +52,46 @@ module Helpers
 		cert.sign key, OpenSSL::Digest::SHA512.new
 	end
 
-	def server(key: 'rsa-1024', domain: 'localhost', # Key & certificate
-			   host: '127.0.0.1', port: 5000, # Binding
-			   version: :TLSv1_2, ciphers: 'AES128-SHA', # TLS version and ciphers
-			   dh: 1024, ecdh: 'secp256r1', # DHE & ECDHE
-			   process: nil)
+	def serv(server, process, &block)
+		IO.pipe do |stop_pipe_r, stop_pipe_w|
+			threads = []
+
+			mutex   = Mutex.new
+			started = ConditionVariable.new
+
+			threads << Thread.start do
+				mutex.synchronize { started.signal }
+
+				loop do
+					readable, = IO.select [server, stop_pipe_r]
+					break if readable.include? stop_pipe_r
+
+					begin
+						socket = server.accept
+						begin
+							process.call socket if process
+						ensure
+							socket.close
+						end
+					rescue
+					end
+				end
+				server.close
+			end
+
+			mutex.synchronize { started.wait mutex }
+			begin
+				block.call if block
+			ensure
+				stop_pipe_w.close
+				threads.each &:join
+			end
+		end
+	end
+
+	def context(key: 'rsa-1024', domain: 'localhost', # Key & certificate
+				version: :TLSv1_2, ciphers: 'AES128-SHA', # TLS version and ciphers
+				dh: 1024, ecdh: 'secp256r1') # DHE & ECDHE
 		key  = key key
 		cert = certificate key, domain
 
@@ -74,80 +109,62 @@ module Helpers
 			context.tmp_ecdh_callback = proc { ecdh }
 		end
 
-		IO.pipe do |stop_pipe_r, stop_pipe_w|
-			threads = []
+		context
+	end
 
-			mutex   = Mutex.new
-			started = ConditionVariable.new
-
-			threads << Thread.start do
-				tcp_server = TCPServer.new host, port
-				ssl_server = OpenSSL::SSL::SSLServer.new tcp_server, context
-
-				mutex.synchronize { started.signal }
-
-				loop do
-					readable, = IO.select [ssl_server, stop_pipe_r]
-					break if readable.include? stop_pipe_r
-					begin
-						socket = ssl_server.accept
-						begin
-							process.call socket if process
-						ensure
-							socket.close
-						end
-					rescue
-					end
-				end
-				ssl_server.close
-				tcp_server.close
-			end
-
-			mutex.synchronize { started.wait mutex }
-			begin
-				yield
-			ensure
-				stop_pipe_w.close
-				threads.each &:join
-			end
+	def tls_serv(key: 'rsa-1024', domain: 'localhost', # Key & certificate
+				 version: :TLSv1_2, ciphers: 'AES128-SHA', # TLS version and ciphers
+				 dh: 1024, ecdh: 'secp256r1', # DHE & ECDHE
+				 host: '127.0.0.1', port: 5000, # Binding
+				 process: nil, &block)
+		context    = context(key: key, domain: domain, version: version, ciphers: ciphers, dh: dh, ecdh: ecdh)
+		tcp_server = TCPServer.new host, port
+		tls_server = OpenSSL::SSL::SSLServer.new tcp_server, context
+		begin
+			serv tls_server, process, &block
+		ensure
+			tls_server.close
+			tcp_server.close
 		end
 	end
 
-	def plain_server(host: '127.0.0.1', port: 5000, process: nil)
-		IO.pipe do |stop_pipe_r, stop_pipe_w|
-			threads = []
+	def plain_serv(host: '127.0.0.1', port: 5000, process: nil, &block)
+		tcp_server = TCPServer.new host, port
+		begin
+			serv tcp_server, process, &block
+		ensure
+			tcp_server.close
+		end
+	end
 
-			mutex   = Mutex.new
-			started = ConditionVariable.new
+	def starttls_serv(key: 'rsa-1024', domain: 'localhost', # Key & certificate
+					  version: :TLSv1_2, ciphers: 'AES128-SHA', # TLS version and ciphers
+					  dh: 1024, ecdh: 'secp256r1', # DHE & ECDHE
+					  host: '127.0.0.1', port: 5000, # Binding
+					  plain_process: nil, process: nil, &block)
+		context                      = context(key: key, domain: domain, version: version, ciphers: ciphers, dh: dh, ecdh: ecdh)
+		tcp_server                   = TCPServer.new host, port
+		tls_server                   = OpenSSL::SSL::SSLServer.new tcp_server, context
+		tls_server.start_immediately = false
 
-			threads << Thread.start do
-				tcp_server = TCPServer.new host, port
-				mutex.synchronize { started.signal }
-
-				loop do
-					readable, = IO.select [tcp_server, stop_pipe_r]
-					break if readable.include? stop_pipe_r
-
-					begin
-						socket = tcp_server.accept
-						begin
-							process.call socket if process
-						ensure
-							socket.close
-						end
-					rescue
-					end
+		internal_process = proc do |socket|
+			accept = false
+			accept = plain_process.call socket if plain_process
+			if accept
+				tls_socket = socket.accept
+				begin
+					process.call tls_socket if process
+				ensure
+					socket.close
 				end
-				tcp_server.close
 			end
+		end
 
-			mutex.synchronize { started.wait mutex }
-			begin
-				yield
-			ensure
-				stop_pipe_w.close
-				threads.each &:join
-			end
+		begin
+			serv tls_server, internal_process, &block
+		ensure
+			tls_server.close
+			tcp_server.close
 		end
 	end
 
@@ -157,7 +174,7 @@ module Helpers
 
 	def expect_grade(grades, host, ip, port, family)
 		grade = grade grades, host, ip, port
-		expect(grade).to_not be nil
+		expect(grade).to be_a CryptCheck::Tls::Grade
 		server = grade.server
 		expect(server).to be_a CryptCheck::Tls::Server
 		expect(server.hostname).to eq host

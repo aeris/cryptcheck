@@ -1,13 +1,10 @@
 describe CryptCheck::Tls::Https do
-	def process
-		proc do |socket|
-			socket.print [
-								 'HTTP/1.1 200 OK',
-								 'Content-Type: text/plain',
-								 'Content-Length: 0',
-								 'Connection: close'
-						 ].join "\r\n"
-		end
+	def server(*args, **kargs, &block)
+		tls_serv *args, **kargs, &block
+	end
+
+	def plain_server(*args, **kargs, &block)
+		plain_serv *args, **kargs, &block
 	end
 
 	def analyze(*args)
@@ -18,7 +15,7 @@ describe CryptCheck::Tls::Https do
 
 	describe '#hsts?' do
 		it 'has no hsts' do
-			grades = server host: '127.0.0.1', process: process do
+			grades = server host: '127.0.0.1' do
 				analyze '127.0.0.1', 5000
 			end
 
@@ -48,7 +45,7 @@ describe CryptCheck::Tls::Https do
 
 	describe '#hsts_long?' do
 		it 'has no hsts' do
-			grades = server host: '127.0.0.1', process: process do
+			grades = server host: '127.0.0.1' do
 				analyze '127.0.0.1', 5000
 			end
 
