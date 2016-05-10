@@ -4,8 +4,6 @@ module CryptCheck
 	module Ssh
 		class Server
 			TCP_TIMEOUT = 10
-			class SshNotAvailableException < Exception
-			end
 
 			attr_reader :ip, :port, :hostname, :kex, :encryption, :hmac, :compression, :key
 
@@ -81,7 +79,7 @@ module CryptCheck
 					'ssh-dss-cert-v00@openssh.com'             => :red,		# DSA
 			}
 
-			def initialize(ip, port=22, hostname:)
+			def initialize(hostname, _, ip, port=22)
 				@ip, @port, @hostname = ip, port, hostname
 
 				Logger.info { name.colorize :blue }
@@ -105,7 +103,7 @@ module CryptCheck
 				@key.each { |k| Logger.info { "Key type : #{k.colorize KEY[k]}" } }
 			rescue => e
 				Logger.debug { "SSH not supported : #{e}" }
-				raise SshNotAvailableException, e
+				raise
 			end
 
 			private

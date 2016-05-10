@@ -27,9 +27,7 @@ module CryptCheck
 		autoload :Server, 'cryptcheck/tls/server'
 		autoload :TcpServer, 'cryptcheck/tls/server'
 		autoload :UdpServer, 'cryptcheck/tls/server'
-		autoload :TlsNotSupportedServer, 'cryptcheck/tls/server'
 		autoload :Grade, 'cryptcheck/tls/grade'
-		autoload :TlsNotSupportedGrade, 'cryptcheck/tls/grade'
 
 		autoload :Https, 'cryptcheck/tls/https'
 		module Https
@@ -82,10 +80,14 @@ module CryptCheck
 						else
 							server.new *a, **kargs
 						end
-					g = grade.new s
-					Logger.info { '' }
-					g.display
-					[key, g]
+					if grade
+						g = grade.new s
+						Logger.info { '' }
+						g.display
+						[key, g]
+					else
+						[key, s]
+					end
 				end
 			rescue => e
 				e = "Too long analysis (max #{MAX_ANALYSIS_DURATION.humanize})" if e.message == 'execution expired'
@@ -100,7 +102,9 @@ module CryptCheck
 			addresses host
 		rescue ::SocketError => e
 			Logger::error e
-			return AnalysisFailure.new "Unable to resolve #{host}"
+			key = [host, nil, port]
+			error = AnalysisFailure.new "Unable to resolve #{host}"
+			return { key => error }
 		end
 		analyze_addresses host, addresses, port, server, grade, *args, **kargs
 	end

@@ -8,7 +8,9 @@ module CryptCheck
 			def self.analyze_domain(domain)
 				srv = Resolv::DNS.new.getresources(domain, Resolv::DNS::Resource::IN::MX).sort_by &:preference
 				hosts = srv.empty? ? [domain] : srv.collect { |s| s.exchange.to_s }
-				hosts.collect { |h| self.analyze h, domain: domain }.flatten(1)
+				results = {}
+				hosts.each { |h| results.merge! self.analyze(h, domain: domain) }
+				results
 			end
 
 			def self.analyze_file(input, output)

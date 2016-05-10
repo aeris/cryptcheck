@@ -16,14 +16,11 @@ module CryptCheck
 									when :c2s
 										['_xmpp-client', 5222]
 								end
-				srv = Resolv::DNS.new.getresources("#{service}._tcp.#{domain}", Resolv::DNS::Resource::IN::SRV)
-							  .sort_by(&:priority).first
-				if srv
-					hostname, port = srv.target.to_s, srv.port
-				else # DNS is not correctly set, guess config…
-					hostname = domain
-				end
-				self.analyze hostname, port, domain: domain, type: type
+				srv = Resolv::DNS.new.getresources("#{service}._tcp.#{domain}", Resolv::DNS::Resource::IN::SRV).sort_by &:priority
+				hosts = srv.empty? ? [[domain, port]] : srv.collect { |s| [s.target.to_s, s.port] }
+				results = {}
+				hosts.each { |host, port| results.merge! self.analyze(host, port, domain: domain, type: type) }
+				results
 			end
 
 			def self.analyze_file(input, output)
