@@ -24,6 +24,9 @@
   - aplu.fr
   - tdelmas.ovh
   - gordon.re
+  - fiat-tux.fr
+  - erco.xyz
+  - demo.lufi.io
 - description: Associations
   hostnames:
   - april.org
@@ -41,22 +44,33 @@
   - www.fdn.fr
 - description: Framasoft
   hostnames:
+  - contact.framasoft.org
+  - frama.link
   - framabag.org
+  - framabee.org
   - framabin.org
   - framabag.org
-  - framadate.org
-  - framanews.org
-  - framasphere.org
   - framacalc.org
+  - framacarte.org
+  - framadate.org
+  - framadrive.org
+  - framadrop.org
   - framakey.org
+  - framanews.org
   - framapic.org
+  - framasphere.org
   - framindmap.org
   - framacolibri.org
-  - framabee.org
+  - framagit.org
+  - framaboard.org
+  - git.framasoft.org
+  - huit.re
+  - participer.framasoft.org
+  - stats.framasoft.org
+  - status.framasoft.org
+  - soutenir.framasoft.org
   - tontonroger.org
   - trouvons.org
-  - frama.link
-  - huit.re
   - lite.framapad.org
   - lite2.framapad.org
   - lite3.framapad.org
@@ -66,15 +80,9 @@
   - quotidien.framapad.org
   - hebdo.framapad.org
   - mensuel.framapad.org
-  - bimensuel.framapad.org
+  - bimestriel.framapad.org
   - semestriel.framapad.org
   - annuel.framapad.org
-  - git.framasoft.org
-  - participer.framasoft.org
-  - contact.framasoft.org
-  - stats.framasoft.org
-  - status.framasoft.org
-  - soutenir.framasoft.org
 - description: Banques en ligne
   hostnames:
   - voscomptesenligne.labanquepostale.fr
