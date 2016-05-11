@@ -20,7 +20,8 @@ module CryptCheck
 														   follow_redirects: false,
 														   verify:           false,
 														   timeout:          SSL_TIMEOUT,
-														   ssl_version:      self.supported_protocols.first
+														   ssl_version:      self.supported_protocols.first,
+														   ciphers:          'ALL:COMPLEMENTOFALL'
 												   }
 						if header = response.headers['strict-transport-security']
 							name, value = header.split '='
