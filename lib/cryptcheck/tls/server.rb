@@ -91,7 +91,7 @@ module CryptCheck
 			end
 
 			def key_size
-				@cert.public_key.rsa_equivalent_size
+				@cert.public_key.size
 			end
 
 			def ssl?
@@ -180,11 +180,7 @@ module CryptCheck
 			end
 
 			# secp192r1 secp256r1
-			SUPPORTED_CURVES = %w(sect163k1 sect163r1 sect163r2 sect193r1 sect193r2
-									sect233k1 sect233r1 sect239k1 sect283k1 sect283r1
-									sect409k1 sect409r1 sect571k1 sect571r1 secp160k1
-									secp160r1 secp160r2 secp192k1 secp224k1
-									secp224r1 secp256k1 secp384r1 secp521r1)
+			SUPPORTED_CURVES = %w(secp160k1 secp160r1 secp160r2 sect163k1 sect163r1 sect163r2 secp192k1 sect193r1 sect193r2 secp224k1 secp224r1 sect233k1 sect233r1 sect239k1 secp256k1 sect283k1 sect283r1 secp384r1 sect409k1 sect409r1 secp521r1 sect571k1 sect571r1)
 
 			def ssl_client(method, ciphers = nil, curves = nil, &block)
 				ssl_context         = ::OpenSSL::SSL::SSLContext.new method

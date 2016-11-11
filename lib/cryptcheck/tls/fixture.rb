@@ -22,19 +22,16 @@ class ::OpenSSL::PKey::EC
 		self.group.degree
 	end
 
-	def rsa_equivalent_size
-		case self.size
-			when 160 then 1024
-			when 224 then 2048
-			when 256 then 3072
-			when 384 then 7680
-			when 521 then 15360
-			when 571 then 21000
-		end
-	end
-
 	def to_s
 		"ECC #{self.size} bits"
+	end
+
+	def status
+		case self.size
+			when 0...160 then :error
+			when 160...256 then :warning
+			when 384...::Float::INFINITY then :success
+		end
 	end
 end
 
@@ -47,12 +44,16 @@ class ::OpenSSL::PKey::RSA
 		self.n.num_bits
 	end
 
-	def rsa_equivalent_size
-		self.size
-	end
-
 	def to_s
 		"RSA #{self.size} bits"
+	end
+
+	def status
+		case self.size
+			when 0...1024 then :error
+			when 1024...2048 then :warning
+			when 4096...::Float::INFINITY then :success
+		end
 	end
 end
 
@@ -65,12 +66,12 @@ class ::OpenSSL::PKey::DSA
 		self.p.num_bits
 	end
 
-	def rsa_equivalent_size
-		self.size
-	end
-
 	def to_s
 		"DSA #{self.size} bits"
+	end
+
+	def status
+		return :error
 	end
 end
 
@@ -83,11 +84,15 @@ class ::OpenSSL::PKey::DH
 		self.p.num_bits
 	end
 
-	def rsa_equivalent_size
-		self.size
-	end
-
 	def to_s
 		"DH #{self.size} bits"
+	end
+
+	def status
+		case self.size
+			when 0...1024 then :error
+			when 1024...2048 then :warning
+			when 4096...::Float::INFINITY then :success
+		end
 	end
 end

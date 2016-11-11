@@ -16,16 +16,15 @@ module CryptCheck
 		end
 
 		def self.key_to_s(key)
-			size       = key.rsa_equivalent_size
 			type_color = case key.type
 							 when :ecc then { color: :green }
-							 when :dsa then { color: :yellow }
+							 when :dsa then { color: :red }
 						 end
-			size_color = case size
-							 when 0...1024 then { color: :white, background: :red }
-							 when 1024...2048 then { color: :yellow }
-							 when 4096...::Float::INFINITY then { color: :green }
-						 end
+			size_color = case key.status
+							when :error then { color: :white, background: :red }
+							when :warning then { color: :yellow }
+							when :success then { color: :green }
+						end
 			"#{key.type.to_s.upcase.colorize type_color} #{key.size.to_s.colorize size_color} bits"
 		end
 	end
