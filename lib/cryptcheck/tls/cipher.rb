@@ -85,8 +85,8 @@ module CryptCheck
 				{
 						success: %i(pfs).select { |n| ok.call n },
 						warning: %i().select { |n| ok.call n },
-						danger:  %i(des3).select { |n| ok.call n },
-						error:   %i(dss md5 psk srp anonymous null export des rc2 rc4).select { |n| ok.call n }
+						danger:  %i().select { |n| ok.call n },
+						error:   %i(dss md5 psk srp anonymous null export des des3 rc2 rc4 idea).select { |n| ok.call n }
 				}
 			end
 

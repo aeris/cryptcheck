@@ -66,8 +66,8 @@
 								<td>Strength (bits)</td>
 								<td class="critical">MD5</td>
 								<td class="warning">SHA1</td>
-								<td class="critical">DES/RC4</td>
-								<td class="danger">3DES</td>
+								<td class="critical">RC4</td>
+								<td class="critical">DES/3DES</td>
 
 								<td class="info">PFS</td>
 								<td class="info">HSTS</td>
@@ -89,7 +89,7 @@
 											when 'A+' then :info
 											when 'A', 'A-' then :success
 											when 'B', 'C' then :warning
-											when 'T', 'M' then :critical
+											when 'F', 'T', 'M' then :critical
 											else :danger
 										end
 								%>
@@ -136,13 +136,13 @@
 									<%= s.sha1? ? '✓' : '✗' %>
 									<span class="sr-only">(<%= s.sha1? ? '☹' : '☺' %>)</span>
 								</td>
-								<td class="<%= (s.rc4? or s.des?) ? :critical : :success %>">
-									<%= (s.rc4? or s.des?) ? '✓' : '✗' %>
-									<span class="sr-only">(<%= (s.rc4? or s.des?) ? '☹' : '☺' %>)</span>
+								<td class="<%= s.rc4? ? :critical : :success %>">
+									<%= s.rc4? ? '✓' : '✗' %>
+									<span class="sr-only">(<%= s.rc4? ? '☹' : '☺' %>)</span>
 								</td>
-								<td class="<%= s.des3? ? :danger : :success %>">
-									<%= s.des3? ? '✓' : '✗' %>
-									<span class="sr-only">(<%= s.des3? ? '☹' : '☺' %>)</span>
+								<td class="<%= (s.des? or s.des3?) ? :critical : :success %>">
+									<%= (s.des? or s.des3?) ? '✓' : '✗' %>
+									<span class="sr-only">(<%= (s.des? or s.des3?) ? '☹' : '☺' %>)</span>
 								</td>
 
 								<td class="<%= s.pfs? ? (s.pfs_only? ? :info : :success) : :danger %>">
@@ -171,8 +171,8 @@
 								<td>Strength (bits)</td>
 								<td class="critical">MD5</td>
 								<td class="warning">SHA1</td>
-								<td class="critical">DES/RC4</td>
-								<td class="danger">3DES</td>
+								<td class="critical">RC4</td>
+								<td class="critical">DES/3DES</td>
 
 								<td class="info">PFS</td>
 								<td class="info">HSTS</td>

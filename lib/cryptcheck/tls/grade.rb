@@ -46,7 +46,7 @@ module CryptCheck
 						 end
 
 				@grade = [@grade, 'B'].max if !@server.tlsv1_2? or @server.key_size < 2048
-				@grade = [@grade, 'C'].max if @server.des3?
+				@grade = [@grade, 'F'].max unless @error.empty?
 				@grade = [@grade, 'F'].max unless @error.empty?
 
 				@grade = 'M' unless @server.cert_valid
@@ -58,27 +58,30 @@ module CryptCheck
 			def calculate_states
 				ok = Proc.new { |n| @server.send "#{n}?" }
 				state = {
-						success: %i().select { |n| ok.call n },
-						warning: %i(sha1_sig).select { |n| ok.call n },
-						danger:  %i(des3).select { |n| ok.call n },
-						error:   %i(md5_sig md5 sslv2 sslv3 anonymous dss null export des rc4).select { |n| ok.call n }
+						success: all_success.select { |n| ok.call n },
+						warning: all_warning.select { |n| ok.call n },
+						danger:  all_danger.select { |n| ok.call n },
+						error:   all_error.select { |n| ok.call n }
 				}
-				state[:success] << :pfs if @server.pfs_only?
-
 				@success, @warning, @danger, @error = state[:success], state[:warning], state[:danger], state[:error]
 			end
 
-			ALL_ERROR = %i(md5_sig md5 anonymous dss null export des rc4)
+			ALL_ERROR = %i(md5_sig md5 anonymous dss null export des des3 rc4)
 			def all_error
 				ALL_ERROR
 			end
 
-			ALL_WARNING = %i(sha1_sig des3)
+			ALL_DANGER = %i()
+			def all_danger
+				ALL_DANGER
+			end
+
+			ALL_WARNING = %i(sha1_sig)
 			def all_warning
 				ALL_WARNING
 			end
 
-			ALL_SUCCESS = %i(pfs)
+			ALL_SUCCESS = %i(pfs_only)
 			def all_success
 				ALL_SUCCESS
 			end
