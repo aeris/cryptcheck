@@ -40,8 +40,7 @@ RSpec.shared_examples :analysis do
 				analyze 'localhost', 5000
 			end
 
-			expect(grades).to be_a CryptCheck::AnalysisFailure
-			expect(grades.to_s).to eq 'Unable to resolve localhost'
+			expect_grade_error grades, 'localhost', nil, 5000, 'Unable to resolve localhost'
 		end
 
 		it 'return error if analysis too long' do

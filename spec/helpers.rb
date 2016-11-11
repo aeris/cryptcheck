@@ -7,6 +7,12 @@ Dir['./spec/**/support/**/*.rb'].sort.each { |f| require f }
 CryptCheck::Logger.level = ENV['LOG'] || :none
 
 module Helpers
+	DEFAULT_KEY = 'rsa-1024'
+	DEFAULT_METHOD = :TLSv1_2
+	DEFAULT_CIPHERS = %w(AES128-SHA)
+	DEFAULT_ECC_CURVE = 'secp256k1'
+	DEFAULT_DH_SIZE = 1024
+
 	OpenSSL::PKey::EC.send :alias_method, :private?, :private_key?
 
 	def key(name)
@@ -89,9 +95,9 @@ module Helpers
 		end
 	end
 
-	def context(key: 'rsa-1024', domain: 'localhost', # Key & certificate
-				version: :TLSv1_2, ciphers: 'AES128-SHA', # TLS version and ciphers
-				dh: 1024, ecdh: 'secp256r1') # DHE & ECDHE
+	def context(key: DEFAULT_KEY, domain: 'localhost', # Key & certificate
+				version: DEFAULT_METHOD, ciphers: DEFAULT_CIPHERS, # TLS version and ciphers
+				dh: DEFAULT_DH_SIZE, ecdh: DEFAULT_ECC_CURVE) # DHE & ECDHE
 		key  = key key
 		cert = certificate key, domain
 
@@ -104,17 +110,14 @@ module Helpers
 			dh                      = dh dh
 			context.tmp_dh_callback = proc { dh }
 		end
-		if ecdh
-			ecdh                      = key ecdh
-			context.tmp_ecdh_callback = proc { ecdh }
-		end
+		context.ecdh_curves = ecdh if ecdh
 
 		context
 	end
 
-	def tls_serv(key: 'rsa-1024', domain: 'localhost', # Key & certificate
-				 version: :TLSv1_2, ciphers: 'AES128-SHA', # TLS version and ciphers
-				 dh: 1024, ecdh: 'secp256r1', # DHE & ECDHE
+	def tls_serv(key: DEFAULT_KEY, domain: 'localhost', # Key & certificate
+				 version: DEFAULT_METHOD, ciphers: DEFAULT_CIPHERS, # TLS version and ciphers
+				 dh: DEFAULT_DH_SIZE, ecdh: DEFAULT_ECC_CURVE, # DHE & ECDHE
 				 host: '127.0.0.1', port: 5000, # Binding
 				 process: nil, &block)
 		context    = context(key: key, domain: domain, version: version, ciphers: ciphers, dh: dh, ecdh: ecdh)
@@ -137,9 +140,9 @@ module Helpers
 		end
 	end
 
-	def starttls_serv(key: 'rsa-1024', domain: 'localhost', # Key & certificate
-					  version: :TLSv1_2, ciphers: 'AES128-SHA', # TLS version and ciphers
-					  dh: 1024, ecdh: 'secp256r1', # DHE & ECDHE
+	def starttls_serv(key: DEFAULT_KEY, domain: 'localhost', # Key & certificate
+					  version: DEFAULT_METHOD, ciphers: DEFAULT_CIPHERS, # TLS version and ciphers
+					  dh: DEFAULT_DH_SIZE, ecdh: DEFAULT_ECC_CURVE, # DHE & ECDHE
 					  host: '127.0.0.1', port: 5000, # Binding
 					  plain_process: nil, process: nil, &block)
 		context                      = context(key: key, domain: domain, version: version, ciphers: ciphers, dh: dh, ecdh: ecdh)
