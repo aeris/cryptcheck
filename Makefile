@@ -1,12 +1,15 @@
 PWD = $(shell pwd)
 export CPATH = $(PWD)/openssl/include
 export LIBRARY_PATH = $(PWD)/openssl
+OPENSSL_LIB_VERSION = 1.0.0
 OPENSSL_VERSION = 1.0.2g
+#OPENSSL_LIB_VERSION = 1.1
+#OPENSSL_VERSION = 1.1.0-pre5
 OPENSSL_NAME = openssl-$(OPENSSL_VERSION)
 OPENSSL_DIR = build/$(OPENSSL_NAME)
 #OPENSSL_DIR = openssl
 RUBY_MAJOR_VERSION = 2.3
-RUBY_VERSION = $(RUBY_MAJOR_VERSION).0
+RUBY_VERSION = $(RUBY_MAJOR_VERSION).1
 RUBY_NAME = ruby-$(RUBY_VERSION)
 RUBY_DIR = build/$(RUBY_NAME)
 RUBY_OPENSSL_EXT_DIR = $(RUBY_DIR)/ext/openssl
@@ -45,17 +48,17 @@ $(OPENSSL_DIR)/: build/$(OPENSSL_NAME).tar.gz build/chacha-poly.patch
 	patch -d $(OPENSSL_DIR) -p1 < build/chacha-poly.patch
 
 $(OPENSSL_DIR)/Makefile: | $(OPENSSL_DIR)/
-	cd $(OPENSSL_DIR) && ./Configure enable-weak-ssl-ciphers enable-ssl3 enable-ssl2 enable-shared linux-x86_64
+	cd $(OPENSSL_DIR) && ./Configure enable-ssl2 enable-ssl3 enable-weak-ssl-ciphers enable-shared linux-x86_64
 
 $(OPENSSL_DIR)/libssl.so \
 $(OPENSSL_DIR)/libcrypto.so: $(OPENSSL_DIR)/Makefile
-	$(MAKE) -C $(OPENSSL_DIR) depend build_libs
+	$(MAKE) -C $(OPENSSL_DIR)
 
 lib/%.so: $(OPENSSL_DIR)/%.so
 	cp $< $@
-lib/%.so.1.0.0:
-	ln -fs $(notdir $(subst .1.0.0,, $@)) $@
-libs: lib/libssl.so lib/libcrypto.so lib/libssl.so.1.0.0 lib/libcrypto.so.1.0.0
+lib/%.so.$(OPENSSL_LIB_VERSION): lib/%.so
+	ln -fs $(notdir $(subst .$(OPENSSL_LIB_VERSION),,$@)) $@
+libs: lib/libssl.so lib/libcrypto.so lib/libssl.so.$(OPENSSL_LIB_VERSION) lib/libcrypto.so.$(OPENSSL_LIB_VERSION)
 
 build/$(RUBY_NAME).tar.gz: | build/
 	wget http://cache.ruby-lang.org/pub/ruby/$(RUBY_MAJOR_VERSION)/$(RUBY_NAME).tar.gz -O $@
