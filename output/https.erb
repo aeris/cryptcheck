@@ -79,7 +79,7 @@
 								<th id="<%= s.hostname %>">
 									<a href="#<%= s.hostname %>"><%= s.hostname %></a>
 								</th>
-								<% if s.is_a? Tls::TlsNotSupportedServer %>
+								<% if n.is_a? NoTLSAvailableServer %>
 								<td class="critical" colspan="16">
 									No SSL/TLS
 								</td>

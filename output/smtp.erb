@@ -72,10 +72,10 @@
 								<td class="info">PFS</td>
 							</tr>
 							<% r[1].each do |n|
-							   s = n.server
+								s = n.server
 							%>
 							<tr>
-								<% if s.is_a? Tls::TlsNotSupportedServer %>
+								<% if n.is_a? AnalysisFailure %>
 								<th id="<%= s.hostname %>">
 									<a href="#<%= s.hostname %>"><%= s.hostname %></a>
 								</th>

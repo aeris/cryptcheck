@@ -20,6 +20,21 @@ module CryptCheck
 		end
 	end
 
+	class NoTLSAvailableServer
+		attr_reader :server
+		def initialize(server)
+			@server = OpenStruct.new hostname: server
+		end
+
+		def grade
+			'X'
+		end
+
+		def score
+			0
+		end
+	end
+
 	autoload :Logger, 'cryptcheck/logger'
 	autoload :Tls, 'cryptcheck/tls'
 	module Tls
@@ -115,6 +130,8 @@ module CryptCheck
 		::Parallel.each hosts, progress: 'Analysing', in_threads: PARALLEL_ANALYSIS, finish: lambda { |item, _, _| puts item[1] } do |description, host|
 			#hosts.each do |description, host|
 			result = block.call host.strip
+			result = result.values.first
+			result = NoTLSAvailableServer.new(host) if result.is_a? AnalysisFailure
 			semaphore.synchronize do
 				if results.include? description
 					results[description] << result
