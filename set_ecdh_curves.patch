@@ -1,0 +1,427 @@
+diff -ur a/ext/openssl/deprecation.rb b/ext/openssl/deprecation.rb
+--- a/ext/openssl/deprecation.rb	2016-11-11 14:41:20.866580715 +0100
++++ b/ext/openssl/deprecation.rb	2016-11-11 14:41:37.570583620 +0100
+@@ -19,4 +19,9 @@
+     have_func(func, header, deprecated_warning_flag) and
+       have_header(header, nil, deprecated_warning_flag)
+   end
++
++  def self.check_func_or_macro(func, header)
++    check_func(func, header) or
++      have_macro(func, header) && $defs.push("-DHAVE_#{func.upcase}")
++  end
+ end
+diff -ur a/ext/openssl/extconf.rb b/ext/openssl/extconf.rb
+--- a/ext/openssl/extconf.rb	2016-11-11 12:05:50.490942389 +0100
++++ b/ext/openssl/extconf.rb	2016-11-11 12:08:46.323026500 +0100
+@@ -93,6 +93,7 @@
+ have_func("X509_NAME_hash_old")
+ have_func("X509_STORE_get_ex_data")
+ have_func("X509_STORE_set_ex_data")
++OpenSSL.check_func_or_macro("SSL_CTX_set_tmp_ecdh_callback", "openssl/ssl.h") # removed
+ have_func("OBJ_NAME_do_all_sorted")
+ have_func("SSL_SESSION_get_id")
+ have_func("SSL_SESSION_cmp")
+@@ -109,7 +110,10 @@
+ have_func("TLSv1_2_method")
+ have_func("TLSv1_2_server_method")
+ have_func("TLSv1_2_client_method")
++have_func("EC_curve_nist2nid")
+ have_func("SSL_CTX_set_alpn_select_cb")
++OpenSSL.check_func_or_macro("SSL_CTX_set1_curves_list", "openssl/ssl.h")
++OpenSSL.check_func_or_macro("SSL_CTX_set_ecdh_auto", "openssl/ssl.h")
+ have_func("SSL_CTX_set_next_proto_select_cb")
+ unless have_func("SSL_set_tlsext_host_name", ['openssl/ssl.h'])
+   have_macro("SSL_set_tlsext_host_name", ['openssl/ssl.h']) && $defs.push("-DHAVE_SSL_SET_TLSEXT_HOST_NAME")
+diff -ur a/ext/openssl/openssl_missing.c b/ext/openssl/openssl_missing.c
+--- a/ext/openssl/openssl_missing.c	2016-11-11 12:05:50.858942585 +0100
++++ b/ext/openssl/openssl_missing.c	2016-11-11 12:10:17.575063207 +0100
+@@ -34,6 +34,43 @@
+ #endif /* HAVE_HMAC_CTX_COPY */
+ #endif /* NO_HMAC */
+ 
++/* added in 1.0.2 */
++#if !defined(OPENSSL_NO_EC)
++#if !defined(HAVE_EC_CURVE_NIST2NID)
++static struct {
++    const char *name;
++    int nid;
++} nist_curves[] = {
++    {"B-163", NID_sect163r2},
++    {"B-233", NID_sect233r1},
++    {"B-283", NID_sect283r1},
++    {"B-409", NID_sect409r1},
++    {"B-571", NID_sect571r1},
++    {"K-163", NID_sect163k1},
++    {"K-233", NID_sect233k1},
++    {"K-283", NID_sect283k1},
++    {"K-409", NID_sect409k1},
++    {"K-571", NID_sect571k1},
++    {"P-192", NID_X9_62_prime192v1},
++    {"P-224", NID_secp224r1},
++    {"P-256", NID_X9_62_prime256v1},
++    {"P-384", NID_secp384r1},
++    {"P-521", NID_secp521r1}
++};
++
++int
++EC_curve_nist2nid(const char *name)
++{
++    size_t i;
++    for (i = 0; i < (sizeof(nist_curves) / sizeof(nist_curves[0])); i++) {
++	if (!strcmp(nist_curves[i].name, name))
++	    return nist_curves[i].nid;
++    }
++    return NID_undef;
++}
++#endif
++#endif
++
+ #if !defined(HAVE_X509_STORE_SET_EX_DATA)
+ int X509_STORE_set_ex_data(X509_STORE *str, int idx, void *data)
+ {
+diff -ur a/ext/openssl/openssl_missing.h b/ext/openssl/openssl_missing.h
+--- a/ext/openssl/openssl_missing.h	2016-11-11 12:05:51.210942773 +0100
++++ b/ext/openssl/openssl_missing.h	2016-11-11 12:10:49.307074964 +0100
+@@ -70,6 +70,12 @@
+ void HMAC_CTX_copy(HMAC_CTX *out, HMAC_CTX *in);
+ #endif
+ 
++#if !defined(OPENSSL_NO_EC)
++#if !defined(HAVE_EC_CURVE_NIST2NID)
++int EC_curve_nist2nid(const char *);
++#endif
++#endif
++
+ #if !defined(HAVE_HMAC_CTX_CLEANUP)
+ void HMAC_CTX_cleanup(HMAC_CTX *ctx);
+ #endif
+diff -ur a/ext/openssl/ossl_ssl.c b/ext/openssl/ossl_ssl.c
+--- a/ext/openssl/ossl_ssl.c	2016-11-11 12:05:51.590942974 +0100
++++ b/ext/openssl/ossl_ssl.c	2016-11-11 14:47:24.746639981 +0100
+@@ -161,6 +161,18 @@
+     RTYPEDDATA_DATA(obj) = ctx;
+     SSL_CTX_set_ex_data(ctx, ossl_ssl_ex_ptr_idx, (void*)obj);
+ 
++#if defined(HAVE_SSL_CTX_SET_ECDH_AUTO)
++    /* We use SSL_CTX_set1_curves_list() to specify the curve used in ECDH. It
++     * allows to specify multiple curve names and OpenSSL will select
++     * automatically from them. In OpenSSL 1.0.2, the automatic selection has to
++     * be enabled explicitly. But OpenSSL 1.1.0 removed the knob and it is
++     * always enabled. To uniform the behavior, we enable the automatic
++     * selection also in 1.0.2. Users can still disable ECDH by removing ECDH
++     * cipher suites by SSLContext#ciphers=. */
++    if (!SSL_CTX_set_ecdh_auto(ctx, 1))
++        ossl_raise(eSSLError, "SSL_CTX_set_ecdh_auto");
++#endif
++
+     return obj;
+ }
+ 
+@@ -711,19 +723,33 @@
+ #endif
+ 
+ #if !defined(OPENSSL_NO_EC)
+-    if (RTEST(ossl_sslctx_get_tmp_ecdh_cb(self))){
+-	SSL_CTX_set_tmp_ecdh_callback(ctx, ossl_tmp_ecdh_callback);
+-    }
+-#endif
++    /* We added SSLContext#tmp_ecdh_callback= in Ruby 2.3.0,
++     * but SSL_CTX_set_tmp_ecdh_callback() was removed in OpenSSL 1.1.0. */
++    if (RTEST(ossl_sslctx_get_tmp_ecdh_cb(self))) {
++# if defined(HAVE_SSL_CTX_SET_TMP_ECDH_CALLBACK)
++        rb_warn("#tmp_ecdh_callback= is deprecated; use #ecdh_curves= instead");
++        SSL_CTX_set_tmp_ecdh_callback(ctx, ossl_tmp_ecdh_callback);
++#  if defined(HAVE_SSL_CTX_SET_ECDH_AUTO)
++        /* tmp_ecdh_callback and ecdh_auto conflict; OpenSSL ignores
++        * tmp_ecdh_callback. So disable ecdh_auto. */
++        if (!SSL_CTX_set_ecdh_auto(ctx, 0))
++            ossl_raise(eSSLError, "SSL_CTX_set_ecdh_auto");
++#  endif
++# else
++    ossl_raise(eSSLError, "OpenSSL does not support tmp_ecdh_callback; "
++           "use #ecdh_curves= instead");
++# endif
++	}
++#endif /* OPENSSL_NO_EC */
+ 
+     val = ossl_sslctx_get_cert_store(self);
+     if(!NIL_P(val)){
+-	/*
+-         * WORKAROUND:
+-	 *   X509_STORE can count references, but
+-	 *   X509_STORE_free() doesn't care it.
+-	 *   So we won't increment it but mark it by ex_data.
+-	 */
++        /*
++        * WORKAROUND:
++        *   X509_STORE can count references, but
++        *   X509_STORE_free() doesn't care it.
++        *   So we won't increment it but mark it by ex_data.
++        */
+         store = GetX509StorePtr(val); /* NO NEED TO DUP */
+         SSL_CTX_set_cert_store(ctx, store);
+         SSL_CTX_set_ex_data(ctx, ossl_ssl_ex_store_p, (void*)1);
+@@ -731,7 +757,7 @@
+ 
+     val = ossl_sslctx_get_extra_cert(self);
+     if(!NIL_P(val)){
+-	rb_block_call(val, rb_intern("each"), 0, 0, ossl_sslctx_add_extra_chain_cert_i, self);
++        rb_block_call(val, rb_intern("each"), 0, 0, ossl_sslctx_add_extra_chain_cert_i, self);
+     }
+ 
+     /* private key may be bundled in certificate file. */
+@@ -755,22 +781,21 @@
+ 
+     val = ossl_sslctx_get_client_ca(self);
+     if(!NIL_P(val)){
+-	if (RB_TYPE_P(val, T_ARRAY)) {
+-	    for(i = 0; i < RARRAY_LEN(val); i++){
+-		client_ca = GetX509CertPtr(RARRAY_AREF(val, i));
+-        	if (!SSL_CTX_add_client_CA(ctx, client_ca)){
+-		    /* Copies X509_NAME => FREE it. */
+-        	    ossl_raise(eSSLError, "SSL_CTX_add_client_CA");
+-        	}
+-	    }
+-        }
+-	else{
+-	    client_ca = GetX509CertPtr(val); /* NO DUP NEEDED. */
++        if (RB_TYPE_P(val, T_ARRAY)) {
++            for(i = 0; i < RARRAY_LEN(val); i++){
++                client_ca = GetX509CertPtr(RARRAY_AREF(val, i));
++                if (!SSL_CTX_add_client_CA(ctx, client_ca)){
++                    /* Copies X509_NAME => FREE it. */
++                    ossl_raise(eSSLError, "SSL_CTX_add_client_CA");
++                }
++	        }
++        } else {
++            client_ca = GetX509CertPtr(val); /* NO DUP NEEDED. */
+             if (!SSL_CTX_add_client_CA(ctx, client_ca)){
+-		/* Copies X509_NAME => FREE it. */
+-        	ossl_raise(eSSLError, "SSL_CTX_add_client_CA");
++                /* Copies X509_NAME => FREE it. */
++                ossl_raise(eSSLError, "SSL_CTX_add_client_CA");
+             }
+-	}
++	    }
+     }
+ 
+     val = ossl_sslctx_get_ca_file(self);
+@@ -778,15 +803,15 @@
+     val = ossl_sslctx_get_ca_path(self);
+     ca_path = NIL_P(val) ? NULL : StringValuePtr(val);
+     if(ca_file || ca_path){
+-	if (!SSL_CTX_load_verify_locations(ctx, ca_file, ca_path))
+-	    rb_warning("can't set verify locations");
++        if (!SSL_CTX_load_verify_locations(ctx, ca_file, ca_path))
++            rb_warning("can't set verify locations");
+     }
+ 
+     val = ossl_sslctx_get_verify_mode(self);
+     verify_mode = NIL_P(val) ? SSL_VERIFY_NONE : NUM2INT(val);
+     SSL_CTX_set_verify(ctx, verify_mode, ossl_ssl_verify_callback);
+     if (RTEST(ossl_sslctx_get_client_cert_cb(self)))
+-	SSL_CTX_set_client_cert_cb(ctx, ossl_client_cert_cb);
++        SSL_CTX_set_client_cert_cb(ctx, ossl_client_cert_cb);
+ 
+     val = ossl_sslctx_get_timeout(self);
+     if(!NIL_P(val)) SSL_CTX_set_timeout(ctx, NUM2LONG(val));
+@@ -797,26 +822,26 @@
+ #ifdef HAVE_SSL_CTX_SET_NEXT_PROTO_SELECT_CB
+     val = rb_iv_get(self, "@npn_protocols");
+     if (!NIL_P(val)) {
+-	rb_iv_set(self, "@_protocols", ssl_encode_npn_protocols(val));
+-	SSL_CTX_set_next_protos_advertised_cb(ctx, ssl_npn_advertise_cb, (void *) self);
+-	OSSL_Debug("SSL NPN advertise callback added");
++        rb_iv_set(self, "@_protocols", ssl_encode_npn_protocols(val));
++        SSL_CTX_set_next_protos_advertised_cb(ctx, ssl_npn_advertise_cb, (void *) self);
++        OSSL_Debug("SSL NPN advertise callback added");
+     }
+     if (RTEST(rb_iv_get(self, "@npn_select_cb"))) {
+-	SSL_CTX_set_next_proto_select_cb(ctx, ssl_npn_select_cb, (void *) self);
+-	OSSL_Debug("SSL NPN select callback added");
++        SSL_CTX_set_next_proto_select_cb(ctx, ssl_npn_select_cb, (void *) self);
++        OSSL_Debug("SSL NPN select callback added");
+     }
+ #endif
+ 
+ #ifdef HAVE_SSL_CTX_SET_ALPN_SELECT_CB
+     val = rb_iv_get(self, "@alpn_protocols");
+     if (!NIL_P(val)) {
+-	VALUE rprotos = ssl_encode_npn_protocols(val);
+-	SSL_CTX_set_alpn_protos(ctx, (const unsigned char *)StringValueCStr(rprotos), RSTRING_LENINT(rprotos));
+-	OSSL_Debug("SSL ALPN values added");
++        VALUE rprotos = ssl_encode_npn_protocols(val);
++        SSL_CTX_set_alpn_protos(ctx, (const unsigned char *)StringValueCStr(rprotos), RSTRING_LENINT(rprotos));
++        OSSL_Debug("SSL ALPN values added");
+     }
+     if (RTEST(rb_iv_get(self, "@alpn_select_cb"))) {
+-	SSL_CTX_set_alpn_select_cb(ctx, ssl_alpn_select_cb, (void *) self);
+-	OSSL_Debug("SSL ALPN select callback added");
++        SSL_CTX_set_alpn_select_cb(ctx, ssl_alpn_select_cb, (void *) self);
++        OSSL_Debug("SSL ALPN select callback added");
+     }
+ #endif
+ 
+@@ -824,31 +849,31 @@
+ 
+     val = ossl_sslctx_get_sess_id_ctx(self);
+     if (!NIL_P(val)){
+-	StringValue(val);
+-	if (!SSL_CTX_set_session_id_context(ctx, (unsigned char *)RSTRING_PTR(val),
+-					    RSTRING_LENINT(val))){
+-	    ossl_raise(eSSLError, "SSL_CTX_set_session_id_context");
+-	}
++        StringValue(val);
++        if (!SSL_CTX_set_session_id_context(ctx, (unsigned char *)RSTRING_PTR(val),
++                RSTRING_LENINT(val))){
++            ossl_raise(eSSLError, "SSL_CTX_set_session_id_context");
++        }
+     }
+ 
+     if (RTEST(rb_iv_get(self, "@session_get_cb"))) {
+-	SSL_CTX_sess_set_get_cb(ctx, ossl_sslctx_session_get_cb);
+-	OSSL_Debug("SSL SESSION get callback added");
++        SSL_CTX_sess_set_get_cb(ctx, ossl_sslctx_session_get_cb);
++        OSSL_Debug("SSL SESSION get callback added");
+     }
+     if (RTEST(rb_iv_get(self, "@session_new_cb"))) {
+-	SSL_CTX_sess_set_new_cb(ctx, ossl_sslctx_session_new_cb);
+-	OSSL_Debug("SSL SESSION new callback added");
++        SSL_CTX_sess_set_new_cb(ctx, ossl_sslctx_session_new_cb);
++        OSSL_Debug("SSL SESSION new callback added");
+     }
+     if (RTEST(rb_iv_get(self, "@session_remove_cb"))) {
+-	SSL_CTX_sess_set_remove_cb(ctx, ossl_sslctx_session_remove_cb);
+-	OSSL_Debug("SSL SESSION remove callback added");
++        SSL_CTX_sess_set_remove_cb(ctx, ossl_sslctx_session_remove_cb);
++        OSSL_Debug("SSL SESSION remove callback added");
+     }
+ 
+ #ifdef HAVE_SSL_SET_TLSEXT_HOST_NAME
+     val = rb_iv_get(self, "@servername_cb");
+     if (!NIL_P(val)) {
+         SSL_CTX_set_tlsext_servername_callback(ctx, ssl_servername_cb);
+-	OSSL_Debug("SSL TLSEXT servername callback added");
++        OSSL_Debug("SSL TLSEXT servername callback added");
+     }
+ #endif
+ 
+@@ -953,6 +978,87 @@
+     return v;
+ }
+ 
++#if !defined(OPENSSL_NO_EC)
++/*
++ * call-seq:
++ *    ctx.ecdh_curves = curve_list -> curve_list
++ *
++ * Sets the list of "supported elliptic curves" for this context.
++ *
++ * For a TLS client, the list is directly used in the Supported Elliptic Curves
++ * Extension. For a server, the list is used by OpenSSL to determine the set of
++ * shared curves. OpenSSL will pick the most appropriate one from it.
++ *
++ * Note that this works differently with old OpenSSL (<= 1.0.1). Only one curve
++ * can be set, and this has no effect for TLS clients.
++ *
++ * === Example
++ *   ctx1 = OpenSSL::SSL::SSLContext.new
++ *   ctx1.ecdh_curves = "X25519:P-256:P-224"
++ *   svr = OpenSSL::SSL::SSLServer.new(tcp_svr, ctx1)
++ *   Thread.new { svr.accept }
++ *
++ *   ctx2 = OpenSSL::SSL::SSLContext.new
++ *   ctx2.ecdh_curves = "P-256"
++ *   cli = OpenSSL::SSL::SSLSocket.new(tcp_sock, ctx2)
++ *   cli.connect
++ *
++ *   p cli.tmp_key.group.curve_name
++ *   # => "prime256v1" (is an alias for NIST P-256)
++ */
++static VALUE
++ossl_sslctx_set_ecdh_curves(VALUE self, VALUE arg)
++{
++    SSL_CTX *ctx;
++
++    rb_check_frozen(self);
++    GetSSLCTX(self, ctx);
++    StringValueCStr(arg);
++
++#if defined(HAVE_SSL_CTX_SET1_CURVES_LIST)
++    if (!SSL_CTX_set1_curves_list(ctx, RSTRING_PTR(arg)))
++	ossl_raise(eSSLError, NULL);
++#else
++    /* OpenSSL does not have SSL_CTX_set1_curves_list()... Fallback to
++     * SSL_CTX_set_tmp_ecdh(). So only the first curve is used. */
++    {
++	VALUE curve, splitted;
++	EC_KEY *ec;
++	int nid;
++
++	splitted = rb_str_split(arg, ":");
++	if (!RARRAY_LEN(splitted))
++	    ossl_raise(eSSLError, "invalid input format");
++	curve = RARRAY_AREF(splitted, 0);
++	StringValueCStr(curve);
++
++	/* SSL_CTX_set1_curves_list() accepts NIST names */
++	nid = EC_curve_nist2nid(RSTRING_PTR(curve));
++	if (nid == NID_undef)
++	    nid = OBJ_txt2nid(RSTRING_PTR(curve));
++	if (nid == NID_undef)
++	    ossl_raise(eSSLError, "unknown curve name");
++
++	ec = EC_KEY_new_by_curve_name(nid);
++	if (!ec)
++	    ossl_raise(eSSLError, NULL);
++	EC_KEY_set_asn1_flag(ec, OPENSSL_EC_NAMED_CURVE);
++	SSL_CTX_set_tmp_ecdh(ctx, ec);
++# if defined(HAVE_SSL_CTX_SET_ECDH_AUTO)
++	/* tmp_ecdh and ecdh_auto conflict. tmp_ecdh is ignored when ecdh_auto
++	 * is enabled. So disable ecdh_auto. */
++	if (!SSL_CTX_set_ecdh_auto(ctx, 0))
++	    ossl_raise(eSSLError, "SSL_CTX_set_ecdh_auto");
++# endif
++    }
++#endif
++
++    return arg;
++}
++#else
++#define ossl_sslctx_set_ecdh_curves rb_f_notimplement
++#endif
++
+ /*
+  *  call-seq:
+  *     ctx.session_add(session) -> true | false
+@@ -2075,6 +2181,7 @@
+      */
+     rb_attr(cSSLContext, rb_intern("client_cert_cb"), 1, 1, Qfalse);
+ 
++#if defined(HAVE_SSL_CTX_SET_TMP_ECDH_CALLBACK)
+     /*
+      * A callback invoked when ECDH parameters are required.
+      *
+@@ -2082,10 +2189,11 @@
+      * flag indicating the use of an export cipher and the keylength
+      * required.
+      *
+-     * The callback must return an OpenSSL::PKey::EC instance of the correct
+-     * key length.
++     * The callback is deprecated. This does not work with recent versions of
++     * OpenSSL. Use OpenSSL::SSL::SSLContext#ecdh_curves= instead.
+      */
+     rb_attr(cSSLContext, rb_intern("tmp_ecdh_callback"), 1, 1, Qfalse);
++#endif
+ 
+     /*
+      * Sets the context in which a session can be reused.  This allows
+@@ -2221,6 +2329,7 @@
+     rb_define_method(cSSLContext, "ssl_version=", ossl_sslctx_set_ssl_version, 1);
+     rb_define_method(cSSLContext, "ciphers",     ossl_sslctx_get_ciphers, 0);
+     rb_define_method(cSSLContext, "ciphers=",    ossl_sslctx_set_ciphers, 1);
++    rb_define_method(cSSLContext, "ecdh_curves=", ossl_sslctx_set_ecdh_curves, 1);
+ 
+     rb_define_method(cSSLContext, "setup", ossl_sslctx_setup, 0);
+ 

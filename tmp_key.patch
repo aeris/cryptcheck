@@ -14,7 +14,7 @@ diff --git a/ext/openssl/ossl_ssl.c b/ext/openssl/ossl_ssl.c
 index 4075d6f..982e011 100644
 --- a/ext/openssl/ossl_ssl.c
 +++ b/ext/openssl/ossl_ssl.c
-@@ -1910,6 +1910,25 @@ ossl_ssl_alpn_protocol(VALUE self)
+@@ -1911,6 +1911,25 @@ ossl_ssl_alpn_protocol(VALUE self)
  	return rb_str_new((const char *) out, outlen);
  }
  # endif
@@ -38,9 +38,9 @@ index 4075d6f..982e011 100644
 +}
 +# endif /* defined(HAVE_SSL_GET_SERVER_TMP_KEY) */
  #endif /* !defined(OPENSSL_NO_SOCK) */
- 
+
  void
-@@ -2304,6 +2323,9 @@ Init_ossl_ssl(void)
+@@ -2305,6 +2324,9 @@ Init_ossl_ssl(void)
      rb_define_method(cSSLSocket, "session=",    ossl_ssl_set_session, 1);
      rb_define_method(cSSLSocket, "verify_result", ossl_ssl_get_verify_result, 0);
      rb_define_method(cSSLSocket, "client_ca", ossl_ssl_get_client_ca_list, 0);
@@ -54,10 +54,10 @@ diff --git a/test/openssl/test_ssl.rb b/test/openssl/test_ssl.rb
 index 58fcc08..3ce4e21 100644
 --- a/test/openssl/test_ssl.rb
 +++ b/test/openssl/test_ssl.rb
-@@ -1167,6 +1167,29 @@ def test_sync_close_without_connect
+@@ -1169,6 +1169,29 @@ def test_sync_close_without_connect
      }
    end
- 
+
 +  def test_get_ephemeral_key
 +    return unless OpenSSL::SSL::SSLSocket.method_defined?(:tmp_key)
 +    ciphers = {
@@ -82,7 +82,7 @@ index 58fcc08..3ce4e21 100644
 +  end
 +
    private
- 
+
    def start_server_version(version, ctx_proc=nil, server_proc=nil, &blk)
 diff --git a/test/openssl/utils.rb b/test/openssl/utils.rb
 index 0802c1b..c081e4f 100644
@@ -95,4 +95,4 @@ index 0802c1b..c081e4f 100644
 +        ctx.tmp_ecdh_callback = proc { OpenSSL::TestUtils::TEST_KEY_EC_P256V1 }
          ctx.verify_mode = verify_mode
          ctx_proc.call(ctx) if ctx_proc
- 
+

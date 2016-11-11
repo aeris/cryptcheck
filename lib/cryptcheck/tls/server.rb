@@ -1,6 +1,7 @@
 require 'socket'
 require 'openssl'
 require 'httparty'
+require 'awesome_print'
 
 module CryptCheck
 	module Tls
@@ -178,9 +179,22 @@ module CryptCheck
 				end
 			end
 
-			def ssl_client(method, ciphers = nil, &block)
+			# secp192r1 secp256r1
+			SUPPORTED_CURVES = %w(sect163k1 sect163r1 sect163r2 sect193r1 sect193r2
+									sect233k1 sect233r1 sect239k1 sect283k1 sect283r1
+									sect409k1 sect409r1 sect571k1 sect571r1 secp160k1
+									secp160r1 secp160r2 secp192k1 secp224k1
+									secp224r1 secp256k1 secp384r1 secp521r1)
+
+			def ssl_client(method, ciphers = nil, curves = nil, &block)
 				ssl_context         = ::OpenSSL::SSL::SSLContext.new method
-				ssl_context.ciphers = ciphers if ciphers
+				ssl_context.ciphers = ciphers.join ':' if ciphers
+
+				ssl_context.ecdh_curves = curves.join ':' if curves
+				#ssl_context.ecdh_auto = false
+				#ecdh = OpenSSL::PKey::EC.new('sect163r1').generate_key
+				#ssl_context.tmp_ecdh_callback = proc { ecdh }
+
 				Logger.trace { "Try #{method} connection with #{ciphers}" }
 				connect do |socket|
 					ssl_connect socket, ssl_context, method do |ssl_socket|
@@ -208,10 +222,10 @@ module CryptCheck
 			end
 
 			def prefered_cipher(method)
-				cipher = ssl_client(method, 'ALL:COMPLEMENTOFALL') { |s| Cipher.new method, s.cipher, s.tmp_key }
+				cipher = ssl_client(method, %w(ALL COMPLEMENTOFALL)) { |s| Cipher.new method, s.cipher, s.tmp_key }
 				Logger.info { "Prefered cipher for #{Tls.colorize method} : #{cipher.colorize}" }
 				cipher
-			rescue TLSException => e
+			rescue => e
 				Logger.debug { "Method #{Tls.colorize method} not supported : #{e}" }
 				nil
 			end
@@ -227,18 +241,18 @@ module CryptCheck
 
 			def available_ciphers(method)
 				context         = ::OpenSSL::SSL::SSLContext.new method
-				context.ciphers = 'ALL:COMPLEMENTOFALL'
+				context.ciphers = %w(ALL COMPLEMENTOFALL)
 				context.ciphers
 			end
 
-			def supported_cipher?(method, cipher)
-				dh = ssl_client method, [cipher] { |s| s.tmp_key }
+			def supported_cipher?(method, cipher, curves = nil)
+				dh = ssl_client(method, [cipher], curves) { |s| s.tmp_key }
 				@dh << dh if dh
 				cipher = Cipher.new method, cipher, dh
 				dh     = dh ? " (#{'DH'.colorize :green} : #{Tls.key_to_s dh})" : ''
 				Logger.info { "#{Tls.colorize method} / #{cipher.colorize} : Supported#{dh}" }
 				cipher
-			rescue TLSException => e
+			rescue => e
 				cipher = Cipher.new method, cipher
 				Logger.debug { "#{Tls.colorize method} / #{cipher.colorize} : Not supported (#{e})" }
 				nil
@@ -249,7 +263,18 @@ module CryptCheck
 				@supported_ciphers = {}
 				EXISTING_METHODS.each do |method|
 					next unless SUPPORTED_METHODS.include? method and @prefered_ciphers[method]
-					supported_ciphers = available_ciphers(method).collect { |c| supported_cipher? method, c }.reject { |c| c.nil? }
+					available_ciphers = available_ciphers method
+					available_ciphers = available_ciphers.inject [] do |cs, c|
+						cipher = Cipher.new method, c
+						if cipher.ecdhe?
+							c = SUPPORTED_CURVES.collect { |ec| [method, c.first, [ec]] }
+						else
+							c = [[method, c.first]]
+						end
+						cs + c
+					end
+
+					supported_ciphers = available_ciphers.collect { |c| supported_cipher? *c }.reject { |c| c.nil? }
 					Logger.info { '' } unless supported_ciphers.empty?
 					@supported_ciphers[method] = supported_ciphers
 				end

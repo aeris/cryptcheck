@@ -68,6 +68,7 @@ $(RUBY_DIR)/: build/$(RUBY_NAME).tar.gz
 
 $(RUBY_OPENSSL_EXT_DIR)/Makefile: libs | $(RUBY_DIR)/
 	patch -d $(RUBY_DIR)/ -p1 < tmp_key.patch
+	patch -d $(RUBY_DIR)/ -p1 < set_ecdh_curves.patch
 	cd $(RUBY_OPENSSL_EXT_DIR) && ruby extconf.rb
 
 $(RUBY_OPENSSL_EXT_DIR)/openssl.so: libs $(RUBY_OPENSSL_EXT_DIR)/Makefile
