@@ -1,5 +1,23 @@
 require 'openssl'
 
+class String
+	alias :colorize_old :colorize
+
+	COLORS = {
+			critical: { color: :white, background: :red },
+			error: :red,
+			warning: :light_red,
+			good: :green,
+			perfect: :blue,
+			best: :magenta,
+			unknown: { background: :black }
+	}
+
+	def colorize(state)
+		self.colorize_old COLORS[state]
+	end
+end
+
 class Integer
 	def humanize
 		secs = self
@@ -28,9 +46,10 @@ class ::OpenSSL::PKey::EC
 
 	def status
 		case self.size
-			when 0...160 then :error
-			when 160...256 then :warning
-			when 384...::Float::INFINITY then :success
+			when 0...160 then :critical
+			when 160...192 then :error
+			when 192...256 then :warning
+			when 384...::Float::INFINITY then :good
 		end
 	end
 end
@@ -50,9 +69,9 @@ class ::OpenSSL::PKey::RSA
 
 	def status
 		case self.size
-			when 0...1024 then :error
-			when 1024...2048 then :warning
-			when 4096...::Float::INFINITY then :success
+			when 0...1024 then :critical
+			when 1024...2048 then :error
+			when 4096...::Float::INFINITY then :good
 		end
 	end
 end
@@ -71,7 +90,7 @@ class ::OpenSSL::PKey::DSA
 	end
 
 	def status
-		return :error
+		return :critical
 	end
 end
 
@@ -90,9 +109,9 @@ class ::OpenSSL::PKey::DH
 
 	def status
 		case self.size
-			when 0...1024 then :error
-			when 1024...2048 then :warning
-			when 4096...::Float::INFINITY then :success
+			when 0...1024 then :critical
+			when 1024...2048 then :error
+			when 4096...::Float::INFINITY then :good
 		end
 	end
 end

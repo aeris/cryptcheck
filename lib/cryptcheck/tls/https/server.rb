@@ -27,14 +27,14 @@ module CryptCheck
 							name, value = header.split '='
 							if name == 'max-age'
 								@hsts = value.to_i
-								Logger.info { "HSTS : #{@hsts.to_s.colorize hsts_long? ? :green : nil}" }
+								Logger.info { "HSTS : #{@hsts.to_s.colorize hsts_long? ? :good : nil}" }
 								return
 							end
 						end
 					rescue
 					end
 
-					Logger.info { 'No HSTS'.colorize :yellow }
+					Logger.info { 'No HSTS'.colorize :warning }
 					@hsts = nil
 				end
 

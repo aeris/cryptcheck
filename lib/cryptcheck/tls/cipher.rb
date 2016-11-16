@@ -31,7 +31,7 @@ module CryptCheck
 					idea:      %w(IDEA),
 					chacha20:  %w(CHACHA20),
 
-					cbc:       %w(CBC),
+					#cbc:       %w(CBC),
 					gcm:       %w(GCM),
 					ccm:       %w(CCM)
 			}
@@ -54,6 +54,19 @@ module CryptCheck
 				RUBY_EVAL
 			end
 
+			def self.cbc?(cipher)
+				!aead? cipher
+			end
+			def cbc?
+				!aead?
+			end
+			def aead?(cipher)
+				gcm?(cipher) or ccm?(cipher)
+			end
+			def aead?
+				gcm? or ccm?
+			end
+
 			def ssl?
 				sslv2? or sslv3?
 			end
@@ -66,40 +79,71 @@ module CryptCheck
 				dhe? or ecdhe?
 			end
 
-			def colorize
-				colors = case self.score
-							 when :error then
-								 { color: :white, background: :red }
-							 when :danger then
-								 { color: :red }
-							 when :warning then
-								 { color: :yellow }
-							 when :success then
-								 { color: :green }
-						 end
-				@name.colorize colors
+			def sweet32?
+				enc = params[:enc]
+				return false unless enc # No encryption
+				block = enc[2]
+				return false unless block # No block encryption
+				block <= 64
 			end
 
-			def state
-				ok = Proc.new { |n| self.send "#{n}?" }
-				{
-						success: %i(pfs).select { |n| ok.call n },
-						warning: %i().select { |n| ok.call n },
-						danger:  %i().select { |n| ok.call n },
-						error:   %i(dss md5 psk srp anonymous null export des des3 rc2 rc4 idea).select { |n| ok.call n }
-				}
+			def sweet32?
+				enc = params[:enc]
+				return false unless enc # No encryption
+				block = enc[2]
+				return false unless block # No block encryption
+				block <= 64
+			end
+
+			def colorize
+				@name.colorize self.score
+			end
+
+			CHECKS = [
+					[:dss, Proc.new { |s| s.dss? }, :critical],
+					[:anonymous, Proc.new { |s| s.anonymous? }, :critical],
+					[:null, Proc.new { |s| s.null? }, :critical],
+					[:export, Proc.new { |s| s.export? }, :critical],
+					[:des, Proc.new { |s| s.des? }, :critical],
+					[:md5, Proc.new { |s| s.md5? }, :critical],
+
+					[:rc4, Proc.new { |s| s.rc4? }, :error],
+					[:sweet32, Proc.new { |s| s.sweet32? }, :error],
+
+					#[:cbc, Proc.new { |s| s.cbc? }, :warning],
+					#[:dhe, Proc.new { |s| s.dhe? }, :warning],
+					[:weak_dh, Proc.new do |s|
+						dh = s.dh
+						next nil unless dh
+						status = dh.status
+						next status if %i(critical error warning).include? status
+						nil
+					end ],
+					[:no_pfs, Proc.new { |s| not s.pfs? }, :warning],
+
+					[:pfs, Proc.new { |s| s.pfs? }, :good],
+					[:ecdhe, Proc.new { |s| s.ecdhe? }, :good],
+					[:aead, Proc.new { |s| s.aead? }, :good],
+			]
+
+			def states
+				return @states if @states
+				@states = { critical: [], error: [], warning: [], good: [], perfect: [], best: [] }
+				CHECKS.each do |name, check, status|
+					result = check.call self
+					states[status ? status : result] << name if result
+				end
+				@states
 			end
 
 			def score
-				state = self.state
-				return :error unless state[:error].empty?
-				return :danger unless state[:danger].empty?
-				return :warning unless state[:warning].empty?
-				return :success unless state[:success].empty?
+				%i(critical error warning good perfect best).each do |s|
+					return s unless self.states[s].empty?
+				end
 				:none
 			end
 
-			PRIORITY = { success: 1, none: 2, warning: 3, danger: 4, error: 5 }
+			PRIORITY = { good: 1, none: 2, warning: 3, error: 4, critical: 5 }
 
 			def self.sort(ciphers)
 				ciphers.sort do |a, b|

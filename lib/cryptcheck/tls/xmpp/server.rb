@@ -19,7 +19,7 @@ module CryptCheck
 									 end unless port
 					super hostname, family, ip, port
 					Logger.info { '' }
-					Logger.info { self.required? ? 'Required'.colorize(:green) : 'Not required'.colorize(:yellow) }
+					Logger.info { self.required? ? 'Required'.colorize(:good) : 'Not required'.colorize(:warning) }
 				end
 
 				def ssl_connect(socket, context, method, &block)

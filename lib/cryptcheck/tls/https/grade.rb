@@ -2,8 +2,11 @@ module CryptCheck
 	module Tls
 		module Https
 			class Grade < Tls::Grade
-				def all_success
-					super + %i(hsts hsts_long)
+				def checks
+					super + [
+						[:hsts, Proc.new { |s| s.hsts? }, :good],
+						[:hsts_long, Proc.new { |s| s.hsts_long? }, :perfect],
+					]
 				end
 			end
 		end

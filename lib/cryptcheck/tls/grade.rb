@@ -1,80 +1,137 @@
 module CryptCheck
 	module Tls
 		class Grade
-			attr_reader :server, :score, :grade, :error, :danger, :warning, :success
+			attr_reader :server, :grade, :states
 
 			def initialize(server)
 				@server = server
-				calculate_states
-				calculate_grade
+				@checks = checks
+				@states = calculate_states
+				@grade = calculate_grade
 			end
 
 			def display
-				color = case self.grade
-							when 'A+' then :blue
-							when 'A' then :green
-							when 'B', 'C' then :yellow
-							when 'E', 'F' then :red
-							when 'M', 'T' then { color: :white, background: :red }
+				color = case @grade
+							when 'A', 'A+'
+								:best
+							when 'B', 'B+'
+								:perfect
+							when 'C', 'C+'
+								nil
+							when 'E'
+								:warning
+							when 'F'
+								:error
+							when 'G'
+								:critical
+							when 'M', 'T'
+								:unknown
 						end
 
 				Logger.info { "Grade : #{self.grade.colorize color }" }
 				Logger.info { '' }
-				Logger.info { "Errors : #{self.error.join(' ').colorize :red }" } unless self.error.empty?
-				Logger.info { "Warnings : #{self.warning.join(' ').colorize :yellow }" } unless self.warning.empty?
-				Logger.info { "Best practices : #{self.success.join(' ').colorize :green }" } unless self.success.empty?
+				[
+						['Critical', :critical],
+						['Error', :error],
+						['Warning', :warning],
+						['Good', :good],
+						['Perfect', :perfect],
+						['Best', :best],
+				].each do |text, color|
+					states = @states[color]
+					Logger.info { "#{text} : #{states.collect { |s| s.to_s.colorize color }.join ' '}" } unless states.empty?
+				end
 			end
 
 			private
 			def calculate_grade
-				@grade = case @score
-							 when 0...20 then 'F'
-							 when 20...35 then 'E'
-							 when 35...50 then 'D'
-							 when 50...65 then 'C'
-							 when 65...80 then 'B'
-							 else 'A'
-						 end
+				case
+					when !@states[:critical].empty?
+						return 'G'
+					when !@states[:error].empty?
+						return 'F'
+					when !@states[:warning].empty?
+						return 'E'
+				end
 
-				@grade = [@grade, 'B'].max if !@server.tlsv1_2? or %i(error warning).include? @server.key.status
-				@grade = [@grade, 'F'].max unless @error.empty?
-				@grade = [@grade, 'F'].max unless @error.empty?
+				goods = @checks.select { |c| c.last == :good }.collect &:first
+				unless goods.empty?
+					return 'D' if @states[:good].empty?
+					return 'C' if @states[:good] != goods
+				end
 
-				@grade = 'M' unless @server.cert_valid
-				@grade = 'T' unless @server.cert_trusted
+				perfects = @checks.select { |c| c.last == :perfect }.collect &:first
+				unless perfects.empty?
+					return 'C+' if @states[:perfect].empty?
+					return 'B' if @states[:perfect] != perfects
+				end
 
-				@grade = 'A+' if @grade == 'A' and @error.empty? and @warning.empty? and (all_success & @success) == all_success
+				bests = @checks.select { |c| c.last == :best }.collect &:first
+				unless bests.empty?
+					return 'B+' if @states[:best].empty?
+					return 'A' if @states[:best] != bests
+				end
+
+				'A+'
+			end
+
+			CHECKS = [
+					# Keys
+					[:dss_sign, Proc.new { |s| s.dss_sig? }, :critical],
+					[:weak_key, Proc.new { |s| %i(critical error warning).include? s.key.status } ],
+
+					# DH
+					[:weak_dh, Proc.new { |s| (%i(critical error warning) & s.dh.collect(&:status).uniq).first } ],
+
+					# Certificates
+					[:md2_sign, Proc.new { |s| s.md2_sig? }, :critical],
+					[:mdc2_sign, Proc.new { |s| s.mdc2_sig? }, :critical],
+					[:md4_sign, Proc.new { |s| s.md4_sig? }, :critical],
+					[:md5_sign, Proc.new { |s| s.md5_sig? }, :critical],
+					[:sha_sign, Proc.new { |s| s.sha_sig? }, :critical],
+
+					[:sha1_sign, Proc.new { |s| s.sha1_sig? }, :warning],
+
+					# Protocols
+					[:ssl, Proc.new { |s| s.ssl? }, :critical],
+					[:tls12, Proc.new { |s| s.tlsv1_2? }, :good],
+					[:tls12_only, Proc.new { |s| s.tlsv1_2_only? }, :perfect],
+
+					# Ciphers
+					[:dss, Proc.new { |s| s.dss? }, :critical],
+					[:anonymous, Proc.new { |s| s.anonymous? }, :critical],
+					[:null, Proc.new { |s| s.null? }, :critical],
+					[:export, Proc.new { |s| s.export? }, :critical],
+					[:des, Proc.new { |s| s.des? }, :critical],
+					[:md5, Proc.new { |s| s.md5? }, :critical],
+
+					[:rc4, Proc.new { |s| s.rc4? }, :error],
+					[:sweet32, Proc.new { |s| s.sweet32? }, :error],
+
+					[:no_pfs, Proc.new { |s| not s.pfs_only? }, :warning],
+					[:pfs, Proc.new { |s| s.pfs? }, :good],
+					[:pfs_only, Proc.new { |s| s.pfs_only? }, :perfect],
+					[:ecdhe, Proc.new { |s| s.ecdhe? }, :good],
+					[:ecdhe_only, Proc.new { |s| s.ecdhe_only? }, :perfect],
+
+					[:aead, Proc.new { |s| s.aead_only? }, :good],
+					#[:aead_only, Proc.new { |s| s.aead_only? }, :best],
+			]
+
+			def checks
+				CHECKS
 			end
 
 			def calculate_states
-				ok = Proc.new { |n| @server.send "#{n}?" }
-				state = {
-						success: all_success.select { |n| ok.call n },
-						warning: all_warning.select { |n| ok.call n },
-						danger:  all_danger.select { |n| ok.call n },
-						error:   all_error.select { |n| ok.call n }
-				}
-				@success, @warning, @danger, @error = state[:success], state[:warning], state[:danger], state[:error]
-			end
-
-			ALL_ERROR = %i(md5_sig md5 anonymous dss null export des des3 rc4)
-			def all_error
-				ALL_ERROR
-			end
-
-			ALL_DANGER = %i()
-			def all_danger
-				ALL_DANGER
-			end
-
-			ALL_WARNING = %i(sha1_sig)
-			def all_warning
-				ALL_WARNING
-			end
-
-			ALL_SUCCESS = %i(pfs_only)
-			def all_success
-				ALL_SUCCESS
+				states = { critical: [], error: [], warning: [], good: [], perfect: [], best: [] }
+				@checks.each do |name, check, status|
+					result = check.call @server
+					if result
+						state = states[status ? status : result]
+						state << name if state
+					end
+				end
+				states
 			end
 		end
 	end

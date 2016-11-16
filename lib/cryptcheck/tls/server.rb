@@ -21,6 +21,8 @@ module CryptCheck
 			end
 			class CipherNotAvailable < TLSException
 			end
+			class InappropriateFallback < TLSException
+			end
 			class Timeout < ::StandardError
 			end
 			class TLSTimeout < Timeout
@@ -33,7 +35,7 @@ module CryptCheck
 			def initialize(hostname, family, ip, port)
 				@hostname, @family, @ip, @port = hostname, family, ip, port
 				@dh                            = []
-				Logger.info { name.colorize :blue }
+				Logger.info { name.colorize :perfect }
 				extract_cert
 				Logger.info { '' }
 				Logger.info { "Key : #{Tls.key_to_s self.key}" }
@@ -70,14 +72,48 @@ module CryptCheck
 				RUBY_EVAL
 			end
 
-			{
-					md2:  %w(md2WithRSAEncryption),
-					md5:  %w(md5WithRSAEncryption md5WithRSA),
-					sha1: %w(sha1WithRSAEncryption sha1WithRSA dsaWithSHA1 dsaWithSHA1_2 ecdsa_with_SHA1)
-			}.each do |name, signature|
+			SIGNATURE_ALGORITHMS = {
+					'dsaWithSHA'                             => %i(sha1 dss),
+					'dsaWithSHA1'                            => %i(sha1 dss),
+					'dsaWithSHA1_2'                          => %i(sha1 dss),
+					'dsa_with_SHA224'                        => %i(sha2 dss),
+					'dsa_with_SHA256'                        => %i(sha2 dss),
+
+					'mdc2WithRSA'                            => %i(mdc2 rsa),
+
+					'md2WithRSAEncryption'                   => %i(md2 rsa),
+
+					'md4WithRSAEncryption'                   => %i(md4, rsa),
+
+					'md5WithRSA'                             => %i(md5 rsa),
+					'md5WithRSAEncryption'                   => %i(md5 rsa),
+
+					'shaWithRSAEncryption'                   => %i(sha rsa),
+					'sha1WithRSA'                            => %i(sha1 rsa),
+					'sha1WithRSAEncryption'                  => %i(sha1 rsa),
+					'sha224WithRSAEncryption'                => %i(sha2 rsa),
+					'sha256WithRSAEncryption'                => %i(sha2 rsa),
+					'sha384WithRSAEncryption'                => %i(sha2 rsa),
+					'sha512WithRSAEncryption'                => %i(sha2 rsa),
+
+					'ripemd160WithRSA'                       => %i(ripemd160 rsa),
+
+					'ecdsa-with-SHA1'                        => %i(sha1 ecc),
+					'ecdsa-with-SHA224'                      => %i(sha2 ecc),
+					'ecdsa-with-SHA256'                      => %i(sha2 ecc),
+					'ecdsa-with-SHA384'                      => %i(sha2 ecc),
+					'ecdsa-with-SHA512'                      => %i(sha2 ecc),
+
+					'id_GostR3411_94_with_GostR3410_2001'    => %i(ghost),
+					'id_GostR3411_94_with_GostR3410_94'      => %i(ghost),
+					'id_GostR3411_94_with_GostR3410_94_cc'   => %i(ghost),
+					'id_GostR3411_94_with_GostR3410_2001_cc' => %i(ghost)
+			}
+
+			%i(md2 mdc2 md4 md5 ripemd160 sha sha1 sha2 rsa dss ecc ghost).each do |name|
 				class_eval <<-RUBY_EVAL, __FILE__, __LINE__ + 1
 					def #{name}_sig?
-						#{signature}.include? @cert.signature_algorithm
+						SIGNATURE_ALGORITHMS[@cert.signature_algorithm].include? :#{name}
 					end
 				RUBY_EVAL
 			end
@@ -106,12 +142,36 @@ module CryptCheck
 				tls? and !ssl?
 			end
 
+			def tlsv1_2_only?
+				tlsv1_2? and not ssl? and not tlsv1? and not tlsv1_1?
+			end
+
 			def pfs?
 				supported_ciphers.any? { |c| c.pfs? }
 			end
 
 			def pfs_only?
 				supported_ciphers.all? { |c| c.pfs? }
+			end
+
+			def ecdhe?
+				supported_ciphers.any? { |c| c.ecdhe? }
+			end
+
+			def ecdhe_only?
+				supported_ciphers.all? { |c| c.ecdhe? }
+			end
+
+			def aead?
+				supported_ciphers.any? { |c| c.aead? }
+			end
+
+			def aead_only?
+				supported_ciphers.all? { |c| c.aead? }
+			end
+
+			def sweet32?
+				supported_ciphers.any? { |c| c.sweet32? }
 			end
 
 			private
@@ -152,39 +212,47 @@ module CryptCheck
 					ssl_socket.connect_nonblock
 					Logger.trace { "SSL connected to #{name}" }
 					return block_given? ? block.call(ssl_socket) : nil
-				rescue ::IO::WaitReadable
+				rescue ::OpenSSL::SSL::SSLErrorWaitReadable
 					Logger.trace { "Waiting for SSL read to #{name}" }
 					raise TLSTimeout, "Timeout when TLS connect to #{@ip}:#{@port} (max #{SSL_TIMEOUT.humanize})" unless IO.select [ssl_socket], nil, nil, SSL_TIMEOUT
 					retry
-				rescue ::IO::WaitWritable
+				rescue ::OpenSSL::SSL::SSLErrorWaitWritable
 					Logger.trace { "Waiting for SSL write to #{name}" }
 					raise TLSTimeout, "Timeout when TLS connect to #{@ip}:#{@port} (max #{SSL_TIMEOUT.humanize})" unless IO.select nil, [ssl_socket], nil, SSL_TIMEOUT
 					retry
 				rescue ::OpenSSL::SSL::SSLError => e
-					case e
-						when /state=SSLv2 read server hello A$/,
-								/state=SSLv3 read server hello A: wrong version number$/
+					case e.message
+						when /state=SSLv.* read server hello A$/
+							raise TLSNotAvailableException, e
+						when /state=SSLv.* read server hello A: wrong version number$/
 							raise MethodNotAvailable, e
 						when /state=error: no ciphers available$/,
-								/state=SSLv3 read server hello A: sslv3 alert handshake failure$/
+								/state=SSLv.* read server hello A: sslv.* alert handshake failure$/
 							raise CipherNotAvailable, e
 					end
-				rescue SystemCallError => e
-					case e
-						when /^Connection reset by peer$/
-							raise MethodNotAvailable, e
+					raise
+				rescue ::SystemCallError => e
+					case e.message
+						when /^Connection reset by peer - SSL_connect$/
+							raise TLSNotAvailableException, e
 					end
+					raise
 				ensure
 					ssl_socket.close
 				end
 			end
 
 			# secp192r1 secp256r1
-			SUPPORTED_CURVES = %w(secp160k1 secp160r1 secp160r2 sect163k1 sect163r1 sect163r2 secp192k1 sect193r1 sect193r2 secp224k1 secp224r1 sect233k1 sect233r1 sect239k1 secp256k1 sect283k1 sect283r1 secp384r1 sect409k1 sect409r1 secp521r1 sect571k1 sect571r1)
+			SUPPORTED_CURVES = %w(secp160k1 secp160r1 secp160r2 sect163k1
+				sect163r1 sect163r2 secp192k1 sect193r1 sect193r2 secp224k1
+				secp224r1 sect233k1 sect233r1 sect239k1 secp256k1 sect283k1
+				sect283r1 secp384r1 sect409k1 sect409r1 secp521r1 sect571k1
+				sect571r1)
 
-			def ssl_client(method, ciphers = nil, curves = nil, &block)
-				ssl_context         = ::OpenSSL::SSL::SSLContext.new method
-				ssl_context.ciphers = ciphers.join ':' if ciphers
+			def ssl_client(method, ciphers = nil, curves = nil, fallback: false, &block)
+				ssl_context = ::OpenSSL::SSL::SSLContext.new method
+				ssl_context.enable_fallback_scsv if fallback
+				ssl_context.ciphers     = ciphers.join ':' if ciphers
 
 				ssl_context.ecdh_curves = curves.join ':' if curves
 				#ssl_context.ecdh_auto = false
@@ -197,9 +265,6 @@ module CryptCheck
 						return block_given? ? block.call(ssl_socket) : nil
 					end
 				end
-
-				Logger.debug { "No SSL available on #{name}" }
-				raise CipherNotAvailable
 			end
 
 			def extract_cert
@@ -209,7 +274,8 @@ module CryptCheck
 						@cert, @chain = ssl_client(method) { |s| [s.peer_cert, s.peer_cert_chain] }
 						Logger.debug { "Certificate #{@cert.subject}" }
 						break
-					rescue TLSException
+					rescue TLSTimeout, ::SystemCallError
+						raise
 					end
 				end
 				raise TLSNotAvailableException unless @cert
@@ -245,8 +311,16 @@ module CryptCheck
 				dh = ssl_client(method, [cipher], curves) { |s| s.tmp_key }
 				@dh << dh if dh
 				cipher = Cipher.new method, cipher, dh
-				dh     = dh ? " (#{'DH'.colorize :green} : #{Tls.key_to_s dh})" : ''
-				Logger.info { "#{Tls.colorize method} / #{cipher.colorize} : Supported#{dh}" }
+				dh     = dh ? " (#{'PFS'.colorize :good} : #{Tls.key_to_s dh})" : ''
+
+				states = cipher.states
+				text   = %i(critical error warning good perfect best).collect do |s|
+					states[s].collect { |t| t.to_s.colorize s }.join ' '
+				end.reject &:empty?
+				text   = text.join ' '
+
+				Logger.info { "#{Tls.colorize method} / #{cipher.colorize}#{dh} [#{text}]" }
+
 				cipher
 			rescue => e
 				cipher = Cipher.new method, cipher
