@@ -1,7 +1,6 @@
 require 'socket'
 require 'openssl'
 require 'httparty'
-require 'awesome_print'
 
 module CryptCheck
 	module Tls
@@ -41,6 +40,7 @@ module CryptCheck
 				Logger.info { "Key : #{Tls.key_to_s self.key}" }
 				fetch_prefered_ciphers
 				check_supported_cipher
+				check_fallback_scsv
 				uniq_dh
 			end
 
@@ -174,6 +174,10 @@ module CryptCheck
 				supported_ciphers.any? { |c| c.sweet32? }
 			end
 
+			def fallback_scsv?
+				@fallback_scsv
+			end
+
 			private
 			def name
 				name = "#@ip:#@port"
@@ -229,6 +233,8 @@ module CryptCheck
 						when /state=error: no ciphers available$/,
 								/state=SSLv.* read server hello A: sslv.* alert handshake failure$/
 							raise CipherNotAvailable, e
+						when /state=SSLv.* read server hello A: tlsv.* alert inappropriate fallback$/
+							raise InappropriateFallback, e
 					end
 					raise
 				rescue ::SystemCallError => e
@@ -348,6 +354,34 @@ module CryptCheck
 					Logger.info { '' } unless supported_ciphers.empty?
 					@supported_ciphers[method] = supported_ciphers
 				end
+			end
+
+			def check_fallback_scsv
+				@fallback_scsv = false
+
+				methods = @supported_ciphers.keys
+				if methods.size > 1
+					# We will try to connect to the not better supported method
+					method = methods[1]
+
+					begin
+						ssl_client method, fallback: true
+					rescue InappropriateFallback
+						@fallback_scsv = true
+					end
+				else
+					@fallback_scsv = nil
+				end
+
+				text, color = case @fallback_scsv
+								  when true
+									  ['Supported', :good]
+								  when false
+									  ['Not supported', :error]
+								  when nil
+									  ['Not applicable', :unknown]
+							  end
+				Logger.info { "Fallback SCSV : #{text.colorize color}" }
 			end
 
 			def verify_trust(chain, cert)

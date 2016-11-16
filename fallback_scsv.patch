@@ -1,0 +1,62 @@
+diff --git a/ext/openssl/lib/openssl/ssl.rb b/ext/openssl/lib/openssl/ssl.rb
+index 57519f2..c5b0c8b 100644
+--- a/ext/openssl/lib/openssl/ssl.rb
++++ b/ext/openssl/lib/openssl/ssl.rb
+@@ -105,11 +105,12 @@ class SSLContext
+       #    SSLContext.new("SSLv23_client") => ctx
+       #
+       # You can get a list of valid methods with OpenSSL::SSL::SSLContext::METHODS
+-      def initialize(version = nil)
++      def initialize(version = nil, fallback_scsv = false)
+         INIT_VARS.each { |v| instance_variable_set v, nil }
+         self.options = self.options | OpenSSL::SSL::OP_ALL
+         return unless version
+         self.ssl_version = version
++        self.enable_fallback_scsv if fallback_scsv
+       end
+
+       ##
+diff --git a/ext/openssl/ossl_ssl.c b/ext/openssl/ossl_ssl.c
+index bcc624f..0c1780b 100644
+--- a/ext/openssl/ossl_ssl.c
++++ b/ext/openssl/ossl_ssl.c
+@@ -978,6 +978,31 @@ ossl_sslctx_set_ciphers(VALUE self, VALUE v)
+     return v;
+ }
+
++/*
++ * call-seq:
++ *    ctx.enable_fallback_scsv() => nil
++ *
++ * Activate TLS_FALLBACK_SCSV for this context.
++ * See RFC 7507.
++ */
++static VALUE
++ossl_sslctx_enable_fallback_scsv(VALUE self)
++{
++    SSL_CTX *ctx;
++
++    GetSSLCTX(self, ctx);
++    if(!ctx){
++        rb_warning("SSL_CTX is not initialized.");
++        return Qnil;
++    }
++
++    long modes = SSL_CTX_get_mode(ctx);
++	modes |= SSL_MODE_SEND_FALLBACK_SCSV;
++	SSL_CTX_set_mode(ctx, modes);
++
++    return Qnil;
++}
++
+ #if !defined(OPENSSL_NO_EC)
+ /*
+  * call-seq:
+@@ -2330,6 +2355,7 @@ Init_ossl_ssl(void)
+     rb_define_method(cSSLContext, "ciphers",     ossl_sslctx_get_ciphers, 0);
+     rb_define_method(cSSLContext, "ciphers=",    ossl_sslctx_set_ciphers, 1);
+     rb_define_method(cSSLContext, "ecdh_curves=", ossl_sslctx_set_ecdh_curves, 1);
++    rb_define_method(cSSLContext, "enable_fallback_scsv", ossl_sslctx_enable_fallback_scsv, 0);
+
+     rb_define_method(cSSLContext, "setup", ossl_sslctx_setup, 0);
+

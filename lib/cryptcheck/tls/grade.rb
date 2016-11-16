@@ -119,7 +119,14 @@ module CryptCheck
 			]
 
 			def checks
-				CHECKS
+				checks = CHECKS
+				unless @server.fallback_scsv? == nil
+					checks += [
+						[:no_fallback_scsv, Proc.new { |s| not s.fallback_scsv? }, :error],
+						[:fallback_scsv, Proc.new { |s| s.fallback_scsv? }, :good]
+					]
+				end
+				checks
 			end
 
 			def calculate_states
