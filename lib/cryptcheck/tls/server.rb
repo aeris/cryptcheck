@@ -178,6 +178,10 @@ module CryptCheck
 				@fallback_scsv
 			end
 
+			def must_staple?
+				@cert.extensions.any? { |e| e.oid == '1.3.6.1.5.5.7.1.24' }
+			end
+
 			private
 			def name
 				name = "#@ip:#@port"
