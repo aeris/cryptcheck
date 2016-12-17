@@ -259,10 +259,9 @@ module CryptCheck
 				sect283r1 secp384r1 sect409k1 sect409r1 secp521r1 sect571k1
 				sect571r1 X25519)
 
-			def ssl_client(method, ciphers = nil, curves = nil, fallback: false, &block)
-				ssl_context = ::OpenSSL::SSL::SSLContext.new method
-				ssl_context.enable_fallback_scsv if fallback
-				ssl_context.ciphers     = ciphers.join ':' if ciphers
+			def ssl_client(method, ciphers = %w(ALL COMPLEMENTOFALL), curves = nil, fallback: false, &block)
+				ssl_context = ::OpenSSL::SSL::SSLContext.new method, fallback_scsv: fallback
+				ssl_context.ciphers     = ciphers.join ':'
 
 				ssl_context.ecdh_curves = curves.join ':' if curves
 				#ssl_context.ecdh_auto = false
@@ -295,7 +294,7 @@ module CryptCheck
 			end
 
 			def prefered_cipher(method)
-				cipher = ssl_client(method, %w(ALL COMPLEMENTOFALL)) { |s| Cipher.new method, s.cipher, s.tmp_key }
+				cipher = ssl_client(method) { |s| Cipher.new method, s.cipher, s.tmp_key }
 				Logger.info { "Prefered cipher for #{Tls.colorize method} : #{cipher.colorize}" }
 				cipher
 			rescue => e
