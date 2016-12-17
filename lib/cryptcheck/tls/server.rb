@@ -343,18 +343,24 @@ module CryptCheck
 				@supported_ciphers = {}
 				EXISTING_METHODS.each do |method|
 					next unless SUPPORTED_METHODS.include? method and @prefered_ciphers[method]
+					supported_ciphers = []
+
 					available_ciphers = available_ciphers method
-					available_ciphers = available_ciphers.inject [] do |cs, c|
+					available_ciphers.each do |c|
 						cipher = Cipher.new method, c
-						if cipher.ecdhe?
-							c = SUPPORTED_CURVES.collect { |ec| [method, c.first, [ec]] }
-						else
-							c = [[method, c.first]]
+						supported = supported_cipher? method, c.first
+						if supported
+							if cipher.ecdhe?
+								SUPPORTED_CURVES.each do |curve|
+									supported = supported_cipher? method, c.first, [curve]
+									supported_ciphers << supported if supported
+								end
+							else
+								supported_ciphers << supported
+							end
 						end
-						cs + c
 					end
 
-					supported_ciphers = available_ciphers.collect { |c| supported_cipher? *c }.reject { |c| c.nil? }
 					Logger.info { '' } unless supported_ciphers.empty?
 					@supported_ciphers[method] = supported_ciphers
 				end
@@ -363,7 +369,7 @@ module CryptCheck
 			def check_fallback_scsv
 				@fallback_scsv = false
 
-				methods = @supported_ciphers.keys
+				methods = @prefered_ciphers.reject { |_, v| v.nil? }.keys
 				if methods.size > 1
 					# We will try to connect to the not better supported method
 					method = methods[1]
