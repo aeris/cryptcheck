@@ -29,10 +29,6 @@ module CryptCheck
 		def grade
 			'X'
 		end
-
-		def score
-			0
-		end
 	end
 
 	autoload :Logger, 'cryptcheck/logger'
@@ -147,10 +143,7 @@ module CryptCheck
 			results[d].sort! do |a, b|
 				cmp = score(a) <=> score(b)
 				if cmp == 0
-					cmp = b.score <=> a.score
-					if cmp == 0
-						cmp = a.server.hostname <=> b.server.hostname
-					end
+					cmp = a.server.hostname <=> b.server.hostname
 				end
 				cmp
 			end
@@ -174,7 +167,7 @@ module CryptCheck
 	end
 
 	private
-	SCORES = %w(A+ A A- B C D E F T M X)
+	SCORES = %w(A+ A B+ B C+ C D E F G M T X)
 
 	def self.score(a)
 		SCORES.index a.grade
