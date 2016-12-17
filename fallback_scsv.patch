@@ -1,5 +1,19 @@
+diff --git a/ext/openssl/deprecation.rb b/ext/openssl/deprecation.rb
+index d773536..f4a6c4b 100644
+--- a/ext/openssl/deprecation.rb
++++ b/ext/openssl/deprecation.rb
+@@ -19,4 +19,9 @@ def self.check_func(func, header)
+     have_func(func, header, deprecated_warning_flag) and
+       have_header(header, nil, deprecated_warning_flag)
+   end
++
++  def self.check_func_or_macro(func, header)
++    check_func(func, header) or
++    have_macro(func, header) && $defs.push("-DHAVE_#{func.upcase}")
++  end
+ end
 diff --git a/ext/openssl/lib/openssl/ssl.rb b/ext/openssl/lib/openssl/ssl.rb
-index 57519f2..c5b0c8b 100644
+index 9893757..bcb167e 100644
 --- a/ext/openssl/lib/openssl/ssl.rb
 +++ b/ext/openssl/lib/openssl/ssl.rb
 @@ -105,11 +105,12 @@ class SSLContext
@@ -7,23 +21,23 @@ index 57519f2..c5b0c8b 100644
        #
        # You can get a list of valid methods with OpenSSL::SSL::SSLContext::METHODS
 -      def initialize(version = nil)
-+      def initialize(version = nil, fallback_scsv = false)
++      def initialize(version = nil, fallback_scsv: false)
          INIT_VARS.each { |v| instance_variable_set v, nil }
          self.options = self.options | OpenSSL::SSL::OP_ALL
          return unless version
          self.ssl_version = version
 +        self.enable_fallback_scsv if fallback_scsv
        end
-
+ 
        ##
 diff --git a/ext/openssl/ossl_ssl.c b/ext/openssl/ossl_ssl.c
-index bcc624f..0c1780b 100644
+index cc17a0c..9f7ee0b 100644
 --- a/ext/openssl/ossl_ssl.c
 +++ b/ext/openssl/ossl_ssl.c
 @@ -978,6 +978,31 @@ ossl_sslctx_set_ciphers(VALUE self, VALUE v)
      return v;
  }
-
+ 
 +/*
 + * call-seq:
 + *    ctx.enable_fallback_scsv() => nil
@@ -57,6 +71,6 @@ index bcc624f..0c1780b 100644
      rb_define_method(cSSLContext, "ciphers=",    ossl_sslctx_set_ciphers, 1);
      rb_define_method(cSSLContext, "ecdh_curves=", ossl_sslctx_set_ecdh_curves, 1);
 +    rb_define_method(cSSLContext, "enable_fallback_scsv", ossl_sslctx_enable_fallback_scsv, 0);
-
+ 
      rb_define_method(cSSLContext, "setup", ossl_sslctx_setup, 0);
-
+ 

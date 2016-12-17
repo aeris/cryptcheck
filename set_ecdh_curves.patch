@@ -1,19 +1,7 @@
-diff -ur a/ext/openssl/deprecation.rb b/ext/openssl/deprecation.rb
---- a/ext/openssl/deprecation.rb	2016-11-11 14:41:20.866580715 +0100
-+++ b/ext/openssl/deprecation.rb	2016-11-11 14:41:37.570583620 +0100
-@@ -19,4 +19,9 @@
-     have_func(func, header, deprecated_warning_flag) and
-       have_header(header, nil, deprecated_warning_flag)
-   end
-+
-+  def self.check_func_or_macro(func, header)
-+    check_func(func, header) or
-+      have_macro(func, header) && $defs.push("-DHAVE_#{func.upcase}")
-+  end
- end
-diff -ur a/ext/openssl/extconf.rb b/ext/openssl/extconf.rb
---- a/ext/openssl/extconf.rb	2016-11-11 12:05:50.490942389 +0100
-+++ b/ext/openssl/extconf.rb	2016-11-11 12:08:46.323026500 +0100
+diff --git a/ext/openssl/extconf.rb b/ext/openssl/extconf.rb
+index 76487f7..2a4d3a7 100644
+--- a/ext/openssl/extconf.rb
++++ b/ext/openssl/extconf.rb
 @@ -93,6 +93,7 @@
  have_func("X509_NAME_hash_old")
  have_func("X509_STORE_get_ex_data")
@@ -33,10 +21,11 @@ diff -ur a/ext/openssl/extconf.rb b/ext/openssl/extconf.rb
  have_func("SSL_CTX_set_next_proto_select_cb")
  unless have_func("SSL_set_tlsext_host_name", ['openssl/ssl.h'])
    have_macro("SSL_set_tlsext_host_name", ['openssl/ssl.h']) && $defs.push("-DHAVE_SSL_SET_TLSEXT_HOST_NAME")
-diff -ur a/ext/openssl/openssl_missing.c b/ext/openssl/openssl_missing.c
---- a/ext/openssl/openssl_missing.c	2016-11-11 12:05:50.858942585 +0100
-+++ b/ext/openssl/openssl_missing.c	2016-11-11 12:10:17.575063207 +0100
-@@ -34,6 +34,43 @@
+diff --git a/ext/openssl/openssl_missing.c b/ext/openssl/openssl_missing.c
+index 31f2d0a..bc61a96 100644
+--- a/ext/openssl/openssl_missing.c
++++ b/ext/openssl/openssl_missing.c
+@@ -34,6 +34,43 @@ HMAC_CTX_copy(HMAC_CTX *out, HMAC_CTX *in)
  #endif /* HAVE_HMAC_CTX_COPY */
  #endif /* NO_HMAC */
  
@@ -77,13 +66,14 @@ diff -ur a/ext/openssl/openssl_missing.c b/ext/openssl/openssl_missing.c
 +#endif
 +#endif
 +
- #if !defined(HAVE_X509_STORE_SET_EX_DATA)
- int X509_STORE_set_ex_data(X509_STORE *str, int idx, void *data)
- {
-diff -ur a/ext/openssl/openssl_missing.h b/ext/openssl/openssl_missing.h
---- a/ext/openssl/openssl_missing.h	2016-11-11 12:05:51.210942773 +0100
-+++ b/ext/openssl/openssl_missing.h	2016-11-11 12:10:49.307074964 +0100
-@@ -70,6 +70,12 @@
+ #if !defined(HAVE_EVP_MD_CTX_CREATE)
+ EVP_MD_CTX *
+ EVP_MD_CTX_create(void)
+diff --git a/ext/openssl/openssl_missing.h b/ext/openssl/openssl_missing.h
+index 955579c..6e2f5b5 100644
+--- a/ext/openssl/openssl_missing.h
++++ b/ext/openssl/openssl_missing.h
+@@ -70,6 +70,12 @@ void HMAC_CTX_init(HMAC_CTX *ctx);
  void HMAC_CTX_copy(HMAC_CTX *out, HMAC_CTX *in);
  #endif
  
@@ -96,10 +86,11 @@ diff -ur a/ext/openssl/openssl_missing.h b/ext/openssl/openssl_missing.h
  #if !defined(HAVE_HMAC_CTX_CLEANUP)
  void HMAC_CTX_cleanup(HMAC_CTX *ctx);
  #endif
-diff -ur a/ext/openssl/ossl_ssl.c b/ext/openssl/ossl_ssl.c
---- a/ext/openssl/ossl_ssl.c	2016-11-11 12:05:51.590942974 +0100
-+++ b/ext/openssl/ossl_ssl.c	2016-11-11 14:47:24.746639981 +0100
-@@ -161,6 +161,18 @@
+diff --git a/ext/openssl/ossl_ssl.c b/ext/openssl/ossl_ssl.c
+index dc35d5a..cc17a0c 100644
+--- a/ext/openssl/ossl_ssl.c
++++ b/ext/openssl/ossl_ssl.c
+@@ -161,6 +161,18 @@ ossl_sslctx_s_alloc(VALUE klass)
      RTYPEDDATA_DATA(obj) = ctx;
      SSL_CTX_set_ex_data(ctx, ossl_ssl_ex_ptr_idx, (void*)obj);
  
@@ -118,7 +109,7 @@ diff -ur a/ext/openssl/ossl_ssl.c b/ext/openssl/ossl_ssl.c
      return obj;
  }
  
-@@ -711,19 +723,33 @@
+@@ -711,19 +723,33 @@ ossl_sslctx_setup(VALUE self)
  #endif
  
  #if !defined(OPENSSL_NO_EC)
@@ -162,7 +153,7 @@ diff -ur a/ext/openssl/ossl_ssl.c b/ext/openssl/ossl_ssl.c
          store = GetX509StorePtr(val); /* NO NEED TO DUP */
          SSL_CTX_set_cert_store(ctx, store);
          SSL_CTX_set_ex_data(ctx, ossl_ssl_ex_store_p, (void*)1);
-@@ -731,7 +757,7 @@
+@@ -731,7 +757,7 @@ ossl_sslctx_setup(VALUE self)
  
      val = ossl_sslctx_get_extra_cert(self);
      if(!NIL_P(val)){
@@ -171,7 +162,7 @@ diff -ur a/ext/openssl/ossl_ssl.c b/ext/openssl/ossl_ssl.c
      }
  
      /* private key may be bundled in certificate file. */
-@@ -755,22 +781,21 @@
+@@ -755,22 +781,21 @@ ossl_sslctx_setup(VALUE self)
  
      val = ossl_sslctx_get_client_ca(self);
      if(!NIL_P(val)){
@@ -207,7 +198,7 @@ diff -ur a/ext/openssl/ossl_ssl.c b/ext/openssl/ossl_ssl.c
      }
  
      val = ossl_sslctx_get_ca_file(self);
-@@ -778,15 +803,15 @@
+@@ -778,15 +803,15 @@ ossl_sslctx_setup(VALUE self)
      val = ossl_sslctx_get_ca_path(self);
      ca_path = NIL_P(val) ? NULL : StringValuePtr(val);
      if(ca_file || ca_path){
@@ -226,7 +217,7 @@ diff -ur a/ext/openssl/ossl_ssl.c b/ext/openssl/ossl_ssl.c
  
      val = ossl_sslctx_get_timeout(self);
      if(!NIL_P(val)) SSL_CTX_set_timeout(ctx, NUM2LONG(val));
-@@ -797,26 +822,26 @@
+@@ -797,26 +822,26 @@ ossl_sslctx_setup(VALUE self)
  #ifdef HAVE_SSL_CTX_SET_NEXT_PROTO_SELECT_CB
      val = rb_iv_get(self, "@npn_protocols");
      if (!NIL_P(val)) {
@@ -263,7 +254,7 @@ diff -ur a/ext/openssl/ossl_ssl.c b/ext/openssl/ossl_ssl.c
      }
  #endif
  
-@@ -824,31 +849,31 @@
+@@ -824,31 +849,31 @@ ossl_sslctx_setup(VALUE self)
  
      val = ossl_sslctx_get_sess_id_ctx(self);
      if (!NIL_P(val)){
@@ -307,7 +298,7 @@ diff -ur a/ext/openssl/ossl_ssl.c b/ext/openssl/ossl_ssl.c
      }
  #endif
  
-@@ -953,6 +978,87 @@
+@@ -953,6 +978,87 @@ ossl_sslctx_set_ciphers(VALUE self, VALUE v)
      return v;
  }
  
@@ -395,7 +386,7 @@ diff -ur a/ext/openssl/ossl_ssl.c b/ext/openssl/ossl_ssl.c
  /*
   *  call-seq:
   *     ctx.session_add(session) -> true | false
-@@ -2075,6 +2181,7 @@
+@@ -2075,6 +2181,7 @@ Init_ossl_ssl(void)
       */
      rb_attr(cSSLContext, rb_intern("client_cert_cb"), 1, 1, Qfalse);
  
@@ -403,7 +394,7 @@ diff -ur a/ext/openssl/ossl_ssl.c b/ext/openssl/ossl_ssl.c
      /*
       * A callback invoked when ECDH parameters are required.
       *
-@@ -2082,10 +2189,11 @@
+@@ -2082,10 +2189,11 @@ Init_ossl_ssl(void)
       * flag indicating the use of an export cipher and the keylength
       * required.
       *
@@ -417,7 +408,7 @@ diff -ur a/ext/openssl/ossl_ssl.c b/ext/openssl/ossl_ssl.c
  
      /*
       * Sets the context in which a session can be reused.  This allows
-@@ -2221,6 +2329,7 @@
+@@ -2221,6 +2329,7 @@ Init_ossl_ssl(void)
      rb_define_method(cSSLContext, "ssl_version=", ossl_sslctx_set_ssl_version, 1);
      rb_define_method(cSSLContext, "ciphers",     ossl_sslctx_get_ciphers, 0);
      rb_define_method(cSSLContext, "ciphers=",    ossl_sslctx_set_ciphers, 1);
