@@ -7,5 +7,6 @@ require 'cryptcheck'
 puts 'Supported methods'
 puts OpenSSL::SSL::SSLContext::METHODS.select { |m| CryptCheck::Tls::Server::EXISTING_METHODS.include? m  }.sort.join ' '
 
-puts 'Supported ciphers'
-puts CryptCheck::Tls::Cipher.list.collect { |c| c.colorize }.join ' '
+supported = CryptCheck::Tls::Cipher.list
+puts "#{supported.size} supported ciphers"
+puts supported.collect { |c| c.colorize }.join "\n"
