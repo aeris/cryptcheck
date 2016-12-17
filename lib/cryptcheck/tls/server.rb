@@ -192,19 +192,19 @@ module CryptCheck
 			def connect(&block)
 				socket   = ::Socket.new @family, sock_type
 				sockaddr = ::Socket.sockaddr_in @port, @ip
-				Logger.trace { "Connecting to #{@ip}:#{@port}" }
+				#Logger.trace { "Connecting to #{@ip}:#{@port}" }
 				begin
 					status = socket.connect_nonblock sockaddr
-					Logger.trace { "Connecting to #{@ip}:#{@port} status : #{status}" }
+					#Logger.trace { "Connecting to #{@ip}:#{@port} status : #{status}" }
 					raise ConnectionError, status unless status == 0
-					Logger.trace { "Connected to #{@ip}:#{@port}" }
+					#Logger.trace { "Connected to #{@ip}:#{@port}" }
 					block_given? ? block.call(socket) : nil
 				rescue ::IO::WaitReadable
-					Logger.trace { "Waiting for read to #{@ip}:#{@port}" }
+					#Logger.trace { "Waiting for read to #{@ip}:#{@port}" }
 					raise Timeout, "Timeout when connect to #{@ip}:#{@port} (max #{TCP_TIMEOUT.humanize})" unless IO.select [socket], nil, nil, TCP_TIMEOUT
 					retry
 				rescue ::IO::WaitWritable
-					Logger.trace { "Waiting for write to #{@ip}:#{@port}" }
+					#Logger.trace { "Waiting for write to #{@ip}:#{@port}" }
 					raise Timeout, "Timeout when connect to #{@ip}:#{@port} (max #{TCP_TIMEOUT.humanize})" unless IO.select nil, [socket], nil, TCP_TIMEOUT
 					retry
 				ensure
@@ -215,17 +215,17 @@ module CryptCheck
 			def ssl_connect(socket, context, method, &block)
 				ssl_socket          = ::OpenSSL::SSL::SSLSocket.new socket, context
 				ssl_socket.hostname = @hostname if @hostname and method != :SSLv2
-				Logger.trace { "SSL connecting to #{name}" }
+				#Logger.trace { "SSL connecting to #{name}" }
 				begin
 					ssl_socket.connect_nonblock
-					Logger.trace { "SSL connected to #{name}" }
+					#Logger.trace { "SSL connected to #{name}" }
 					return block_given? ? block.call(ssl_socket) : nil
 				rescue ::OpenSSL::SSL::SSLErrorWaitReadable
-					Logger.trace { "Waiting for SSL read to #{name}" }
+					#Logger.trace { "Waiting for SSL read to #{name}" }
 					raise TLSTimeout, "Timeout when TLS connect to #{@ip}:#{@port} (max #{SSL_TIMEOUT.humanize})" unless IO.select [ssl_socket], nil, nil, SSL_TIMEOUT
 					retry
 				rescue ::OpenSSL::SSL::SSLErrorWaitWritable
-					Logger.trace { "Waiting for SSL write to #{name}" }
+					#Logger.trace { "Waiting for SSL write to #{name}" }
 					raise TLSTimeout, "Timeout when TLS connect to #{@ip}:#{@port} (max #{SSL_TIMEOUT.humanize})" unless IO.select nil, [ssl_socket], nil, SSL_TIMEOUT
 					retry
 				rescue ::OpenSSL::SSL::SSLError => e
@@ -269,7 +269,7 @@ module CryptCheck
 				#ecdh = OpenSSL::PKey::EC.new('sect163r1').generate_key
 				#ssl_context.tmp_ecdh_callback = proc { ecdh }
 
-				Logger.trace { "Try #{method} connection with #{ciphers}" }
+				Logger.trace { "Try method=#{method} / ciphers=#{ciphers} / curves=#{curves} / scsv=#{fallback}" }
 				connect do |socket|
 					ssl_connect socket, ssl_context, method do |ssl_socket|
 						return block_given? ? block.call(ssl_socket) : nil
