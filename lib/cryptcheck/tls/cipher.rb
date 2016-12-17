@@ -100,6 +100,8 @@ module CryptCheck
 			end
 
 			CHECKS = [
+					[:psk, Proc.new { |s| s.psk? }, :critical],
+					[:srp, Proc.new { |s| s.srp? }, :critical],
 					[:dss, Proc.new { |s| s.dss? }, :critical],
 					[:anonymous, Proc.new { |s| s.anonymous? }, :critical],
 					[:null, Proc.new { |s| s.null? }, :critical],
