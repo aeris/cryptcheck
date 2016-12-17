@@ -78,7 +78,7 @@ module CryptCheck
 			CHECKS = [
 					# Keys
 					[:dss_sign, Proc.new { |s| s.dss_sig? }, :critical],
-					[:weak_key, Proc.new { |s| %i(critical error warning).include? s.key.status } ],
+					[:weak_key, Proc.new { |s| %i(critical error warning) & [s.key.status] } ],
 
 					# DH
 					[:weak_dh, Proc.new { |s| (%i(critical error warning) & s.dh.collect(&:status).uniq).first } ],
@@ -114,7 +114,7 @@ module CryptCheck
 					[:ecdhe, Proc.new { |s| s.ecdhe? }, :good],
 					[:ecdhe_only, Proc.new { |s| s.ecdhe_only? }, :perfect],
 
-					[:aead, Proc.new { |s| s.aead_only? }, :good],
+					[:aead, Proc.new { |s| s.aead? }, :good],
 					#[:aead_only, Proc.new { |s| s.aead_only? }, :best],
 			]
 
