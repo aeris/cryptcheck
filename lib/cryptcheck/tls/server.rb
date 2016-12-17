@@ -257,7 +257,7 @@ module CryptCheck
 				sect163r1 sect163r2 secp192k1 sect193r1 sect193r2 secp224k1
 				secp224r1 sect233k1 sect233r1 sect239k1 secp256k1 sect283k1
 				sect283r1 secp384r1 sect409k1 sect409r1 secp521r1 sect571k1
-				sect571r1)
+				sect571r1 X25519)
 
 			def ssl_client(method, ciphers = nil, curves = nil, fallback: false, &block)
 				ssl_context = ::OpenSSL::SSL::SSLContext.new method
