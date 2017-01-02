@@ -260,7 +260,8 @@ module CryptCheck
 				sect571r1 X25519)
 
 			def ssl_client(method, ciphers = %w(ALL COMPLEMENTOFALL), curves = nil, fallback: false, &block)
-				ssl_context = ::OpenSSL::SSL::SSLContext.new method, fallback_scsv: fallback
+				ssl_context = ::OpenSSL::SSL::SSLContext.new method #, fallback_scsv: fallback
+				ssl_context.enable_fallback_scsv if fallback
 				ssl_context.ciphers     = ciphers.join ':'
 
 				ssl_context.ecdh_curves = curves.join ':' if curves
@@ -285,7 +286,6 @@ module CryptCheck
 						break
 					rescue Timeout, TLSTimeout, ConnectionError, ::SystemCallError
 						raise
-					rescue
 					end
 				end
 				raise TLSNotAvailableException unless @cert

@@ -5,29 +5,51 @@ class String
 
 	COLORS = {
 			critical: { color: :white, background: :red },
-			error: :red,
-			warning: :light_red,
-			good: :green,
-			perfect: :blue,
-			best: :magenta,
-			unknown: { background: :black }
+			error:    :red,
+			warning:  :light_red,
+			good:     :green,
+			perfect:  :blue,
+			best:     :magenta,
+			unknown:  { background: :black }
 	}
 
 	def colorize(state)
-		self.colorize_old COLORS[state]
+		color = COLORS[state] || state
+		self.colorize_old color
+	end
+end
+
+class Exception
+	BACKTRACE_REGEXP = /^(.*):(\d+):in `(.*)'$/
+
+	def colorize
+		$stderr.puts self.message.colorize(:red)
+		self.backtrace.each do |line|
+			line = BACKTRACE_REGEXP.match line
+			line = '%s:%s:in `%s\'' % [
+					line[1].colorize(:yellow),
+					line[2].colorize(:blue),
+					line[3].colorize(:magenta)
+			]
+			$stderr.puts line
+		end
 	end
 end
 
 class Integer
 	def humanize
 		secs = self
-		[[60, :second], [60, :minute], [24, :hour], [30, :day], [12, :month]].map { |count, name|
+		[[60, :second],
+		 [60, :minute],
+		 [24, :hour],
+		 [30, :day],
+		 [12, :month]].map do |count, name|
 			if secs > 0
 				secs, n = secs.divmod count
-				n = n.to_i
+				n       = n.to_i
 				n > 0 ? "#{n} #{name}#{n > 1 ? 's' : ''}" : nil
 			end
-		}.compact.reverse.join(' ')
+		end.compact.reverse.join ' '
 	end
 end
 
@@ -46,10 +68,14 @@ class ::OpenSSL::PKey::EC
 
 	def status
 		case self.size
-			when 0...160 then :critical
-			when 160...192 then :error
-			when 192...256 then :warning
-			when 384...::Float::INFINITY then :good
+			when 0...160
+				:critical
+			when 160...192
+				:error
+			when 192...256
+				:warning
+			when 384...::Float::INFINITY
+				:good
 		end
 	end
 end
@@ -69,9 +95,12 @@ class ::OpenSSL::PKey::RSA
 
 	def status
 		case self.size
-			when 0...1024 then :critical
-			when 1024...2048 then :error
-			when 4096...::Float::INFINITY then :good
+			when 0...1024
+				:critical
+			when 1024...2048
+				:error
+			when 4096...::Float::INFINITY
+				:good
 		end
 	end
 end
@@ -109,9 +138,13 @@ class ::OpenSSL::PKey::DH
 
 	def status
 		case self.size
-			when 0...1024 then :critical
-			when 1024...2048 then :error
-			when 4096...::Float::INFINITY then :good
+			when 0...1024
+				:critical
+			when 1024...2048
+				:error
+			when 2048...4096
+			else
+				:good
 		end
 	end
 end

@@ -184,9 +184,9 @@ module Helpers
 		expect(server.ip).to eq ip
 		expect(server.port).to eq port
 		expect(server.family).to eq case family
-										when :ipv4 then
+										when :ipv4
 											Socket::AF_INET
-										when :ipv6 then
+										when :ipv6
 											Socket::AF_INET6
 									end
 		[grade, server]
