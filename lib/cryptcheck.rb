@@ -31,6 +31,7 @@ module CryptCheck
 		end
 	end
 
+	autoload :Status, 'cryptcheck/status'
 	autoload :Logger, 'cryptcheck/logger'
 	autoload :Tls, 'cryptcheck/tls'
 	module Tls
