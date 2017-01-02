@@ -102,7 +102,9 @@ module CryptCheck
 					end
 				end
 			rescue => e
-				e = "Too long analysis (max #{MAX_ANALYSIS_DURATION.humanize})" if e.message == 'execution expired'
+				e = Tls::Server::TLSException.new "Too long analysis (max #{MAX_ANALYSIS_DURATION.humanize})" \
+ 						if e.message == 'execution expired'
+				raise unless e.is_a? Tls::Server::TLSException
 				Logger.error e
 				[key, AnalysisFailure.new(e)]
 			end
