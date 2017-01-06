@@ -35,18 +35,13 @@ module CryptCheck
 			def initialize(hostname, family, ip, port)
 				@hostname, @family, @ip, @port = hostname, family, ip, port
 				@dh                            = []
-				Logger.info { name.colorize :perfect }
-				extract_cert
-				Logger.info { '' }
-				Logger.info { "Key : #{Tls.key_to_s self.key}" }
+				@chains                        = []
+				Logger.info { name.colorize :blue }
 				fetch_prefered_ciphers
 				check_supported_cipher
+				verify_certs
 				check_fallback_scsv
 				uniq_dh
-			end
-
-			def key
-				@cert.public_key
 			end
 
 			def cipher_size
@@ -71,6 +66,14 @@ module CryptCheck
 						!prefered_ciphers[:#{method}].nil?
 					end
 				RUBY_EVAL
+			end
+
+			def key_status
+				Status[@keys]
+			end
+
+			def dh_status
+				Status[@dh]
 			end
 
 			SIGNATURE_ALGORITHMS = {
@@ -114,7 +117,9 @@ module CryptCheck
 			%i(md2 mdc2 md4 md5 ripemd160 sha sha1 sha2 rsa dss ecc ghost).each do |name|
 				class_eval <<-RUBY_EVAL, __FILE__, __LINE__ + 1
 					def #{name}_sig?
-						SIGNATURE_ALGORITHMS[@cert.signature_algorithm].include? :#{name}
+						@chains.any? do |chain|
+							SIGNATURE_ALGORITHMS[chain[:cert].signature_algorithm].include? :#{name}
+						end
 					end
 				RUBY_EVAL
 			end
@@ -125,10 +130,6 @@ module CryptCheck
 						supported_ciphers.any? { |c| c.#{type}? }
 					end
 				RUBY_EVAL
-			end
-
-			def key_size
-				@cert.public_key.size
 			end
 
 			def ssl?
@@ -253,15 +254,20 @@ module CryptCheck
 				end
 			end
 
-			# secp192r1 secp256r1
-			SUPPORTED_CURVES = %w(secp160k1 secp160r1 secp160r2 sect163k1
-				sect163r1 sect163r2 secp192k1 sect193r1 sect193r2 secp224k1
-				secp224r1 sect233k1 sect233r1 sect239k1 secp256k1 sect283k1
-				sect283r1 secp384r1 sect409k1 sect409r1 secp521r1 sect571k1
-				sect571r1 X25519)
+			# SUPPORTED_CURVES = %w(sect163k1 sect163r1 sect163r2 sect193r1
+			# 	sect193r2 sect233k1 sect233r1 sect239k1 sect283k1 sect283r1
+			# 	sect409k1 sect409r1 sect571k1 sect571r1 secp160k1 secp160r1
+			# 	secp160r2 secp192k1 secp192r1 secp224k1 secp224r1 secp256k1
+			# 	secp256r1 secp384r1 secp521r1
+			# 	prime256v1
+			# 	brainpoolP256r1 brainpoolP384r1 brainpoolP512r1)
+			SUPPORTED_CURVES = %w(secp256k1 sect283k1 sect283r1 secp384r1
+				sect409k1 sect409r1 secp521r1 sect571k1 sect571r1
+				prime192v1 prime256v1
+				brainpoolP256r1 brainpoolP384r1 brainpoolP512r1)
 
 			def ssl_client(method, ciphers = %w(ALL COMPLEMENTOFALL), curves = nil, fallback: false, &block)
-				ssl_context = ::OpenSSL::SSL::SSLContext.new method #, fallback_scsv: fallback
+				ssl_context = ::OpenSSL::SSL::SSLContext.new method
 				ssl_context.enable_fallback_scsv if fallback
 				ssl_context.ciphers     = ciphers.join ':'
 
@@ -278,20 +284,24 @@ module CryptCheck
 				end
 			end
 
-			def extract_cert
-				EXISTING_METHODS.each do |method|
-					next unless SUPPORTED_METHODS.include? method
-					begin
-						@cert, @chain = ssl_client(method) { |s| [s.peer_cert, s.peer_cert_chain] }
-						Logger.debug { "Certificate #{@cert.subject}" }
-						break
-					rescue Timeout, TLSTimeout, ConnectionError, ::SystemCallError
-						raise
-					end
+			def verify_certs
+				Logger.info { '' }
+
+				view = {}
+				@chains.each do |cert, chain|
+					id = cert.subject, cert.serial, cert.issuer
+					next if view.include? id
+					subject, serial, issuer = id
+					key                     = cert.public_key
+
+					Logger.info { "Certificate #{subject} [#{serial}] issued by #{issuer}" }
+					Logger.info { "Key : #{Tls.key_to_s key }" }
+					valid    = ::OpenSSL::SSL.verify_certificate_identity cert, (@hostname || @ip)
+					trusted  = verify_trust chain, cert
+					view[id] = { cert: cert, chain: chain, key: key, valid: valid, trusted: trusted }
 				end
-				raise TLSNotAvailableException unless @cert
-				@cert_valid   = ::OpenSSL::SSL.verify_certificate_identity @cert, (@hostname || @ip)
-				@cert_trusted = verify_trust @chain, @cert
+				@chains = view.values
+				@keys   = @chains.collect { |c| c[:key] }
 			end
 
 			def prefered_cipher(method)
@@ -319,8 +329,12 @@ module CryptCheck
 			end
 
 			def supported_cipher?(method, cipher, curves = nil)
-				dh = ssl_client(method, [cipher], curves) { |s| s.tmp_key }
+				cert, chain, dh = ssl_client(method, [cipher], curves) do |s|
+					[s.peer_cert, s.peer_cert_chain, s.tmp_key]
+				end
+				@chains << [cert, chain]
 				@dh << dh if dh
+				p dh.group.curve_name
 				cipher = Cipher.new method, cipher, dh
 				dh     = dh ? " (#{'PFS'.colorize :good} : #{Tls.key_to_s dh})" : ''
 
@@ -348,7 +362,7 @@ module CryptCheck
 
 					available_ciphers = available_ciphers method
 					available_ciphers.each do |c|
-						cipher = Cipher.new method, c
+						cipher    = Cipher.new method, c
 						supported = supported_cipher? method, c.first
 						if supported
 							if cipher.ecdhe?
