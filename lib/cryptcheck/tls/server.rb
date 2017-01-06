@@ -9,6 +9,7 @@ module CryptCheck
 			SSL_TIMEOUT       = 2*TCP_TIMEOUT
 			EXISTING_METHODS  = %i(TLSv1_2 TLSv1_1 TLSv1 SSLv3 SSLv2)
 			SUPPORTED_METHODS = ::OpenSSL::SSL::SSLContext::METHODS
+
 			class TLSException < ::StandardError
 			end
 			class TLSNotAvailableException < TLSException
@@ -360,13 +361,12 @@ module CryptCheck
 							end
 						end
 					end
-
-					Logger.info { '' } unless supported_ciphers.empty?
 					@supported_ciphers[method] = supported_ciphers
 				end
 			end
 
 			def check_fallback_scsv
+				Logger.info { '' }
 				@fallback_scsv = false
 
 				methods = @prefered_ciphers.reject { |_, v| v.nil? }.keys

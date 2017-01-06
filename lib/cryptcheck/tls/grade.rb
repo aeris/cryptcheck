@@ -17,7 +17,7 @@ module CryptCheck
 							when 'B', 'B+'
 								:perfect
 							when 'C', 'C+'
-								nil
+								:good
 							when 'E'
 								:warning
 							when 'F'
@@ -30,16 +30,9 @@ module CryptCheck
 
 				Logger.info { "Grade : #{self.grade.colorize color }" }
 				Logger.info { '' }
-				[
-						['Critical', :critical],
-						['Error', :error],
-						['Warning', :warning],
-						['Good', :good],
-						['Perfect', :perfect],
-						['Best', :best],
-				].each do |text, color|
+				Status.each do |color|
 					states = @states[color]
-					Logger.info { "#{text} : #{states.collect { |s| s.to_s.colorize color }.join ' '}" } unless states.empty?
+					Logger.info { "#{color.to_s.capitalize} : #{states.collect { |s| s.to_s.colorize color }.join ' '}" } unless states.empty?
 				end
 			end
 
@@ -78,10 +71,10 @@ module CryptCheck
 			CHECKS = [
 					# Keys
 					[:dss_sign, Proc.new { |s| s.dss_sig? }, :critical],
-					[:weak_key, Proc.new { |s| %i(critical error warning) & [s.key.status] } ],
+					[:weak_key, Proc.new { |s| Status.problem s.key_status } ],
 
 					# DH
-					[:weak_dh, Proc.new { |s| (%i(critical error warning) & s.dh.collect(&:status).uniq).first } ],
+					[:weak_dh, Proc.new { |s| Status.problem s.dh_status } ],
 
 					# Certificates
 					[:md2_sign, Proc.new { |s| s.md2_sig? }, :critical],
@@ -111,6 +104,8 @@ module CryptCheck
 					[:no_pfs, Proc.new { |s| not s.pfs_only? }, :warning],
 					[:pfs, Proc.new { |s| s.pfs? }, :good],
 					[:pfs_only, Proc.new { |s| s.pfs_only? }, :perfect],
+
+					[:no_ecdhe, Proc.new { |s| not s.ecdhe? }, :warning],
 					[:ecdhe, Proc.new { |s| s.ecdhe? }, :good],
 					[:ecdhe_only, Proc.new { |s| s.ecdhe_only? }, :perfect],
 
@@ -130,7 +125,7 @@ module CryptCheck
 			end
 
 			def calculate_states
-				states = { critical: [], error: [], warning: [], good: [], perfect: [], best: [] }
+				states = Status.collect { |s| [s, []] }.to_h
 				@checks.each do |name, check, status|
 					result = check.call @server
 					if result

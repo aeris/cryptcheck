@@ -74,7 +74,8 @@ class ::OpenSSL::PKey::EC
 				:error
 			when 192...256
 				:warning
-			when 384...::Float::INFINITY
+			when 256...364
+			else
 				:good
 		end
 	end
@@ -99,7 +100,8 @@ class ::OpenSSL::PKey::RSA
 				:critical
 			when 1024...2048
 				:error
-			when 4096...::Float::INFINITY
+			when 2048...4096
+			else
 				:good
 		end
 	end
