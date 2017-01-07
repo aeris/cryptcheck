@@ -62,6 +62,10 @@ class ::OpenSSL::PKey::EC
 		self.group.degree
 	end
 
+	def curve
+		self.group.curve_name
+	end
+
 	def to_s
 		"ECC #{self.size} bits"
 	end

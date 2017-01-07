@@ -5,10 +5,8 @@ require 'httparty'
 module CryptCheck
 	module Tls
 		class Server
-			TCP_TIMEOUT       = 10
-			SSL_TIMEOUT       = 2*TCP_TIMEOUT
-			EXISTING_METHODS  = %i(TLSv1_2 TLSv1_1 TLSv1 SSLv3 SSLv2)
-			SUPPORTED_METHODS = ::OpenSSL::SSL::SSLContext::METHODS
+			TCP_TIMEOUT = 10
+			SSL_TIMEOUT = 2*TCP_TIMEOUT
 
 			class TLSException < ::StandardError
 			end
@@ -30,96 +28,169 @@ module CryptCheck
 			class ConnectionError < ::StandardError
 			end
 
-			attr_reader :family, :ip, :port, :hostname, :prefered_ciphers, :cert, :cert_valid, :cert_trusted, :dh
-
 			def initialize(hostname, family, ip, port)
 				@hostname, @family, @ip, @port = hostname, family, ip, port
 				@dh                            = []
 				@chains                        = []
-				Logger.info { name.colorize :blue }
-				fetch_prefered_ciphers
-				check_supported_cipher
-				verify_certs
+
+				@name = "#@ip:#@port"
+				@name += " [#@hostname]" if @hostname
+
+				Logger.info { @name.colorize :blue }
+
+				fetch_supported_methods
+				fetch_supported_ciphers
+				fetch_ecdsa_certs
+				fetch_supported_curves
+
+				# verify_certs
+
 				check_fallback_scsv
-				uniq_dh
+
+				exit
 			end
 
-			def cipher_size
-				supported_ciphers.collect { |c| c.size }.min
+			def supported_method?(method)
+				ssl_client method
+				Logger.info { "Supported method : #{method}" }
+				true
+			rescue TLSException
+				Logger.debug { "Method not supported : #{method}" }
+				false
 			end
 
-			def supported_protocols
-				@supported_ciphers.keys
+			def fetch_supported_methods
+				Logger.info { '' }
+				@supported_methods = Method.select { |m| supported_method? m }
 			end
 
-			def supported_ciphers
-				@supported_ciphers.values.flatten 1
+			def supported_cipher?(method, cipher)
+				connection = ssl_client method, cipher
+				Logger.info { "Supported cipher #{cipher}" }
+				connection
+			rescue TLSException
+				Logger.debug { "Not supported cipher #{cipher}" }
+				nil
 			end
 
-			def supported_ciphers_by_protocol(protocol)
-				@supported_ciphers[protocol]
+			def fetch_supported_ciphers
+				Logger.info { '' }
+				@supported_ciphers = @supported_methods.collect do |method|
+					ciphers = Cipher[method].collect do |cipher|
+						connection = supported_cipher? method, cipher
+						next nil unless connection
+						[cipher, connection]
+					end.compact.to_h
+					[method, ciphers]
+				end.to_h
 			end
 
-			EXISTING_METHODS.each do |method|
+			def fetch_ecdsa_certs
+				@ecdsa_certs = {}
+
+				@supported_ciphers.each do |method, ciphers|
+					ecdsa = ciphers.keys.detect &:ecdsa?
+					next unless ecdsa
+
+					@ecdsa_certs = Curve.collect do |curve|
+						begin
+							connection  = ssl_client method, ecdsa, curves: curve
+							cert, chain = connection.peer_cert, connection.peer_cert_chain
+							[curve, { cert: cert, chain: chain }]
+						rescue TLSException
+							nil
+						end
+					end.compact.to_h
+
+					break
+				end
+			end
+
+			def fetch_supported_curves
+				Logger.info { '' }
+
+				ecdsa_curve = @ecdsa_certs.keys.first
+				if ecdsa_curve
+					# If we have an ECDSA cipher, we need at least the certificate curve to do handshake,
+					# but with lowest priority to check for ECHDE and not just ECDSA
+
+					@supported_ciphers.each do |method, ciphers|
+						ecdsa = ciphers.keys.detect &:ecdsa?
+						next unless ecdsa
+						@supported_curves = Curve.select do |curve|
+							next true if curve == ecdsa_curve # ECDSA curve is always supported
+							begin
+								connection = ssl_client method, ecdsa, curves: [curve, ecdsa_curve]
+								# Not too fast !!!
+								# Handshake will **always** succeed, because ECDSA curve is always supported
+								# So, need to test for the real curve
+								dh         = connection.tmp_key
+								curve      = dh.curve
+								supported  = curve != ecdsa_curve
+								if supported
+									Logger.info { "Supported ECC curve #{curve}" }
+								else
+									Logger.debug { "Not supported ECC curve #{curve}" }
+								end
+								supported
+							rescue TLSException
+								false
+							end
+						end
+						break
+					end
+				else
+					# If we have no ECDSA ciphers, ECC supported are only ECDH ones
+					# So peak an ECDH cipher and test all curves
+					@supported_ciphers.each do |method, ciphers|
+						ecdh = ciphers.keys.detect { |c| c.ecdh? or c.ecdhe? }
+						next unless ecdh
+						@supported_curves = Curve.select do |curve|
+							begin
+								ssl_client method, ecdh, curves: curve
+								Logger.info { "Supported ECC curve #{curve}" }
+							rescue TLSException
+								Logger.debug { "Not supported ECC curve #{curve}" }
+								false
+							end
+						end
+						break
+					end
+				end
+			end
+
+			def check_fallback_scsv
+				@fallback_scsv = false
+				if @supported_methods.size > 1
+					# We will try to connect to the not better supported method
+					method = @supported_methods[1]
+
+					begin
+						ssl_client method, fallback: true
+					rescue InappropriateFallback
+						@fallback_scsv = true
+					end
+				else
+					@fallback_scsv = nil
+				end
+
+				Logger.info { '' }
+				text, color = case @fallback_scsv
+								  when true
+									  ['Supported', :good]
+								  when false
+									  ['Not supported', :error]
+								  when nil
+									  ['Not applicable', :unknown]
+							  end
+				Logger.info { "Fallback SCSV : #{text.colorize color}" }
+			end
+
+			Method.each do |method|
+				method = method.name
 				class_eval <<-RUBY_EVAL, __FILE__, __LINE__ + 1
 					def #{method.to_s.downcase}?
-						!prefered_ciphers[:#{method}].nil?
-					end
-				RUBY_EVAL
-			end
-
-			def key_status
-				Status[@keys]
-			end
-
-			def dh_status
-				Status[@dh]
-			end
-
-			SIGNATURE_ALGORITHMS = {
-					'dsaWithSHA'                             => %i(sha1 dss),
-					'dsaWithSHA1'                            => %i(sha1 dss),
-					'dsaWithSHA1_2'                          => %i(sha1 dss),
-					'dsa_with_SHA224'                        => %i(sha2 dss),
-					'dsa_with_SHA256'                        => %i(sha2 dss),
-
-					'mdc2WithRSA'                            => %i(mdc2 rsa),
-
-					'md2WithRSAEncryption'                   => %i(md2 rsa),
-
-					'md4WithRSAEncryption'                   => %i(md4, rsa),
-
-					'md5WithRSA'                             => %i(md5 rsa),
-					'md5WithRSAEncryption'                   => %i(md5 rsa),
-
-					'shaWithRSAEncryption'                   => %i(sha rsa),
-					'sha1WithRSA'                            => %i(sha1 rsa),
-					'sha1WithRSAEncryption'                  => %i(sha1 rsa),
-					'sha224WithRSAEncryption'                => %i(sha2 rsa),
-					'sha256WithRSAEncryption'                => %i(sha2 rsa),
-					'sha384WithRSAEncryption'                => %i(sha2 rsa),
-					'sha512WithRSAEncryption'                => %i(sha2 rsa),
-
-					'ripemd160WithRSA'                       => %i(ripemd160 rsa),
-
-					'ecdsa-with-SHA1'                        => %i(sha1 ecc),
-					'ecdsa-with-SHA224'                      => %i(sha2 ecc),
-					'ecdsa-with-SHA256'                      => %i(sha2 ecc),
-					'ecdsa-with-SHA384'                      => %i(sha2 ecc),
-					'ecdsa-with-SHA512'                      => %i(sha2 ecc),
-
-					'id_GostR3411_94_with_GostR3410_2001'    => %i(ghost),
-					'id_GostR3411_94_with_GostR3410_94'      => %i(ghost),
-					'id_GostR3411_94_with_GostR3410_94_cc'   => %i(ghost),
-					'id_GostR3411_94_with_GostR3410_2001_cc' => %i(ghost)
-			}
-
-			%i(md2 mdc2 md4 md5 ripemd160 sha sha1 sha2 rsa dss ecc ghost).each do |name|
-				class_eval <<-RUBY_EVAL, __FILE__, __LINE__ + 1
-					def #{name}_sig?
-						@chains.any? do |chain|
-							SIGNATURE_ALGORITHMS[chain[:cert].signature_algorithm].include? :#{name}
-						end
+						@supported_methods.detect { |m| m.name == method } 
 					end
 				RUBY_EVAL
 			end
@@ -185,12 +256,6 @@ module CryptCheck
 			end
 
 			private
-			def name
-				name = "#@ip:#@port"
-				name += " [#@hostname]" if @hostname
-				name
-			end
-
 			def connect(&block)
 				socket   = ::Socket.new @family, sock_type
 				sockaddr = ::Socket.sockaddr_in @port, @ip
@@ -232,14 +297,16 @@ module CryptCheck
 					retry
 				rescue ::OpenSSL::SSL::SSLError => e
 					case e.message
-						when /state=SSLv.* read server hello A$/
+						when /state=SSLv3 read server hello A$/
 							raise TLSNotAvailableException, e
-						when /state=SSLv.* read server hello A: wrong version number$/
+						when /state=SSLv3 read server hello A: wrong version number$/
+							raise MethodNotAvailable, e
+						when /state=SSLv3 read server hello A: tlsv1 alert protocol version$/
 							raise MethodNotAvailable, e
 						when /state=error: no ciphers available$/,
-								/state=SSLv.* read server hello A: sslv.* alert handshake failure$/
+								/state=SSLv3 read server hello A: sslv3 alert handshake failure$/
 							raise CipherNotAvailable, e
-						when /state=SSLv.* read server hello A: tlsv.* alert inappropriate fallback$/
+						when /state=SSLv3 read server hello A: tlsv3 alert inappropriate fallback$/
 							raise InappropriateFallback, e
 					end
 					raise
@@ -254,32 +321,29 @@ module CryptCheck
 				end
 			end
 
-			# SUPPORTED_CURVES = %w(sect163k1 sect163r1 sect163r2 sect193r1
-			# 	sect193r2 sect233k1 sect233r1 sect239k1 sect283k1 sect283r1
-			# 	sect409k1 sect409r1 sect571k1 sect571r1 secp160k1 secp160r1
-			# 	secp160r2 secp192k1 secp192r1 secp224k1 secp224r1 secp256k1
-			# 	secp256r1 secp384r1 secp521r1
-			# 	prime256v1
-			# 	brainpoolP256r1 brainpoolP384r1 brainpoolP512r1)
-			SUPPORTED_CURVES = %w(secp256k1 sect283k1 sect283r1 secp384r1
-				sect409k1 sect409r1 secp521r1 sect571k1 sect571r1
-				prime192v1 prime256v1
-				brainpoolP256r1 brainpoolP384r1 brainpoolP512r1)
-
-			def ssl_client(method, ciphers = %w(ALL COMPLEMENTOFALL), curves = nil, fallback: false, &block)
+			def ssl_client(method, ciphers = nil, curves: nil, fallback: false, &block)
+				method      = method.name
 				ssl_context = ::OpenSSL::SSL::SSLContext.new method
 				ssl_context.enable_fallback_scsv if fallback
-				ssl_context.ciphers     = ciphers.join ':'
 
-				ssl_context.ecdh_curves = curves.join ':' if curves
-				#ssl_context.ecdh_auto = false
-				#ecdh = OpenSSL::PKey::EC.new('sect163r1').generate_key
-				#ssl_context.tmp_ecdh_callback = proc { ecdh }
+				if ciphers
+					ciphers = [ciphers] unless ciphers.is_a? Enumerable
+					ciphers = ciphers.collect(&:name).join ':'
+				else
+					ciphers = Cipher::ALL
+				end
+				ssl_context.ciphers = ciphers
+
+				if curves
+					curves                  = [curves] unless curves.is_a? Enumerable
+					curves                  = curves.collect(&:name).join ':'
+					ssl_context.ecdh_curves = curves
+				end
 
 				Logger.trace { "Try method=#{method} / ciphers=#{ciphers} / curves=#{curves} / scsv=#{fallback}" }
 				connect do |socket|
 					ssl_connect socket, ssl_context, method do |ssl_socket|
-						return block_given? ? block.call(ssl_socket) : nil
+						return block_given? ? block.call(ssl_socket) : ssl_socket
 					end
 				end
 			end
@@ -302,110 +366,6 @@ module CryptCheck
 				end
 				@chains = view.values
 				@keys   = @chains.collect { |c| c[:key] }
-			end
-
-			def prefered_cipher(method)
-				cipher = ssl_client(method) { |s| Cipher.new method, s.cipher, s.tmp_key }
-				Logger.info { "Prefered cipher for #{Tls.colorize method} : #{cipher.colorize}" }
-				cipher
-			rescue => e
-				Logger.debug { "Method #{Tls.colorize method} not supported : #{e}" }
-				nil
-			end
-
-			def fetch_prefered_ciphers
-				@prefered_ciphers = {}
-				EXISTING_METHODS.each do |method|
-					next unless SUPPORTED_METHODS.include? method
-					@prefered_ciphers[method] = prefered_cipher method
-				end
-				raise TLSNotAvailableException unless @prefered_ciphers.any? { |_, c| !c.nil? }
-			end
-
-			def available_ciphers(method)
-				context         = ::OpenSSL::SSL::SSLContext.new method
-				context.ciphers = %w(ALL COMPLEMENTOFALL)
-				context.ciphers
-			end
-
-			def supported_cipher?(method, cipher, curves = nil)
-				cert, chain, dh = ssl_client(method, [cipher], curves) do |s|
-					[s.peer_cert, s.peer_cert_chain, s.tmp_key]
-				end
-				@chains << [cert, chain]
-				@dh << dh if dh
-				p dh.group.curve_name
-				cipher = Cipher.new method, cipher, dh
-				dh     = dh ? " (#{'PFS'.colorize :good} : #{Tls.key_to_s dh})" : ''
-
-				states = cipher.states
-				text   = %i(critical error warning good perfect best).collect do |s|
-					states[s].collect { |t| t.to_s.colorize s }.join ' '
-				end.reject &:empty?
-				text   = text.join ' '
-
-				Logger.info { "#{Tls.colorize method} / #{cipher.colorize}#{dh} [#{text}]" }
-
-				cipher
-			rescue => e
-				cipher = Cipher.new method, cipher
-				Logger.debug { "#{Tls.colorize method} / #{cipher.colorize} : Not supported (#{e})" }
-				nil
-			end
-
-			def check_supported_cipher
-				Logger.info { '' }
-				@supported_ciphers = {}
-				EXISTING_METHODS.each do |method|
-					next unless SUPPORTED_METHODS.include? method and @prefered_ciphers[method]
-					supported_ciphers = []
-
-					available_ciphers = available_ciphers method
-					available_ciphers.each do |c|
-						cipher    = Cipher.new method, c
-						supported = supported_cipher? method, c.first
-						if supported
-							if cipher.ecdhe?
-								SUPPORTED_CURVES.each do |curve|
-									supported = supported_cipher? method, c.first, [curve]
-									supported_ciphers << supported if supported
-								end
-							else
-								supported_ciphers << supported
-							end
-						end
-					end
-					@supported_ciphers[method] = supported_ciphers
-				end
-			end
-
-			def check_fallback_scsv
-				Logger.info { '' }
-				@fallback_scsv = false
-
-				methods = @prefered_ciphers.reject { |_, v| v.nil? }.keys
-				if methods.size > 1
-					# We will try to connect to the not better supported method
-					method = methods[1]
-
-					begin
-						ssl_client method, fallback: true
-					rescue InappropriateFallback
-						@fallback_scsv = true
-					end
-				else
-					@fallback_scsv = nil
-				end
-
-				text, color = case @fallback_scsv
-								  when true
-									  ['Supported', :good]
-								  when false
-									  ['Not supported', :error]
-								  when nil
-									  ['Not applicable', :unknown]
-							  end
-				Logger.info { "Fallback SCSV : #{text.colorize color}" }
 			end
 
 			def verify_trust(chain, cert)

@@ -35,7 +35,9 @@ module CryptCheck
 	autoload :Logger, 'cryptcheck/logger'
 	autoload :Tls, 'cryptcheck/tls'
 	module Tls
+		autoload :Method, 'cryptcheck/tls/method'
 		autoload :Cipher, 'cryptcheck/tls/cipher'
+		autoload :Curve, 'cryptcheck/tls/curve'
 		autoload :Server, 'cryptcheck/tls/server'
 		autoload :TcpServer, 'cryptcheck/tls/server'
 		autoload :UdpServer, 'cryptcheck/tls/server'

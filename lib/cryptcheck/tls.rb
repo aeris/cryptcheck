@@ -7,16 +7,6 @@ module CryptCheck
 			::CryptCheck.analyze host, port, TcpServer, Grade
 		end
 
-		def self.colorize(cipher)
-			colors = case
-						 when /^SSL/ =~ cipher
-							 :critical
-						 when :TLSv1_2 == cipher
-							 :good
-					 end
-			cipher.to_s.colorize colors
-		end
-
 		def self.key_to_s(key)
 			size, color = case key.type
 							  when :ecc

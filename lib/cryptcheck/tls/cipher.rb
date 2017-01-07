@@ -36,11 +36,21 @@ module CryptCheck
 					ccm:       %w(CCM)
 			}
 
-			attr_reader :protocol, :name, :size, :key, :dh
+			attr_reader :method, :name, :states, :status
 
-			def initialize(protocol, cipher, dh=nil, key=nil)
-				@protocol, @dh, @key    = protocol, dh, key
-				@name, _, @size = cipher
+			def initialize(method, name)
+				@method, @name = method, name
+				fetch_states
+			end
+
+			extend Enumerable
+
+			def self.each(&block)
+				SUPPORTED.each &block
+			end
+
+			def self.[](method)
+				SUPPORTED[method]
 			end
 
 			TYPES.each do |name, ciphers|
@@ -57,12 +67,15 @@ module CryptCheck
 			def self.cbc?(cipher)
 				!aead? cipher
 			end
+
 			def cbc?
 				!aead?
 			end
-			def aead?(cipher)
+
+			def self.aead?(cipher)
 				gcm?(cipher) or ccm?(cipher)
 			end
+
 			def aead?
 				gcm? or ccm?
 			end
@@ -79,24 +92,14 @@ module CryptCheck
 				dhe? or ecdhe?
 			end
 
-			def sweet32?
-				enc = params[:enc]
-				return false unless enc # No encryption
-				block = enc[2]
-				return false unless block # No block encryption
-				block <= 64
+			def ecc?
+				ecdsa? or ecdhe?
 			end
 
 			def sweet32?
-				enc = params[:enc]
-				return false unless enc # No encryption
-				block = enc[2]
-				return false unless block # No block encryption
-				block <= 64
-			end
-
-			def colorize
-				@name.colorize self.score
+				size = self.block_size
+				return false unless size # Not block encryption
+				size <= 64
 			end
 
 			CHECKS = [
@@ -114,13 +117,13 @@ module CryptCheck
 
 					#[:cbc, Proc.new { |s| s.cbc? }, :warning],
 					#[:dhe, Proc.new { |s| s.dhe? }, :warning],
-					[:weak_dh, Proc.new do |s|
-						dh = s.dh
-						next nil unless dh
-						status = dh.status
-						next status if %i(critical error warning).include? status
-						nil
-					end ],
+					# [:weak_dh, Proc.new do |s|
+					# 	dh = s.dh
+					# 	next nil unless dh
+					# 	status = dh.status
+					# 	next status if %i(critical error warning).include? status
+					# 	nil
+					# end],
 					[:no_pfs, Proc.new { |s| not s.pfs? }, :warning],
 
 					[:pfs, Proc.new { |s| s.pfs? }, :good],
@@ -128,25 +131,22 @@ module CryptCheck
 					[:aead, Proc.new { |s| s.aead? }, :good],
 			]
 
-			def states
-				return @states if @states
-				@states = { critical: [], error: [], warning: [], good: [], perfect: [], best: [] }
+			def fetch_states
+				@states = Status.collect { |s| [s, []] }.to_h
 				CHECKS.each do |name, check, status|
 					result = check.call self
 					states[status ? status : result] << name if result
 				end
-				@states
+
+				@status = Status[@states.reject { |_, v| v.empty? }.keys]
 			end
 
-			def score
-				%i(critical error warning good perfect best).each do |s|
-					return s unless self.states[s].empty?
-				end
-				:none
+			def to_s
+				states = @states.collect { |k, vs| vs.collect { |v| v.to_s.colorize k }}.flatten.join ' '
+				"#{@method} #{@name.colorize @status} [#{states}]"
 			end
 
 			PRIORITY = { good: 1, none: 2, warning: 3, error: 4, critical: 5 }
-
 			def self.sort(ciphers)
 				ciphers.sort do |a, b|
 					error_a, error_b = PRIORITY[a.score], PRIORITY[b.score]
@@ -169,89 +169,109 @@ module CryptCheck
 				end
 			end
 
-			def self.list(cipher_suite = 'ALL:COMPLEMENTOFALL', protocol: :TLSv1_2)
-				context         = OpenSSL::SSL::SSLContext.new protocol
+			def self.list(cipher_suite = 'ALL:COMPLEMENTOFALL', method: :TLSv1_2)
+				context         = OpenSSL::SSL::SSLContext.new method
 				context.ciphers = cipher_suite
-				ciphers         = context.ciphers.collect { |c| self.new protocol, c }
+				ciphers         = context.ciphers.collect { |c| self.new method, c }
 				self.sort ciphers
 			end
 
-			def params
-				key_exchange   = case
-									 when ecdhe? || ecdh?
-										 [:ecdh, dh]
-									 when dhe? || dh?
-										 [:dh, dh]
-									 when dss?
-										 [:dss, key]
-									 else
-										 [:rsa, key]
-								 end
-				authentication = case
-									 when ecdsa?
-										 [:ecdsa, key]
-									 when rsa?
-										 [:rsa, key]
-									 when dss?
-										 [:dss, key]
-									 when anonymous?
-										 nil
-									 else
-										 [:rsa, key]
-								 end
-				encryption     = case
-									 when chacha20?
-										 :chacha20
-									 when aes?
-										 :aes
-									 when camellia?
-										 :camellia
-									 when seed?
-										 :seed
-									 when idea?
-										 :idea
-									 when des3?
-										 :'3des'
-									 when des?
-										 :des
-									 when rc4?
-										 :rc4
-									 when rc2?
-										 :rc2
-								 end
-				mode           = case
-									 when gcm?
-										 :gcm
-									 when ccm?
-										 :ccm
-									 when rc4? || chacha20?
-										 nil
-									 else
-										 :cbc
-								 end
-				b              = case encryption
-									 when :rc4
-										 nil
-									 when :'3des', :idea, :rc2
-										 64
-									 when :aes, :camellia, :seed
-										 128
-								 end
-				encryption     = [encryption, size, b, mode] if encryption
-				mac            = case
-									 when poly1305?
-										 [:poly1305, 128]
-									 when sha384?
-										 [:sha384, 384]
-									 when sha256?
-										 [:sha256, 256]
-									 when sha1?
-										 [:sha1, 160]
-									 when md5?
-										 [:md5, 128]
-								 end
-				{ kex: key_exchange, auth: authentication, enc: encryption, mac: mac, pfs: pfs? }
+			def kex
+				case
+					when ecdhe? || ecdh?
+						:ecdh
+					when dhe? || dh?
+						:dh
+					when dss?
+						:dss
+					else
+						:rsa
+				end
 			end
+
+			def auth
+				case
+					when ecdsa?
+						:ecdsa
+					when rsa?
+						:rsa
+					when dss?
+						:dss
+					when anonymous?
+						nil
+					else
+						:rsa
+				end
+			end
+
+			def encryption
+				case
+					when chacha20?
+						:chacha20
+					when aes?
+						:aes
+					when camellia?
+						:camellia
+					when seed?
+						:seed
+					when idea?
+						:idea
+					when des3?
+						:'3des'
+					when des?
+						:des
+					when rc4?
+						:rc4
+					when rc2?
+						:rc2
+				end
+			end
+
+			def mode
+				case
+					when gcm?
+						:gcm
+					when ccm?
+						:ccm
+					when rc4? || chacha20?
+						nil
+					else
+						:cbc
+				end
+			end
+
+			def block_size
+				case self.encryption
+					when :'3des', :idea, :rc2
+						64
+					when :aes, :camellia, :seed
+						128
+					else
+						nil
+				end
+			end
+
+			def hmac
+				case
+					when poly1305?
+						[:poly1305, 128]
+					when sha384?
+						[:sha384, 384]
+					when sha256?
+						[:sha256, 256]
+					when sha1?
+						[:sha1, 160]
+					when md5?
+						[:md5, 128]
+				end
+			end
+
+			ALL = 'ALL:COMPLEMENTOFALL'
+			SUPPORTED = Method.collect do |m|
+				context         = ::OpenSSL::SSL::SSLContext.new m.name
+				context.ciphers = ALL
+				[m, context.ciphers.collect { |c| Cipher.new m, c.first }]
+			end.to_h
 		end
 	end
 end
