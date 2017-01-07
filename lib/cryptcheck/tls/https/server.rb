@@ -20,14 +20,14 @@ module CryptCheck
 														   follow_redirects: false,
 														   verify:           false,
 														   timeout:          SSL_TIMEOUT,
-														   ssl_version:      self.supported_protocols.first,
-														   ciphers:          'ALL:COMPLEMENTOFALL'
+														   ssl_version:      @supported_methods.first.name,
+														   ciphers:          Cipher::ALL
 												   }
 						if header = response.headers['strict-transport-security']
 							name, value = header.split '='
 							if name == 'max-age'
 								@hsts = value.to_i
-								Logger.info { "HSTS : #{@hsts.to_s.colorize hsts_long? ? :good : nil}" }
+								Logger.info { 'HSTS : ' + @hsts.to_s.colorize(hsts_long? ? :good : nil) }
 								return
 							end
 						end

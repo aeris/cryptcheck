@@ -141,9 +141,14 @@ module CryptCheck
 				@status = Status[@states.reject { |_, v| v.empty? }.keys]
 			end
 
-			def to_s
-				states = @states.collect { |k, vs| vs.collect { |v| v.to_s.colorize k }}.flatten.join ' '
-				"#{@method} #{@name.colorize @status} [#{states}]"
+			def to_s(type = :long)
+				case type
+					when :long
+						states = @states.collect { |k, vs| vs.collect { |v| v.to_s.colorize k }}.flatten.join ' '
+						"#{@method} #{@name.colorize @status} [#{states}]"
+					when :short
+						@name.colorize @status
+				end
 			end
 
 			PRIORITY = { good: 1, none: 2, warning: 3, error: 4, critical: 5 }

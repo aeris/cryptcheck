@@ -43,38 +43,40 @@ module CryptCheck
 				fetch_ecdsa_certs
 				fetch_supported_curves
 
+				fetch_ciphers_preferences
+
 				# verify_certs
 
 				check_fallback_scsv
-
-				exit
 			end
 
 			def supported_method?(method)
 				ssl_client method
-				Logger.info { "Supported method : #{method}" }
+				Logger.info { "Method #{method} : supported" }
 				true
 			rescue TLSException
-				Logger.debug { "Method not supported : #{method}" }
+				Logger.debug { "Method #{method} : not supported" }
 				false
 			end
 
 			def fetch_supported_methods
 				Logger.info { '' }
+				Logger.info { 'Supported methods' }
 				@supported_methods = Method.select { |m| supported_method? m }
 			end
 
 			def supported_cipher?(method, cipher)
 				connection = ssl_client method, cipher
-				Logger.info { "Supported cipher #{cipher}" }
+				Logger.info { "Cipher #{cipher} : supported" }
 				connection
 			rescue TLSException
-				Logger.debug { "Not supported cipher #{cipher}" }
+				Logger.debug { "Cipher #{cipher} : not supported" }
 				nil
 			end
 
 			def fetch_supported_ciphers
 				Logger.info { '' }
+				Logger.info { 'Supported ciphers' }
 				@supported_ciphers = @supported_methods.collect do |method|
 					ciphers = Cipher[method].collect do |cipher|
 						connection = supported_cipher? method, cipher
@@ -108,6 +110,7 @@ module CryptCheck
 
 			def fetch_supported_curves
 				Logger.info { '' }
+				Logger.info { 'Supported elliptic curves' }
 
 				ecdsa_curve = @ecdsa_certs.keys.first
 				if ecdsa_curve
@@ -128,9 +131,9 @@ module CryptCheck
 								curve      = dh.curve
 								supported  = curve != ecdsa_curve
 								if supported
-									Logger.info { "Supported ECC curve #{curve}" }
+									Logger.info { "ECC curve #{curve} : supported" }
 								else
-									Logger.debug { "Not supported ECC curve #{curve}" }
+									Logger.debug { "ECC curve #{curve} : not supported" }
 								end
 								supported
 							rescue TLSException
@@ -148,9 +151,9 @@ module CryptCheck
 						@supported_curves = Curve.select do |curve|
 							begin
 								ssl_client method, ecdh, curves: curve
-								Logger.info { "Supported ECC curve #{curve}" }
+								Logger.info { "ECC curve #{curve} : supported" }
 							rescue TLSException
-								Logger.debug { "Not supported ECC curve #{curve}" }
+								Logger.debug { "ECC curve #{curve} : not supported" }
 								false
 							end
 						end
@@ -159,7 +162,39 @@ module CryptCheck
 				end
 			end
 
+			def fetch_ciphers_preferences
+				Logger.info { '' }
+				Logger.info { 'Server preferences' }
+
+				@preferences = @supported_ciphers.collect do |method, ciphers|
+					ciphers = ciphers.keys
+					if ciphers.size < 2
+						Logger.info { "Preference not applicable for #{method}" }
+					else
+						a, b, _ = ciphers
+						ab      = ssl_client(method, [a, b]).cipher.first
+						ba      = ssl_client(method, [b, a]).cipher.first
+						if ab != ba
+							Logger.info { 'Server use client preference for '.colorize(:warning) + method.to_s }
+							:client
+						else
+							sort        = -> (a, b) do
+								connection = ssl_client method, [a, b]
+								cipher     = connection.cipher.first
+								cipher == a.name ? -1 : 1
+							end
+							preferences = ciphers.sort &sort
+							Logger.info { "Cipher preference for #{method} is #{preferences.collect { |c| c.to_s :short }.join ':'}" }
+							preferences
+						end
+					end
+					[method, preferences]
+				end.to_h
+			end
+
 			def check_fallback_scsv
+				Logger.info { '' }
+
 				@fallback_scsv = false
 				if @supported_methods.size > 1
 					# We will try to connect to the not better supported method
@@ -174,16 +209,15 @@ module CryptCheck
 					@fallback_scsv = nil
 				end
 
-				Logger.info { '' }
 				text, color = case @fallback_scsv
 								  when true
-									  ['Supported', :good]
+									  ['supported', :good]
 								  when false
-									  ['Not supported', :error]
+									  ['not supported', :error]
 								  when nil
-									  ['Not applicable', :unknown]
+									  ['not applicable', :unknown]
 							  end
-				Logger.info { "Fallback SCSV : #{text.colorize color}" }
+				Logger.info { 'Fallback SCSV : ' + text.colorize(color) }
 			end
 
 			Method.each do |method|
@@ -297,16 +331,16 @@ module CryptCheck
 					retry
 				rescue ::OpenSSL::SSL::SSLError => e
 					case e.message
-						when /state=SSLv3 read server hello A$/
-							raise TLSNotAvailableException, e
-						when /state=SSLv3 read server hello A: wrong version number$/
+						when /state=SSLv3 read server hello A$/,
+								/state=SSLv3 read server hello A: wrong version number$/,
+								/state=SSLv3 read server hello A: tlsv1 alert protocol version$/
 							raise MethodNotAvailable, e
-						when /state=SSLv3 read server hello A: tlsv1 alert protocol version$/
-							raise MethodNotAvailable, e
-						when /state=error: no ciphers available$/,
-								/state=SSLv3 read server hello A: sslv3 alert handshake failure$/
+						when /state=SSLv2 read server hello A: peer error no cipher/,
+								/state=error: no ciphers available$/,
+								/state=SSLv3 read server hello A: sslv3 alert handshake failure$/,
+								/state=error: missing export tmp dh key/
 							raise CipherNotAvailable, e
-						when /state=SSLv3 read server hello A: tlsv3 alert inappropriate fallback$/
+						when /state=SSLv3 read server hello A: tlsv1 alert inappropriate fallback$/
 							raise InappropriateFallback, e
 					end
 					raise
