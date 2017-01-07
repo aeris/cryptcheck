@@ -40,14 +40,16 @@ module CryptCheck
 
 				fetch_supported_methods
 				fetch_supported_ciphers
+				fetch_ciphers_preferences
+
 				fetch_ecdsa_certs
 				fetch_supported_curves
-
-				fetch_ciphers_preferences
+				fetch_curves_preference
 
 				# verify_certs
 
 				check_fallback_scsv
+				exit
 			end
 
 			def supported_method?(method)
@@ -84,6 +86,37 @@ module CryptCheck
 						[cipher, connection]
 					end.compact.to_h
 					[method, ciphers]
+				end.to_h
+			end
+
+			def fetch_ciphers_preferences
+				Logger.info { '' }
+				Logger.info { 'Cipher suite preferences' }
+
+				@preferences = @supported_ciphers.collect do |method, ciphers|
+					ciphers     = ciphers.keys
+					preferences = if ciphers.size < 2
+									  Logger.info { method.to_s + ' : ' + 'not applicable'.colorize(:unknown) }
+									  nil
+								  else
+									  a, b, _ = ciphers
+									  ab      = ssl_client(method, [a, b]).cipher.first
+									  ba      = ssl_client(method, [b, a]).cipher.first
+									  if ab != ba
+										  Logger.info { method.to_s + ' : ' + 'client preference'.colorize(:warning) }
+										  :client
+									  else
+										  sort        = -> (a, b) do
+											  connection = ssl_client method, [a, b]
+											  cipher     = connection.cipher.first
+											  cipher == a.name ? -1 : 1
+										  end
+										  preferences = ciphers.sort &sort
+										  Logger.info { method.to_s + ' : ' + preferences.collect { |c| c.to_s :short }.join(', ') }
+										  preferences
+									  end
+								  end
+					[method, preferences]
 				end.to_h
 			end
 
@@ -152,6 +185,7 @@ module CryptCheck
 							begin
 								ssl_client method, ecdh, curves: curve
 								Logger.info { "ECC curve #{curve} : supported" }
+								true
 							rescue TLSException
 								Logger.debug { "ECC curve #{curve} : not supported" }
 								false
@@ -162,34 +196,33 @@ module CryptCheck
 				end
 			end
 
-			def fetch_ciphers_preferences
-				Logger.info { '' }
-				Logger.info { 'Server preferences' }
+			def fetch_curves_preference
+				@curves_preference = if @supported_curves.size < 2
+										 Logger.info { 'Curves preference : ' + 'not applicable'.colorize(:unknown) }
+										 nil
+									 else
+										 method, cipher = @supported_ciphers.collect do |method, ciphers|
+											 cipher = ciphers.keys.detect { |c| c.ecdh? or c.ecdhe? }
+											 [method, cipher]
+										 end.detect { |n| !n.nil? }
 
-				@preferences = @supported_ciphers.collect do |method, ciphers|
-					ciphers = ciphers.keys
-					if ciphers.size < 2
-						Logger.info { "Preference not applicable for #{method}" }
-					else
-						a, b, _ = ciphers
-						ab      = ssl_client(method, [a, b]).cipher.first
-						ba      = ssl_client(method, [b, a]).cipher.first
-						if ab != ba
-							Logger.info { 'Server use client preference for '.colorize(:warning) + method.to_s }
-							:client
-						else
-							sort        = -> (a, b) do
-								connection = ssl_client method, [a, b]
-								cipher     = connection.cipher.first
-								cipher == a.name ? -1 : 1
-							end
-							preferences = ciphers.sort &sort
-							Logger.info { "Cipher preference for #{method} is #{preferences.collect { |c| c.to_s :short }.join ':'}" }
-							preferences
-						end
-					end
-					[method, preferences]
-				end.to_h
+										 a, b, _ = @supported_curves
+										 ab      = ssl_client(method, cipher, curves: [a, b]).tmp_key.curve
+										 ba      = ssl_client(method, cipher, curves: [b, a]).tmp_key.curve
+										 if ab != ba
+											 Logger.info { 'Curves preference : ' + 'client preference'.colorize(:warning) }
+											 :client
+										 else
+											 sort        = -> (a, b) do
+												 connection = ssl_client method, cipher, curves: [a, b]
+												 curve      = connection.tmp_key.curve
+												 curve == a.name ? -1 : 1
+											 end
+											 preferences = @supported_curves.sort &sort
+											 Logger.info { 'Curves preference : ' + preferences.collect { |c| c.to_s }.join(', ') }
+											 preferences
+										 end
+									 end
 			end
 
 			def check_fallback_scsv
@@ -224,7 +257,7 @@ module CryptCheck
 				method = method.name
 				class_eval <<-RUBY_EVAL, __FILE__, __LINE__ + 1
 					def #{method.to_s.downcase}?
-						@supported_methods.detect { |m| m.name == method } 
+						@supported_methods.detect { |m| m.name == method }
 					end
 				RUBY_EVAL
 			end

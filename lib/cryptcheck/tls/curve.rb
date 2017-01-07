@@ -17,7 +17,7 @@ module CryptCheck
 			SUPPORTED = %w(secp256k1 sect283k1 sect283r1 secp384r1
 				sect409k1 sect409r1 secp521r1 sect571k1 sect571r1
 				prime192v1 prime256v1
-				brainpoolP256r1 brainpoolP384r1 brainpoolP512r1).collect { |c| self.new c }
+				brainpoolP256r1 brainpoolP384r1 brainpoolP512r1).collect { |c| self.new c }.freeze
 
 			extend Enumerable
 

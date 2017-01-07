@@ -1,9 +1,10 @@
 module CryptCheck
-	module Status
-		LEVELS = %i(critical error warning good perfect best).freeze
-		PROBLEMS = %i(critical error warning).freeze
+	class Status
+		LEVELS   = %i(best perfect good warning error critical).freeze
+		PROBLEMS = %i(warning error critical).freeze
 
 		extend Enumerable
+
 		def self.each(&block)
 			LEVELS.each &block
 		end
@@ -22,17 +23,25 @@ module CryptCheck
 			self.min PROBLEMS, statuses
 		end
 
+		def self.sort(statuses)
+			statuses.sort { |a, b| self.compare a, b }
+		end
+
+		def self.compare(a, b)
+			LEVELS.find_index(a.status) <=> LEVELS.find_index(b.status)
+		end
+
 		private
 		def self.convert(statuses)
-			statuses = [ statuses ] unless statuses.respond_to? :first
-			first = statuses.first
+			statuses = [statuses] unless statuses.respond_to? :first
+			first    = statuses.first
 			statuses = statuses.collect &:status if first.respond_to? :status
 			statuses
 		end
 
 		def self.min(levels, statuses)
 			return nil if statuses.empty?
-			(levels & statuses).first
+			(levels & statuses).last
 		end
 	end
 end

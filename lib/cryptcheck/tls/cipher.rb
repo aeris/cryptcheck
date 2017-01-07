@@ -93,7 +93,7 @@ module CryptCheck
 			end
 
 			def ecc?
-				ecdsa? or ecdhe?
+				ecdsa? or ecdhe? or ecdh?
 			end
 
 			def sweet32?
@@ -116,14 +116,7 @@ module CryptCheck
 					[:sweet32, Proc.new { |s| s.sweet32? }, :error],
 
 					#[:cbc, Proc.new { |s| s.cbc? }, :warning],
-					#[:dhe, Proc.new { |s| s.dhe? }, :warning],
-					# [:weak_dh, Proc.new do |s|
-					# 	dh = s.dh
-					# 	next nil unless dh
-					# 	status = dh.status
-					# 	next status if %i(critical error warning).include? status
-					# 	nil
-					# end],
+					[:dhe, Proc.new { |s| s.dhe? }, :warning],
 					[:no_pfs, Proc.new { |s| not s.pfs? }, :warning],
 
 					[:pfs, Proc.new { |s| s.pfs? }, :good],
@@ -135,16 +128,16 @@ module CryptCheck
 				@states = Status.collect { |s| [s, []] }.to_h
 				CHECKS.each do |name, check, status|
 					result = check.call self
-					states[status ? status : result] << name if result
+					@states[status ? status : result] << name if result
 				end
-
-				@status = Status[@states.reject { |_, v| v.empty? }.keys]
+				statuses = @states.reject { |_, v| v.empty? }.keys
+				@status  = Status[statuses]
 			end
 
 			def to_s(type = :long)
 				case type
 					when :long
-						states = @states.collect { |k, vs| vs.collect { |v| v.to_s.colorize k }}.flatten.join ' '
+						states = @states.collect { |k, vs| vs.collect { |v| v.to_s.colorize k } }.flatten.join ' '
 						"#{@method} #{@name.colorize @status} [#{states}]"
 					when :short
 						@name.colorize @status
@@ -152,6 +145,7 @@ module CryptCheck
 			end
 
 			PRIORITY = { good: 1, none: 2, warning: 3, error: 4, critical: 5 }
+
 			def self.sort(ciphers)
 				ciphers.sort do |a, b|
 					error_a, error_b = PRIORITY[a.score], PRIORITY[b.score]
@@ -271,12 +265,18 @@ module CryptCheck
 				end
 			end
 
-			ALL = 'ALL:COMPLEMENTOFALL'
+			def <=>(other)
+				status = Status.compare self, other
+				return status if status != 0
+				@name <=> other.name
+			end
+
+			ALL       = 'ALL:COMPLEMENTOFALL'
 			SUPPORTED = Method.collect do |m|
 				context         = ::OpenSSL::SSL::SSLContext.new m.name
 				context.ciphers = ALL
-				[m, context.ciphers.collect { |c| Cipher.new m, c.first }]
-			end.to_h
+				[m, context.ciphers.collect { |c| Cipher.new m, c.first }.sort ]
+			end.to_h.freeze
 		end
 	end
 end

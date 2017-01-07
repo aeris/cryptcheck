@@ -13,8 +13,8 @@ module CryptCheck
 				@name = name
 			end
 
-			EXISTING  = %i(TLSv1_2 TLSv1_1 TLSv1 SSLv3 SSLv2)
-			SUPPORTED = (EXISTING & ::OpenSSL::SSL::SSLContext::METHODS).collect { |m| self.new m }
+			EXISTING  = %i(TLSv1_2 TLSv1_1 TLSv1 SSLv3 SSLv2).freeze
+			SUPPORTED = (EXISTING & ::OpenSSL::SSL::SSLContext::METHODS).collect { |m| self.new m }.freeze
 
 			def to_s
 				colors = case @name
@@ -24,6 +24,10 @@ module CryptCheck
 								 :good
 						 end
 				@name.to_s.colorize colors
+			end
+
+			def <=>(other)
+				EXISTING.find_index(@name) <=> EXISTING.find_index(other.name)
 			end
 		end
 	end
