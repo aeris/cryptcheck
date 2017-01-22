@@ -31,7 +31,6 @@ module CryptCheck
 			def initialize(hostname, family, ip, port)
 				@hostname, @family, @ip, @port = hostname, family, ip, port
 				@dh                            = []
-				@chains                        = []
 
 				@name = "#@ip:#@port"
 				@name += " [#@hostname]" if @hostname
@@ -40,24 +39,23 @@ module CryptCheck
 
 				fetch_supported_methods
 				fetch_supported_ciphers
+				fetch_dh
 				fetch_ciphers_preferences
-
 				fetch_ecdsa_certs
 				fetch_supported_curves
 				fetch_curves_preference
 
-				# verify_certs
-
 				check_fallback_scsv
-				exit
+
+				verify_certs
 			end
 
 			def supported_method?(method)
 				ssl_client method
-				Logger.info { "Method #{method} : supported" }
+				Logger.info { "  Method #{method}" }
 				true
 			rescue TLSException
-				Logger.debug { "Method #{method} : not supported" }
+				Logger.debug { "  Method #{method} : not supported" }
 				false
 			end
 
@@ -69,10 +67,14 @@ module CryptCheck
 
 			def supported_cipher?(method, cipher)
 				connection = ssl_client method, cipher
-				Logger.info { "Cipher #{cipher} : supported" }
+				Logger.info { "  Cipher #{cipher}" }
+				dh = connection.tmp_key
+				if dh
+					Logger.info { "    PFS : #{dh}" }
+				end
 				connection
 			rescue TLSException
-				Logger.debug { "Cipher #{cipher} : not supported" }
+				Logger.debug { "  Cipher #{cipher} : not supported" }
 				nil
 			end
 
@@ -96,14 +98,14 @@ module CryptCheck
 				@preferences = @supported_ciphers.collect do |method, ciphers|
 					ciphers     = ciphers.keys
 					preferences = if ciphers.size < 2
-									  Logger.info { method.to_s + ' : ' + 'not applicable'.colorize(:unknown) }
+									  Logger.info { "  #{method}  : " + 'not applicable'.colorize(:unknown) }
 									  nil
 								  else
 									  a, b, _ = ciphers
 									  ab      = ssl_client(method, [a, b]).cipher.first
 									  ba      = ssl_client(method, [b, a]).cipher.first
 									  if ab != ba
-										  Logger.info { method.to_s + ' : ' + 'client preference'.colorize(:warning) }
+										  Logger.info { "  #{method}  : " + 'client preference'.colorize(:warning) }
 										  :client
 									  else
 										  sort        = -> (a, b) do
@@ -112,12 +114,18 @@ module CryptCheck
 											  cipher == a.name ? -1 : 1
 										  end
 										  preferences = ciphers.sort &sort
-										  Logger.info { method.to_s + ' : ' + preferences.collect { |c| c.to_s :short }.join(', ') }
+										  Logger.info { "  #{method}  : " + preferences.collect { |c| c.to_s :short }.join(', ') }
 										  preferences
 									  end
 								  end
 					[method, preferences]
 				end.to_h
+			end
+
+			def fetch_dh
+				@dh = @supported_ciphers.collect do |_, ciphers|
+					ciphers.values.collect(&:tmp_key).select { |d| d.is_a? OpenSSL::PKey::DH }.collect &:size
+				end.flatten
 			end
 
 			def fetch_ecdsa_certs
@@ -129,9 +137,8 @@ module CryptCheck
 
 					@ecdsa_certs = Curve.collect do |curve|
 						begin
-							connection  = ssl_client method, ecdsa, curves: curve
-							cert, chain = connection.peer_cert, connection.peer_cert_chain
-							[curve, { cert: cert, chain: chain }]
+							connection = ssl_client method, ecdsa, curves: curve
+							[curve, connection]
 						rescue TLSException
 							nil
 						end
@@ -156,17 +163,17 @@ module CryptCheck
 						@supported_curves = Curve.select do |curve|
 							next true if curve == ecdsa_curve # ECDSA curve is always supported
 							begin
-								connection = ssl_client method, ecdsa, curves: [curve, ecdsa_curve]
+								connection       = ssl_client method, ecdsa, curves: [curve, ecdsa_curve]
 								# Not too fast !!!
 								# Handshake will **always** succeed, because ECDSA curve is always supported
 								# So, need to test for the real curve
-								dh         = connection.tmp_key
-								curve      = dh.curve
-								supported  = curve != ecdsa_curve
+								dh               = connection.tmp_key
+								negociated_curve = dh.curve
+								supported        = negociated_curve != ecdsa_curve
 								if supported
-									Logger.info { "ECC curve #{curve} : supported" }
+									Logger.info { "  ECC curve #{curve}" }
 								else
-									Logger.debug { "ECC curve #{curve} : not supported" }
+									Logger.debug { "  ECC curve #{curve} : not supported" }
 								end
 								supported
 							rescue TLSException
@@ -184,10 +191,10 @@ module CryptCheck
 						@supported_curves = Curve.select do |curve|
 							begin
 								ssl_client method, ecdh, curves: curve
-								Logger.info { "ECC curve #{curve} : supported" }
+								Logger.info { "  ECC curve #{curve}" }
 								true
 							rescue TLSException
-								Logger.debug { "ECC curve #{curve} : not supported" }
+								Logger.debug { "  ECC curve #{curve} : not supported" }
 								false
 							end
 						end
@@ -207,14 +214,28 @@ module CryptCheck
 										 end.detect { |n| !n.nil? }
 
 										 a, b, _ = @supported_curves
-										 ab      = ssl_client(method, cipher, curves: [a, b]).tmp_key.curve
-										 ba      = ssl_client(method, cipher, curves: [b, a]).tmp_key.curve
+										 ab, ba  = [a, b], [b, a]
+										 if cipher.ecdsa?
+											 # In case of ECDSA, add the cert key at the end
+											 # Or no negociation possible
+											 ecdsa_curve = @ecdsa_certs.keys.first
+											 ab << ecdsa_curve
+											 ba << ecdsa_curve
+										 end
+										 ab = ssl_client(method, cipher, curves: ab).tmp_key.curve
+										 ba = ssl_client(method, cipher, curves: ba).tmp_key.curve
 										 if ab != ba
 											 Logger.info { 'Curves preference : ' + 'client preference'.colorize(:warning) }
 											 :client
 										 else
 											 sort        = -> (a, b) do
-												 connection = ssl_client method, cipher, curves: [a, b]
+												 curves = [a, b]
+												 if cipher.ecdsa?
+													 # In case of ECDSA, add the cert key at the end
+													 # Or no negociation possible
+													 curves << ecdsa_curve
+												 end
+												 connection = ssl_client method, cipher, curves: curves
 												 curve      = connection.tmp_key.curve
 												 curve == a.name ? -1 : 1
 											 end
@@ -364,14 +385,16 @@ module CryptCheck
 					retry
 				rescue ::OpenSSL::SSL::SSLError => e
 					case e.message
-						when /state=SSLv3 read server hello A$/,
+						when /state=SSLv2 read server hello A$/,
+								/state=SSLv3 read server hello A$/,
 								/state=SSLv3 read server hello A: wrong version number$/,
-								/state=SSLv3 read server hello A: tlsv1 alert protocol version$/
+								/state=SSLv3 read server hello A: tlsv1 alert protocol version$/,
+								/state=SSLv3 read server key exchange A: sslv3 alert handshake failure$/
 							raise MethodNotAvailable, e
-						when /state=SSLv2 read server hello A: peer error no cipher/,
+						when /state=SSLv2 read server hello A: peer error no cipher$/,
 								/state=error: no ciphers available$/,
 								/state=SSLv3 read server hello A: sslv3 alert handshake failure$/,
-								/state=error: missing export tmp dh key/
+								/state=error: missing export tmp dh key$/
 							raise CipherNotAvailable, e
 						when /state=SSLv3 read server hello A: tlsv1 alert inappropriate fallback$/
 							raise InappropriateFallback, e
@@ -403,7 +426,9 @@ module CryptCheck
 
 				if curves
 					curves                  = [curves] unless curves.is_a? Enumerable
-					curves                  = curves.collect(&:name).join ':'
+					# OpenSSL fails if the same curve is selected multiple times
+					# So because Array#uniq preserves order, remove the less prefered ones
+					curves                  = curves.collect(&:name).uniq.join ':'
 					ssl_context.ecdh_curves = curves
 				end
 
@@ -417,47 +442,47 @@ module CryptCheck
 
 			def verify_certs
 				Logger.info { '' }
+				Logger.info { 'Certificates' }
+
+				# Let's begin the fun
+				# First, collect "standard" connections
+				# { method => { cipher => connection, ... }, ... }
+				certs = @supported_ciphers.values.collect(&:values).flatten 1
+				# Then, collect "ecdsa" connections
+				# { curve => connection, ... }
+				certs += @ecdsa_certs.values
+				# Then, fetch cert and chain
+				certs = certs.collect { |c| [c.peer_cert, c.peer_cert_chain] }
+				# Then, filter cert to keep uniq subject + issuer + serial
+				#certs = certs.uniq { |c, _| [c.subject, c.serial, c.issuer] }
+				# Then, filter cert to keep uniq fingerprint
+				certs = certs.uniq { |c, _| OpenSSL::Digest::SHA256.hexdigest c.to_der }
 
 				view = {}
-				@chains.each do |cert, chain|
+				certs.each do |cert, chain|
 					id = cert.subject, cert.serial, cert.issuer
 					next if view.include? id
 					subject, serial, issuer = id
 					key                     = cert.public_key
 
-					Logger.info { "Certificate #{subject} [#{serial}] issued by #{issuer}" }
-					Logger.info { "Key : #{Tls.key_to_s key }" }
-					valid    = ::OpenSSL::SSL.verify_certificate_identity cert, (@hostname || @ip)
-					trusted  = verify_trust chain, cert
-					view[id] = { cert: cert, chain: chain, key: key, valid: valid, trusted: trusted }
+					identity = ::OpenSSL::SSL.verify_certificate_identity cert, (@hostname || @ip)
+					trust    = Cert.trusted? cert, chain
+					view[id] = { cert: cert, chain: chain, key: key, identity: identity, trust: trust }
+					Logger.info { "  Certificate #{subject} [#{serial}] issued by #{issuer}" }
+					Logger.info { '    Key : ' +  Tls.key_to_s(key) }
+					if identity
+						Logger.info { '    Identity : ' + 'valid'.colorize(:good) }
+					else
+						Logger.info { '    Identity : ' + 'invalid'.colorize(:error) }
+					end
+					if trust == :trusted
+						Logger.info { '    Trust : ' + 'trusted'.colorize(:good) }
+					else
+						Logger.info { '    Trust : ' + 'untrusted'.colorize(:error) + ' - ' + trust }
+					end
 				end
 				@chains = view.values
 				@keys   = @chains.collect { |c| c[:key] }
-			end
-
-			def verify_trust(chain, cert)
-				store         = ::OpenSSL::X509::Store.new
-				store.purpose = OpenSSL::X509::PURPOSE_SSL_CLIENT
-				store.set_default_paths
-
-				%w(/etc/ssl/certs).each do |directory|
-					::Dir.glob(::File.join directory, '*.pem').each do |file|
-						cert = ::OpenSSL::X509::Certificate.new ::File.read file
-						begin
-							store.add_cert cert
-						rescue ::OpenSSL::X509::StoreError
-						end
-					end
-				end
-				chain.each do |cert|
-					begin
-						store.add_cert cert
-					rescue ::OpenSSL::X509::StoreError
-					end
-				end
-				trusted = store.verify cert
-				p store.error_string unless trusted
-				trusted
 			end
 
 			def uniq_dh
