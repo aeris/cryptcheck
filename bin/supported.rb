@@ -5,8 +5,12 @@ require 'bundler/setup'
 require 'cryptcheck'
 
 puts 'Supported methods'
-puts OpenSSL::SSL::SSLContext::METHODS.select { |m| CryptCheck::Tls::Server::EXISTING_METHODS.include? m  }.sort.join ' '
+puts CryptCheck::Tls::Method::SUPPORTED.sort.collect(&:to_s).join ' '
 
-supported = CryptCheck::Tls::Cipher.list
-puts "#{supported.size} supported ciphers"
-puts supported.collect { |c| c.colorize }.join "\n"
+CryptCheck::Tls::Cipher.each do |method, ciphers|
+	puts
+	puts "#{ciphers.size} supported ciphers for #{method}"
+	ciphers.sort.each do |cipher|
+		puts "  #{cipher}"
+	end
+end
