@@ -1,6 +1,10 @@
 module CryptCheck
 	module Tls
 		class Cert
+			DEFAULT_CA_DIRECTORIES = [
+					'/usr/share/ca-certificates/mozilla'
+			]
+
 			SIGNATURE_ALGORITHMS = {
 					'dsaWithSHA'                             => %i(sha1 dss),
 					'dsaWithSHA1'                            => %i(sha1 dss),
@@ -47,6 +51,21 @@ module CryptCheck
 						end
 					end
 				RUBY_EVAL
+			end
+
+			def self.trusted?(cert, chain, roots: DEFAULT_CA_DIRECTORIES)
+				store         = ::OpenSSL::X509::Store.new
+				store.purpose = OpenSSL::X509::PURPOSE_SSL_CLIENT
+				store.add_chains roots
+				chain.each do |cert|
+					# Never add other self signed certificates than system CA !
+					next if cert.subject == cert.issuer
+					store.add_cert cert rescue nil
+				end
+
+				trusted = store.verify cert
+				return :trusted if trusted
+				store.error_string
 			end
 		end
 	end
