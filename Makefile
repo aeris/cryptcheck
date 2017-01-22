@@ -43,7 +43,7 @@ build/$(OPENSSL_NAME).tar.gz: | build/
 
 $(OPENSSL_DIR)/: build/$(OPENSSL_NAME).tar.gz build/chacha-poly.patch
 	tar -C build -xf build/$(OPENSSL_NAME).tar.gz
-	#patch -d $(OPENSSL_DIR) -p1 < build/chacha-poly.patch
+	patch -d $(OPENSSL_DIR) -p1 < build/chacha-poly.patch
 
 $(OPENSSL_DIR)/Makefile: | $(OPENSSL_DIR)/
 	#cd $(OPENSSL_DIR) && ./Configure enable-ssl2 enable-ssl3 enable-weak-ssl-ciphers enable-zlib enable-rc5 enable-rc2 enable-gost enable-md2 enable-mdc2 enable-shared linux-x86_64
