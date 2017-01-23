@@ -447,29 +447,21 @@ module CryptCheck
 				# Let's begin the fun
 				# First, collect "standard" connections
 				# { method => { cipher => connection, ... }, ... }
-				certs = @supported_ciphers.values.collect(&:values).flatten 1
+				certs  = @supported_ciphers.values.collect(&:values).flatten 1
 				# Then, collect "ecdsa" connections
 				# { curve => connection, ... }
-				certs += @ecdsa_certs.values
-				# Then, fetch cert and chain
-				certs = certs.collect { |c| [c.peer_cert, c.peer_cert_chain] }
-				# Then, filter cert to keep uniq subject + issuer + serial
-				#certs = certs.uniq { |c, _| [c.subject, c.serial, c.issuer] }
+				certs  += @ecdsa_certs.values
+				# Then, fetch cert
+				certs  = certs.collect { |c| Cert.new c }
 				# Then, filter cert to keep uniq fingerprint
-				certs = certs.uniq { |c, _| OpenSSL::Digest::SHA256.hexdigest c.to_der }
+				@certs = certs.uniq { |c| c.fingerprint }
 
-				view = {}
-				certs.each do |cert, chain|
-					id = cert.subject, cert.serial, cert.issuer
-					next if view.include? id
-					subject, serial, issuer = id
-					key                     = cert.public_key
-
-					identity = ::OpenSSL::SSL.verify_certificate_identity cert, (@hostname || @ip)
-					trust    = Cert.trusted? cert, chain
-					view[id] = { cert: cert, chain: chain, key: key, identity: identity, trust: trust }
-					Logger.info { "  Certificate #{subject} [#{serial}] issued by #{issuer}" }
-					Logger.info { '    Key : ' +  Tls.key_to_s(key) }
+				@certs.each do |cert|
+					key      = cert.key
+					identity = cert.valid?(@hostname || @ip)
+					trust    = cert.trusted?
+					Logger.info { "  Certificate #{cert.subject} [#{cert.serial}] issued by #{cert.issuer}" }
+					Logger.info { '    Key : ' + Tls.key_to_s(key) }
 					if identity
 						Logger.info { '    Identity : ' + 'valid'.colorize(:good) }
 					else
@@ -481,8 +473,7 @@ module CryptCheck
 						Logger.info { '    Trust : ' + 'untrusted'.colorize(:error) + ' - ' + trust }
 					end
 				end
-				@chains = view.values
-				@keys   = @chains.collect { |c| c[:key] }
+				@keys   = @certs.collect &:key
 			end
 
 			def uniq_dh
