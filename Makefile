@@ -64,7 +64,7 @@ libs: $(LIBS)
 build/$(RUBY_VERSION)-cryptcheck: $(RBENV_ROOT)/plugins/ruby-build/share/ruby-build/$(RUBY_VERSION)
 	cp $< $@
 install-ruby: build/$(RUBY_VERSION)-cryptcheck $(LIBS) | $(OPENSSL_DIR)/
-	cat tmp_key.patch set_ecdh_curves.patch fallback_scsv.patch | \
+	cat tmp_key.patch set_ecdh_curves.patch fallback_scsv.patch multiple_certs.patch | \
 	RUBY_BUILD_CACHE_PATH=$(PWD)/build \
 	RUBY_BUILD_DEFINITIONS=$(PWD)/build \
 	rbenv install -fp $(RUBY_VERSION)-cryptcheck
@@ -88,9 +88,10 @@ $(RUBY_OPENSSL_EXT_DIR)/Makefile: libs | $(RUBY_DIR)/
 	patch -d $(RUBY_DIR)/ -p1 < tmp_key.patch
 	patch -d $(RUBY_DIR)/ -p1 < set_ecdh_curves.patch
 	patch -d $(RUBY_DIR)/ -p1 < fallback_scsv.patch
+	patch -d $(RUBY_DIR)/ -p1 < multiple_certs.patch
 	cd $(RUBY_OPENSSL_EXT_DIR) && ruby extconf.rb
 
-$(RUBY_OPENSSL_EXT_DIR)/openssl.so: $(LIBS) $(RUBY_OPENSSL_EXT_DIR)/Makefile
+$(RUBY_OPENSSL_EXT_DIR)/openssl.so: $(LIBS) #$(RUBY_OPENSSL_EXT_DIR)/Makefile
 	top_srcdir=../.. $(MAKE) -C $(RUBY_OPENSSL_EXT_DIR)
 
 lib/openssl.so: $(RUBY_OPENSSL_EXT_DIR)/openssl.so
