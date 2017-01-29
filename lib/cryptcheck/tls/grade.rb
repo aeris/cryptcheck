@@ -7,7 +7,7 @@ module CryptCheck
 				@server = server
 				@checks = checks
 				@states = calculate_states
-				@grade = calculate_grade
+				@grade  = calculate_grade
 			end
 
 			def display
@@ -68,22 +68,17 @@ module CryptCheck
 				'A+'
 			end
 
-			CHECKS = [
+			CHECKS = ([
+					# Certificates
+					[:weak_sign, Proc.new { |s|
+						Cert::WEAK_SIGN[:critical]
+					}, :critical],
+
 					# Keys
-					[:dss_sign, Proc.new { |s| s.dss_sig? }, :critical],
-					[:weak_key, Proc.new { |s| Status.problem s.key_status } ],
+					[:weak_key, Proc.new { |s| Status.problem s.keys.collect &:status }],
 
 					# DH
-					[:weak_dh, Proc.new { |s| Status.problem s.dh_status } ],
-
-					# Certificates
-					[:md2_sign, Proc.new { |s| s.md2_sig? }, :critical],
-					[:mdc2_sign, Proc.new { |s| s.mdc2_sig? }, :critical],
-					[:md4_sign, Proc.new { |s| s.md4_sig? }, :critical],
-					[:md5_sign, Proc.new { |s| s.md5_sig? }, :critical],
-					[:sha_sign, Proc.new { |s| s.sha_sig? }, :critical],
-
-					[:sha1_sign, Proc.new { |s| s.sha1_sig? }, :warning],
+					[:weak_dh, Proc.new { |s| Status.problem s.dh.collect &:status }],
 
 					# Protocols
 					[:ssl, Proc.new { |s| s.ssl? }, :critical],
@@ -111,14 +106,18 @@ module CryptCheck
 
 					[:aead, Proc.new { |s| s.aead? }, :good],
 					#[:aead_only, Proc.new { |s| s.aead_only? }, :best],
-			]
+			] + Cert::WEAK_SIGN.collect do |level, hashes|
+				hashes.collect do |hash|
+					["#{hash}_sig?".to_sym, Proc.new { |s| s.certs.any? &"#{hash}?".to_sym }, level ]
+				end
+			end.flatten(1)).freeze
 
 			def checks
 				checks = CHECKS
 				unless @server.fallback_scsv? == nil
 					checks += [
-						[:no_fallback_scsv, Proc.new { |s| not s.fallback_scsv? }, :error],
-						[:fallback_scsv, Proc.new { |s| s.fallback_scsv? }, :good]
+							[:no_fallback_scsv, Proc.new { |s| not s.fallback_scsv? }, :error],
+							[:fallback_scsv, Proc.new { |s| s.fallback_scsv? }, :good]
 					]
 				end
 				checks

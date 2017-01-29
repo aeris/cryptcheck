@@ -28,6 +28,8 @@ module CryptCheck
 			class ConnectionError < ::StandardError
 			end
 
+			attr_reader :certs, :keys, :dh
+
 			def initialize(hostname, family, ip, port)
 				@hostname, @family, @ip, @port = hostname, family, ip, port
 				@dh                            = []
@@ -48,6 +50,7 @@ module CryptCheck
 				check_fallback_scsv
 
 				verify_certs
+				exit
 			end
 
 			def supported_method?(method)
@@ -105,7 +108,7 @@ module CryptCheck
 									  ab      = ssl_client(method, [a, b]).cipher.first
 									  ba      = ssl_client(method, [b, a]).cipher.first
 									  if ab != ba
-										  Logger.info { "  #{method}  : " + 'client preference'.colorize(:warning) }
+										  Logger.info { "  #{method} : " + 'client preference'.colorize(:warning) }
 										  :client
 									  else
 										  sort        = -> (a, b) do
@@ -151,6 +154,7 @@ module CryptCheck
 			def fetch_supported_curves
 				Logger.info { '' }
 				Logger.info { 'Supported elliptic curves' }
+				@supported_curves = []
 
 				ecdsa_curve = @ecdsa_certs.keys.first
 				if ecdsa_curve
@@ -286,7 +290,7 @@ module CryptCheck
 			Cipher::TYPES.each do |type, _|
 				class_eval <<-RUBY_EVAL, __FILE__, __LINE__ + 1
 					def #{type}?
-						supported_ciphers.any? { |c| c.#{type}? }
+						@supported_ciphers.any? { |c| c.#{type}? }
 					end
 				RUBY_EVAL
 			end
@@ -451,6 +455,8 @@ module CryptCheck
 				# Then, collect "ecdsa" connections
 				# { curve => connection, ... }
 				certs  += @ecdsa_certs.values
+				# For anonymous cipher, there is no certificate at all
+				certs = certs.reject { |c| c.peer_cert.nil? }
 				# Then, fetch cert
 				certs  = certs.collect { |c| Cert.new c }
 				# Then, filter cert to keep uniq fingerprint

@@ -42,6 +42,9 @@ module CryptCheck
 					'id_GostR3411_94_with_GostR3410_94_cc'   => %i(ghost),
 					'id_GostR3411_94_with_GostR3410_2001_cc' => %i(ghost)
 			}
+			WEAK_SIGN = {
+					critical: %i(mdc2 md2 md4 md5 sha sha1)
+			}
 
 			%i(md2 mdc2 md4 md5 ripemd160 sha sha1 sha2 rsa dss ecc ghost).each do |name|
 				class_eval <<-RUBY_EVAL, __FILE__, __LINE__ + 1
