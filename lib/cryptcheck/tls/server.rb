@@ -50,7 +50,6 @@ module CryptCheck
 				check_fallback_scsv
 
 				verify_certs
-				exit
 			end
 
 			def supported_method?(method)
@@ -456,7 +455,7 @@ module CryptCheck
 				# { curve => connection, ... }
 				certs  += @ecdsa_certs.values
 				# For anonymous cipher, there is no certificate at all
-				certs = certs.reject { |c| c.peer_cert.nil? }
+				certs  = certs.reject { |c| c.peer_cert.nil? }
 				# Then, fetch cert
 				certs  = certs.collect { |c| Cert.new c }
 				# Then, filter cert to keep uniq fingerprint
@@ -479,7 +478,7 @@ module CryptCheck
 						Logger.info { '    Trust : ' + 'untrusted'.colorize(:error) + ' - ' + trust }
 					end
 				end
-				@keys   = @certs.collect &:key
+				@keys = @certs.collect &:key
 			end
 
 			def uniq_dh
@@ -492,6 +491,14 @@ module CryptCheck
 					end
 				end
 				@dh = dh
+			end
+
+			Cert::SIGNATURE_ALGORITHMS.each do |s|
+				class_eval <<-RUBY_EVAL, __FILE__, __LINE__ + 1
+					def #{s}_sign?
+						@certs.any? &:#{s}?
+					end
+				RUBY_EVAL
 			end
 		end
 

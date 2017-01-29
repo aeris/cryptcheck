@@ -1,61 +1,42 @@
 $:.unshift File.expand_path File.join File.dirname(__FILE__), '../lib'
 require 'rubygems'
 require 'bundler/setup'
+Bundler.require :default, :development
 require 'cryptcheck'
 Dir['./spec/**/support/**/*.rb'].sort.each { |f| require f }
 
 CryptCheck::Logger.level = ENV['LOG'] || :none
 
 module Helpers
-	DEFAULT_KEY = 'rsa-1024'
-	DEFAULT_METHOD = :TLSv1_2
-	DEFAULT_CIPHERS = %w(AES128-SHA)
-	DEFAULT_ECC_CURVE = 'secp256k1'
-	DEFAULT_DH_SIZE = 1024
+	DEFAULT_METHODS  = %i(TLSv1_2)
+	DEFAULT_CIPHERS  = %i(ECDHE+AES)
+	DEFAULT_CURVES   = %i(prime256v1)
+	DEFAULT_DH       = [:rsa, 4096]
+	DEFAULT_MATERIAL = [[:ecdsa, :prime256v1]]
+	DEFAULT_CHAIN    = %w(intermediate ca)
+	DEFAULT_HOST     = 'localhost'
+	DEFAULT_PORT     = 5000
 
-	OpenSSL::PKey::EC.send :alias_method, :private?, :private_key?
+	def key(type, name=nil)
+		name = if name
+				   "#{type}-#{name}"
+			   else
+				   type
+			   end
+		OpenSSL::PKey.read File.read "spec/resources/#{name}.pem"
+	end
 
-	def key(name)
-		open(File.join(File.dirname(__FILE__), 'resources', "#{name}.pem"), 'r') { |f| OpenSSL::PKey.read f }
+	def cert(type, name=nil)
+		name = if name
+				   "#{type}-#{name}"
+			   else
+				   type
+			   end
+		OpenSSL::X509::Certificate.new File.read "spec/resources/#{name}.crt"
 	end
 
 	def dh(name)
-		open(File.join(File.dirname(__FILE__), 'resources', "dh-#{name}.pem"), 'r') { |f| OpenSSL::PKey::DH.new f }
-	end
-
-	def certificate(key, domain)
-		cert            = OpenSSL::X509::Certificate.new
-		cert.version    = 2
-		cert.serial     = rand 2**(20*8-1) .. 2**(20*8)
-		cert.not_before = Time.now
-		cert.not_after  = cert.not_before + 60*60
-
-		cert.public_key = case key
-							  when OpenSSL::PKey::EC
-								  curve             = key.group.curve_name
-								  public            = OpenSSL::PKey::EC.new curve
-								  public.public_key = key.public_key
-								  public
-							  else
-								  key.public_key
-						  end
-
-		name         = OpenSSL::X509::Name.parse "CN=#{domain}"
-		cert.subject = name
-		cert.issuer  = name
-
-		extension_factory                     = OpenSSL::X509::ExtensionFactory.new nil, cert
-		extension_factory.subject_certificate = cert
-		extension_factory.issuer_certificate  = cert
-
-		cert.add_extension extension_factory.create_extension 'basicConstraints', 'CA:TRUE', true
-		cert.add_extension extension_factory.create_extension 'keyUsage', 'keyEncipherment, dataEncipherment, digitalSignature,nonRepudiation,keyCertSign'
-		cert.add_extension extension_factory.create_extension 'extendedKeyUsage', 'serverAuth, clientAuth'
-		cert.add_extension extension_factory.create_extension 'subjectKeyIdentifier', 'hash'
-		cert.add_extension extension_factory.create_extension 'authorityKeyIdentifier', 'keyid:always'
-		cert.add_extension extension_factory.create_extension 'subjectAltName', "DNS:#{domain}"
-
-		cert.sign key, OpenSSL::Digest::SHA512.new
+		OpenSSL::PKey::DH.new File.read "spec/resources/dh-#{name}.pem"
 	end
 
 	def serv(server, process, &block)
@@ -95,32 +76,43 @@ module Helpers
 		end
 	end
 
-	def context(key: DEFAULT_KEY, domain: 'localhost', # Key & certificate
-				version: DEFAULT_METHOD, ciphers: DEFAULT_CIPHERS, # TLS version and ciphers
-				dh: DEFAULT_DH_SIZE, ecdh: DEFAULT_ECC_CURVE) # DHE & ECDHE
-		key  = key key
-		cert = certificate key, domain
+	def context(certs, keys, chain=[],
+				methods: DEFAULT_METHODS, ciphers: DEFAULT_CIPHERS,
+				dh:, curves: DEFAULT_CURVES, server_preference: true)
+		context         = OpenSSL::SSL::SSLContext.new
 
-		context         = OpenSSL::SSL::SSLContext.new version
-		context.cert    = cert
-		context.key     = key
-		context.ciphers = ciphers
+		context.options |= OpenSSL::SSL::OP_NO_SSLv2 unless methods.include? :SSLv2
+		context.options |= OpenSSL::SSL::OP_NO_SSLv3 unless methods.include? :SSLv3
+		context.options |= OpenSSL::SSL::OP_NO_TLSv1 unless methods.include? :TLSv1
+		context.options |= OpenSSL::SSL::OP_NO_TLSv1_1 unless methods.include? :TLSv1_1
+		context.options |= OpenSSL::SSL::OP_NO_TLSv1_2 unless methods.include? :TLSv1_2
+		context.options |= OpenSSL::SSL::OP_CIPHER_SERVER_PREFERENCE if server_preference
 
-		if dh
-			dh                      = dh dh
-			context.tmp_dh_callback = proc { dh }
-		end
-		context.ecdh_curves = ecdh if ecdh
+		context.certs            = certs
+		context.keys             = keys
+		context.extra_chain_cert = chain if chain
+
+		context.ciphers         = ciphers.join ':'
+		context.tmp_dh_callback = proc { dh } if dh
+		context.ecdh_curves     = curves.join ':' if curves
 
 		context
 	end
 
-	def tls_serv(key: DEFAULT_KEY, domain: 'localhost', # Key & certificate
-				 version: DEFAULT_METHOD, ciphers: DEFAULT_CIPHERS, # TLS version and ciphers
-				 dh: DEFAULT_DH_SIZE, ecdh: DEFAULT_ECC_CURVE, # DHE & ECDHE
-				 host: '127.0.0.1', port: 5000, # Binding
+	def tls_serv(host: DEFAULT_HOST, port: DEFAULT_PORT,
+				 material: DEFAULT_MATERIAL, chain: DEFAULT_CHAIN,
+				 methods: DEFAULT_METHODS, ciphers: DEFAULT_CIPHERS,
+				 dh: nil, curves: DEFAULT_CURVES, server_preference: true,
 				 process: nil, &block)
-		context    = context(key: key, domain: domain, version: version, ciphers: ciphers, dh: dh, ecdh: ecdh)
+		keys  = material.collect { |m| key *m }
+		certs = material.collect { |m| cert *m }
+		chain = chain.collect { |c| cert c }
+		dh    = dh dh if dh
+
+		context    = context certs, keys, chain,
+							 methods:           methods, ciphers: ciphers,
+							 dh:                dh, curves: curves,
+							 server_preference: server_preference
 		tcp_server = TCPServer.new host, port
 		tls_server = OpenSSL::SSL::SSLServer.new tcp_server, context
 		begin
@@ -131,7 +123,7 @@ module Helpers
 		end
 	end
 
-	def plain_serv(host: '127.0.0.1', port: 5000, process: nil, &block)
+	def plain_serv(host='127.0.0.1', port=5000, process: nil, &block)
 		tcp_server = TCPServer.new host, port
 		begin
 			serv tcp_server, process, &block

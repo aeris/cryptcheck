@@ -108,7 +108,7 @@ module CryptCheck
 					#[:aead_only, Proc.new { |s| s.aead_only? }, :best],
 			] + Cert::WEAK_SIGN.collect do |level, hashes|
 				hashes.collect do |hash|
-					["#{hash}_sig?".to_sym, Proc.new { |s| s.certs.any? &"#{hash}?".to_sym }, level ]
+					["#{hash}_sig?".to_sym, Proc.new { |s| s.call "#{hash}_sig?".to_sym }, level ]
 				end
 			end.flatten(1)).freeze
 

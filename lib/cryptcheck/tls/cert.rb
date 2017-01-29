@@ -5,7 +5,8 @@ module CryptCheck
 					'/usr/share/ca-certificates/mozilla'
 			]
 
-			SIGNATURE_ALGORITHMS = {
+			SIGNATURE_ALGORITHMS      = %i(md2 mdc2 md4 md5 ripemd160 sha sha1 sha2 rsa dss ecc ghost).freeze
+			SIGNATURE_ALGORITHMS_X509 = {
 					'dsaWithSHA'                             => %i(sha1 dss),
 					'dsaWithSHA1'                            => %i(sha1 dss),
 					'dsaWithSHA1_2'                          => %i(sha1 dss),
@@ -41,15 +42,15 @@ module CryptCheck
 					'id_GostR3411_94_with_GostR3410_94'      => %i(ghost),
 					'id_GostR3411_94_with_GostR3410_94_cc'   => %i(ghost),
 					'id_GostR3411_94_with_GostR3410_2001_cc' => %i(ghost)
-			}
-			WEAK_SIGN = {
+			}.freeze
+			WEAK_SIGN                 = {
 					critical: %i(mdc2 md2 md4 md5 sha sha1)
-			}
+			}.freeze
 
-			%i(md2 mdc2 md4 md5 ripemd160 sha sha1 sha2 rsa dss ecc ghost).each do |name|
+			SIGNATURE_ALGORITHMS.each do |name|
 				class_eval <<-RUBY_EVAL, __FILE__, __LINE__ + 1
 					def #{name}?
-						SIGNATURE_ALGORITHMS[@cert.signature_algorithm].include? :#{name}
+						SIGNATURE_ALGORITHMS_X509[@cert.signature_algorithm].include? :#{name}
 					end
 				RUBY_EVAL
 			end
