@@ -2,7 +2,7 @@ require 'faketime'
 
 describe CryptCheck::Tls::Server do
 	before :all do
-		FakeTime.freeze Time.utc(2000, 1, 1).to_i
+		FakeTime.freeze Time.utc(2000, 1, 1)
 	end
 
 	after :all do

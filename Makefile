@@ -8,7 +8,8 @@ RUBY_VERSION = $(RUBY_MAJOR_VERSION).3
 RUBY_NAME = ruby-$(RUBY_VERSION)
 RUBY_DIR = build/$(RUBY_NAME)
 RUBY_OPENSSL_EXT_DIR = $(RUBY_DIR)/ext/openssl
-RUBY_LIB_DIR = $(RBENV_ROOT)/versions/$(RUBY_VERSION)-cryptcheck/lib/ruby/$(RUBY_MAJOR_VERSION).0
+RBENV_DIR = $(RBENV_ROOT)/versions/$(RUBY_VERSION)-cryptcheck
+RUBY_LIB_DIR = $(RBENV_DIR)/lib/ruby/$(RUBY_MAJOR_VERSION).0
 RBENV_ROOT ?= ~/.rbenv
 export LIBRARY_PATH = $(PWD)/lib
 export C_INCLUDE_PATH = $(PWD)/$(OPENSSL_DIR)/include
@@ -101,7 +102,7 @@ lib/openssl.so: $(RUBY_OPENSSL_EXT_DIR)/openssl.so
 ext: lib/openssl.so
 
 spec/faketime/libfaketime.so: spec/faketime/faketime.c spec/faketime/faketime.h
-	$(CC) -shared -fPIC $^ -o $@ -ldl -std=c99 -Werror -Wall
+	$(CC) $^ -o $@ -shared -fPIC -ldl -std=c99 -Werror -Wall
 lib/libfaketime.so: spec/faketime/libfaketime.so
 	ln -fs ../$< $@
 faketime: lib/libfaketime.so

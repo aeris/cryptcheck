@@ -1,2 +1,2 @@
-void freeze(unsigned long time);
+void _freeze(unsigned long time);
 void unfreeze();

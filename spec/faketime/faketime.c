@@ -9,7 +9,7 @@ time_t frozen_time = 0;
 typedef time_t (*orig_time_f_type)(time_t*);
 orig_time_f_type orig_time = NULL;
 
-void freeze(unsigned long time) {
+void _freeze(unsigned long time) {
 	frozen_time = (time_t)time;
 	frozen = 1;
 }

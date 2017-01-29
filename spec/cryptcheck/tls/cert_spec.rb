@@ -7,7 +7,7 @@ describe CryptCheck::Tls::Cert do
 
 	describe '::trusted?' do
 		it 'must accept valid certificate' do
-			FakeTime.freeze_during Time.utc(2000, 1, 1) do
+			FakeTime.freeze Time.utc(2000, 1, 1) do
 				cert, *chain, ca = load_chain %w(ecdsa-prime256v1 intermediate ca)
 				trust            = ::CryptCheck::Tls::Cert.trusted? cert, chain, roots: ca
 				expect(trust).to eq :trusted
@@ -34,7 +34,7 @@ describe CryptCheck::Tls::Cert do
 		end
 
 		it 'must reject expired certificate' do
-			FakeTime.freeze_during Time.utc(2002, 1, 1) do
+			FakeTime.freeze Time.utc(2002, 1, 1) do
 				cert, *chain, ca = load_chain %w(ecdsa-prime256v1 intermediate ca)
 				trust            = ::CryptCheck::Tls::Cert.trusted? cert, chain, roots: ca
 				expect(trust).to eq 'certificate has expired'
@@ -42,7 +42,7 @@ describe CryptCheck::Tls::Cert do
 		end
 
 		it 'must reject not yet valid certificate' do
-			FakeTime.freeze_during Time.utc(1999, 1, 1) do
+			FakeTime.freeze Time.utc(1999, 1, 1) do
 				cert, *chain, ca = load_chain %w(ecdsa-prime256v1 intermediate ca)
 				trust            = ::CryptCheck::Tls::Cert.trusted? cert, chain, roots: ca
 				expect(trust).to eq 'certificate is not yet valid'
