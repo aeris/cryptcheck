@@ -100,5 +100,14 @@ lib/openssl.so: $(RUBY_OPENSSL_EXT_DIR)/openssl.so
 
 ext: lib/openssl.so
 
+spec/faketime/libfaketime.so: spec/faketime/faketime.c spec/faketime/faketime.h
+	$(CC) -shared -fPIC $^ -o $@ -ldl -std=c99 -Werror -Wall
+lib/libfaketime.so: spec/faketime/libfaketime.so
+	ln -fs ../$< $@
+faketime: lib/libfaketime.so
+
 test-material:
 	bin/generate-test-material.rb
+
+test: spec/faketime/libfaketime.so
+	bin/rspec

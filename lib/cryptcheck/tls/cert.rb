@@ -65,7 +65,7 @@ module CryptCheck
 
 			def self.trusted?(cert, chain, roots: DEFAULT_CA_DIRECTORIES)
 				store         = ::OpenSSL::X509::Store.new
-				store.purpose = ::OpenSSL::X509::PURPOSE_SSL_CLIENT
+				store.purpose = ::OpenSSL::X509::PURPOSE_SSL_SERVER
 				store.add_chains roots
 				chain.each do |cert|
 					# Never add other self signed certificates than system CA !
