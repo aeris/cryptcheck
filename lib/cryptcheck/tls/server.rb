@@ -28,7 +28,7 @@ module CryptCheck
 			class ConnectionError < ::StandardError
 			end
 
-			attr_reader :certs, :keys, :dh, :supported_curves
+			attr_reader :certs, :keys, :dh, :supported_curves, :curves_preference
 
 			def initialize(hostname, family, ip, port)
 				@hostname, @family, @ip, @port = hostname, family, ip, port
@@ -199,10 +199,10 @@ module CryptCheck
 						@supported_curves = Curve.select do |curve|
 							begin
 								ssl_client method, ecdh, curves: curve
-								Logger.info { "  ECC curve #{curve}" }
+								Logger.info { "  ECC curve #{curve.name}" }
 								true
 							rescue TLSException
-								Logger.debug { "  ECC curve #{curve} : not supported" }
+								Logger.debug { "  ECC curve #{curve.name} : not supported" }
 								false
 							end
 						end
@@ -245,10 +245,10 @@ module CryptCheck
 												 end
 												 connection = ssl_client method, cipher, curves: curves
 												 curve      = connection.tmp_key.curve
-												 curve == a.name ? -1 : 1
+												 a == curve ? -1 : 1
 											 end
 											 preferences = @supported_curves.sort &sort
-											 Logger.info { 'Curves preference : ' + preferences.collect { |c| c.to_s }.join(', ') }
+											 Logger.info { 'Curves preference : ' + preferences.collect { |c| c.name }.join(', ') }
 											 preferences
 										 end
 									 end
