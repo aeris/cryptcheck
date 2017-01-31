@@ -28,7 +28,7 @@ module CryptCheck
 			class ConnectionError < ::StandardError
 			end
 
-			attr_reader :certs, :keys, :dh
+			attr_reader :certs, :keys, :dh, :supported_curves
 
 			def initialize(hostname, family, ip, port)
 				@hostname, @family, @ip, @port = hostname, family, ip, port
@@ -168,15 +168,20 @@ module CryptCheck
 							begin
 								connection       = ssl_client method, ecdsa, curves: [curve, ecdsa_curve]
 								# Not too fast !!!
-								# Handshake will **always** succeed, because ECDSA curve is always supported
-								# So, need to test for the real curve
+								# Handshake will **always** succeed, because ECDSA
+								# curve is always supported.
+								# So, we need to test for the real curve!
+								# Treaky case : if server preference is enforced,
+								# ECDSA curve can be prefered over ECDHE one and so
+								# really supported curve can be detected as not supported :(
+
 								dh               = connection.tmp_key
 								negociated_curve = dh.curve
-								supported        = negociated_curve != ecdsa_curve
+								supported        = ecdsa_curve != negociated_curve
 								if supported
-									Logger.info { "  ECC curve #{curve}" }
+									Logger.info { "  ECC curve #{curve.name}" }
 								else
-									Logger.debug { "  ECC curve #{curve} : not supported" }
+									Logger.debug { "  ECC curve #{curve.name} : not supported" }
 								end
 								supported
 							rescue TLSException

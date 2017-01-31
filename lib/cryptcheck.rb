@@ -95,6 +95,7 @@ module CryptCheck
 						else
 							server.new *a, **kargs
 						end
+					exit
 					if grade
 						g = grade.new s
 						Logger.info { '' }
