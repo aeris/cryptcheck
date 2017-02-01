@@ -18,6 +18,11 @@ describe CryptCheck::Tls::Cert do
 			cert, ca = load_chain %w(self-signed ca)
 			trust    = ::CryptCheck::Tls::Cert.trusted? cert, [], roots: ca
 			expect(trust).to eq 'self signed certificate'
+
+			# Case for SSLv2
+			cert, ca = load_chain %w(self-signed ca)
+			trust    = ::CryptCheck::Tls::Cert.trusted? cert, nil, roots: ca
+			expect(trust).to eq 'self signed certificate'
 		end
 
 		it 'must reject unknown CA' do

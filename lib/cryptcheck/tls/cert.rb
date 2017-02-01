@@ -72,7 +72,7 @@ module CryptCheck
 					# Never add other self signed certificates than system CA !
 					next if cert.subject == cert.issuer
 					store.add_cert cert rescue nil
-				end
+				end if chain
 
 				trusted = store.verify cert
 				return :trusted if trusted
