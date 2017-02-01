@@ -5,7 +5,7 @@ require 'bundler/setup'
 require 'cryptcheck'
 
 puts 'Supported methods'
-puts CryptCheck::Tls::Method::SUPPORTED.sort.collect(&:to_s).join ' '
+puts CryptCheck::Tls::Method::SUPPORTED.values.sort.collect(&:to_s).join ' '
 
 CryptCheck::Tls::Cipher.each do |method, ciphers|
 	puts

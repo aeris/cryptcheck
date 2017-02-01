@@ -54,4 +54,43 @@ describe CryptCheck::Tls::Cert do
 			end
 		end
 	end
+
+	describe '#md5?' do
+		it 'must detect md5 certificate' do
+			cert = ::CryptCheck::Tls::Cert.new cert(:md5)
+			expect(cert.md5?).to be true
+
+			cert = ::CryptCheck::Tls::Cert.new cert(:sha1)
+			expect(cert.md5?).to be false
+
+			cert = ::CryptCheck::Tls::Cert.new cert(:ecdsa, :prime256v1)
+			expect(cert.md5?).to be false
+		end
+	end
+
+	describe '#sha1?' do
+		it 'must detect sha1 certificate' do
+			cert = ::CryptCheck::Tls::Cert.new cert(:md5)
+			expect(cert.sha1?).to be false
+
+			cert = ::CryptCheck::Tls::Cert.new cert(:sha1)
+			expect(cert.sha1?).to be true
+
+			cert = ::CryptCheck::Tls::Cert.new cert(:ecdsa, :prime256v1)
+			expect(cert.sha1?).to be false
+		end
+	end
+
+	describe '#sha2?' do
+		it 'must detect sha2 certificate' do
+			cert = ::CryptCheck::Tls::Cert.new cert(:md5)
+			expect(cert.sha2?).to be false
+
+			cert = ::CryptCheck::Tls::Cert.new cert(:sha1)
+			expect(cert.sha2?).to be false
+
+			cert = ::CryptCheck::Tls::Cert.new cert(:ecdsa, :prime256v1)
+			expect(cert.sha2?).to be true
+		end
+	end
 end
