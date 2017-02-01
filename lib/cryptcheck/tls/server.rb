@@ -28,7 +28,7 @@ module CryptCheck
 			class ConnectionError < ::StandardError
 			end
 
-			attr_reader :certs, :keys, :dh, :supported_curves, :curves_preference
+			attr_reader :certs, :keys, :dh, :supported_methods, :supported_curves, :curves_preference
 
 			def initialize(hostname, family, ip, port)
 				@hostname, @family, @ip, @port = hostname, family, ip, port
@@ -402,7 +402,8 @@ module CryptCheck
 						when /state=SSLv2 read server hello A: peer error no cipher$/,
 								/state=error: no ciphers available$/,
 								/state=SSLv3 read server hello A: sslv3 alert handshake failure$/,
-								/state=error: missing export tmp dh key$/
+								/state=error: missing export tmp dh key$/,
+								/state=error: wrong curve$/
 							raise CipherNotAvailable, e
 						when /state=SSLv3 read server hello A: tlsv1 alert inappropriate fallback$/
 							raise InappropriateFallback, e
