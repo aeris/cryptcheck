@@ -30,8 +30,7 @@ module CryptCheck
 		end
 	end
 
-	autoload :Status, 'cryptcheck/status'
-	autoload :Statused, 'cryptcheck/statused'
+	autoload :State, 'cryptcheck/state'
 	autoload :Logger, 'cryptcheck/logger'
 	autoload :Tls, 'cryptcheck/tls'
 	module Tls
@@ -96,7 +95,7 @@ module CryptCheck
 						else
 							server.new *a, **kargs
 						end
-					ap s.status
+					ap s.states
 					exit
 					if grade
 						g = grade.new s

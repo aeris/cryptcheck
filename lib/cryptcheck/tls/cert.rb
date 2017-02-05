@@ -107,7 +107,7 @@ module CryptCheck
 				@cert.issuer
 			end
 
-			include ::CryptCheck::Statused
+			include ::CryptCheck::State
 
 			CHECKS = [:weak_sign, -> (s) do
 				not (SIGNATURE_ALGORITHMS_X509[s.signature_algorithm] & WEAK_SIGN).empty?

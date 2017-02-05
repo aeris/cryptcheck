@@ -17,7 +17,7 @@ class ::OpenSSL::PKey::EC
 		"ECC #{self.size} bits"
 	end
 
-	include ::CryptCheck::Statused
+	include ::CryptCheck::State
 
 	CHECKS = [
 			[:weak_key, -> (s) do
@@ -50,7 +50,7 @@ class ::OpenSSL::PKey::RSA
 		"RSA #{self.size} bits"
 	end
 
-	include ::CryptCheck::Statused
+	include ::CryptCheck::State
 
 	CHECKS = [
 			[:weak_key, -> (s) do
@@ -81,7 +81,7 @@ class ::OpenSSL::PKey::DSA
 		"DSA #{self.size} bits"
 	end
 
-	include ::CryptCheck::Statused
+	include ::CryptCheck::State
 
 	CHECKS = [
 			[:weak_key, -> (_) { :critical }]
@@ -105,7 +105,7 @@ class ::OpenSSL::PKey::DH
 		"DH #{self.size} bits"
 	end
 
-	include ::CryptCheck::Statused
+	include ::CryptCheck::State
 
 	CHECKS = [
 			[:weak_dh, -> (s) do
