@@ -4,6 +4,7 @@
 .rakeTasks
 .idea/
 /build/
+/coverage/
 /db/*.sqlite3
 /db/schema.rb
 /output/*.html

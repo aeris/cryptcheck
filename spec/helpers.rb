@@ -5,11 +5,16 @@ Bundler.require :default, :development
 require 'cryptcheck'
 Dir['./spec/**/support/**/*.rb'].sort.each { |f| require f }
 
+require 'simplecov'
+SimpleCov.start do
+	add_filter 'spec/'
+end
+
 CryptCheck::Logger.level = ENV['LOG'] || :none
 
 module Helpers
 	DEFAULT_METHODS  = %i(TLSv1_2)
-	DEFAULT_CIPHERS  = %i(ECDHE+AES)
+	DEFAULT_CIPHERS  = %i(ECDHE-ECDSA-AES128-GCM-SHA256)
 	DEFAULT_CURVES   = %i(prime256v1)
 	DEFAULT_DH       = [:rsa, 4096]
 	DEFAULT_MATERIAL = [[:ecdsa, :prime256v1]]
@@ -39,7 +44,7 @@ module Helpers
 		OpenSSL::PKey::DH.new File.read "spec/resources/dh-#{name}.pem"
 	end
 
-	def serv(server, process, &block)
+	def serv(server, process)
 		IO.pipe do |stop_pipe_r, stop_pipe_w|
 			threads = []
 
@@ -68,7 +73,7 @@ module Helpers
 
 			mutex.synchronize { started.wait mutex }
 			begin
-				block.call if block
+				yield if block_given?
 			ensure
 				stop_pipe_w.close
 				threads.each &:join
@@ -79,22 +84,29 @@ module Helpers
 	def context(certs, keys, chain=[],
 				methods: DEFAULT_METHODS, ciphers: DEFAULT_CIPHERS,
 				dh:, curves: DEFAULT_CURVES, server_preference: true)
-		context         = OpenSSL::SSL::SSLContext.new
-
-		context.options |= OpenSSL::SSL::OP_NO_SSLv2 unless methods.include? :SSLv2
-		context.options |= OpenSSL::SSL::OP_NO_SSLv3 unless methods.include? :SSLv3
-		context.options |= OpenSSL::SSL::OP_NO_TLSv1 unless methods.include? :TLSv1
-		context.options |= OpenSSL::SSL::OP_NO_TLSv1_1 unless methods.include? :TLSv1_1
-		context.options |= OpenSSL::SSL::OP_NO_TLSv1_2 unless methods.include? :TLSv1_2
+		# Can't find a way to support SSLv2 with others
+		context         = if methods == :SSLv2
+							  OpenSSL::SSL::SSLContext.new :SSLv2
+						  else
+							  context = OpenSSL::SSL::SSLContext.new
+							  context.options |= OpenSSL::SSL::OP_NO_SSLv2 unless methods.include? :SSLv2
+							  context.options |= OpenSSL::SSL::OP_NO_SSLv3 unless methods.include? :SSLv3
+							  context.options |= OpenSSL::SSL::OP_NO_TLSv1 unless methods.include? :TLSv1
+							  context.options |= OpenSSL::SSL::OP_NO_TLSv1_1 unless methods.include? :TLSv1_1
+							  context.options |= OpenSSL::SSL::OP_NO_TLSv1_2 unless methods.include? :TLSv1_2
+							  context
+						  end
 		context.options |= OpenSSL::SSL::OP_CIPHER_SERVER_PREFERENCE if server_preference
 
 		context.certs            = certs
 		context.keys             = keys
-		context.extra_chain_cert = chain if chain
+		context.extra_chain_cert = chain unless chain.empty?
 
 		context.ciphers         = ciphers.join ':'
-		context.tmp_dh_callback = proc { dh } if dh
-		context.ecdh_curves     = curves.join ':' if curves
+		if methods != :SSLv2
+			context.tmp_dh_callback = proc { dh } if dh
+			context.ecdh_curves     = curves.join ':' if curves
+		end
 
 		context
 	end
