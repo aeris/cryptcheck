@@ -273,8 +273,9 @@ module CryptCheck
 
 			ALL       = 'ALL:COMPLEMENTOFALL'
 			SUPPORTED = Method.collect do |m|
-				context         = ::OpenSSL::SSL::SSLContext.new m.name
+				context         = ::OpenSSL::SSL::SSLContext.new m.to_sym
 				context.ciphers = ALL
+
 				[m, context.ciphers.collect { |c| Cipher.new m, c.first }.sort ]
 			end.to_h.freeze
 		end

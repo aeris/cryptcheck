@@ -28,7 +28,7 @@ module CryptCheck
 			class ConnectionError < ::StandardError
 			end
 
-			attr_reader :certs, :keys, :dh, :supported_methods, :supported_curves, :curves_preference
+			attr_reader :certs, :keys, :dh, :supported_methods, :supported_ciphers, :supported_curves, :curves_preference
 
 			def initialize(hostname, family, ip, port)
 				@hostname, @family, @ip, @port = hostname, family, ip, port
@@ -283,10 +283,9 @@ module CryptCheck
 			end
 
 			Method.each do |method|
-				method = method.name
 				class_eval <<-RUBY_EVAL, __FILE__, __LINE__ + 1
-					def #{method.to_s.downcase}?
-						@supported_methods.detect { |m| m.name == method }
+					def #{method.to_sym.downcase}?
+						@supported_methods.detect { |m| m == method }
 					end
 				RUBY_EVAL
 			end
@@ -421,8 +420,7 @@ module CryptCheck
 			end
 
 			def ssl_client(method, ciphers = nil, curves: nil, fallback: false, &block)
-				method      = method.name
-				ssl_context = ::OpenSSL::SSL::SSLContext.new method
+				ssl_context = ::OpenSSL::SSL::SSLContext.new method.to_sym
 				ssl_context.enable_fallback_scsv if fallback
 
 				if ciphers
