@@ -2,7 +2,6 @@ require 'colorize'
 require 'ipaddr'
 require 'timeout'
 require 'yaml'
-require 'cryptcheck/tls/fixture'
 
 module CryptCheck
 	MAX_ANALYSIS_DURATION = 120
@@ -96,6 +95,7 @@ module CryptCheck
 						else
 							server.new *a, **kargs
 						end
+					ap s.status
 					exit
 					if grade
 						g = grade.new s
@@ -181,3 +181,6 @@ module CryptCheck
 		SCORES.index a.grade
 	end
 end
+
+require 'cryptcheck/fixture'
+require 'cryptcheck/tls/fixture'

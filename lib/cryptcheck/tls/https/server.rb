@@ -20,7 +20,7 @@ module CryptCheck
 														   follow_redirects: false,
 														   verify:           false,
 														   timeout:          SSL_TIMEOUT,
-														   ssl_version:      @supported_methods.first.name,
+														   ssl_version:      @supported_methods.first.to_sym,
 														   ciphers:          Cipher::ALL
 												   }
 						if header = response.headers['strict-transport-security']
@@ -43,8 +43,17 @@ module CryptCheck
 				end
 
 				LONG_HSTS = 6*30*24*60*60
+
 				def hsts_long?
 					hsts? and @hsts >= LONG_HSTS
+				end
+
+				def checks
+					super + [
+							[:hsts, -> (s) { s.hsts? }, :good],
+							[:hsts_long, -> (s) { s.hsts_long? }, :perfect],
+							#[:must_staple, -> (s) { s.must_staple? }, :best],
+					]
 				end
 			end
 		end

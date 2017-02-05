@@ -106,6 +106,16 @@ module CryptCheck
 			def issuer
 				@cert.issuer
 			end
+
+			include ::CryptCheck::Statused
+
+			CHECKS = [:weak_sign, -> (s) do
+				not (SIGNATURE_ALGORITHMS_X509[s.signature_algorithm] & WEAK_SIGN).empty?
+			end, :critical].freeze
+
+			def children
+				[self.key]
+			end
 		end
 	end
 end

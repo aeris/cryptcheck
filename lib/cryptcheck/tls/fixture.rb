@@ -1,58 +1,5 @@
 require 'openssl'
 
-class String
-	alias :colorize_old :colorize
-
-	COLORS = {
-			critical: { color: :white, background: :red },
-			error:    :red,
-			warning:  :light_red,
-			good:     :green,
-			perfect:  :blue,
-			best:     :magenta,
-			unknown:  { background: :black }
-	}
-
-	def colorize(state)
-		color = COLORS[state] || state
-		self.colorize_old color
-	end
-end
-
-class Exception
-	BACKTRACE_REGEXP = /^(.*):(\d+):in `(.*)'$/
-
-	def colorize
-		$stderr.puts self.message.colorize(:red)
-		self.backtrace.each do |line|
-			line = BACKTRACE_REGEXP.match line
-			line = '%s:%s:in `%s\'' % [
-					line[1].colorize(:yellow),
-					line[2].colorize(:blue),
-					line[3].colorize(:magenta)
-			]
-			$stderr.puts line
-		end
-	end
-end
-
-class Integer
-	def humanize
-		secs = self
-		[[60, :second],
-		 [60, :minute],
-		 [24, :hour],
-		 [30, :day],
-		 [12, :month]].map do |count, name|
-			if secs > 0
-				secs, n = secs.divmod count
-				n       = n.to_i
-				n > 0 ? "#{n} #{name}#{n > 1 ? 's' : ''}" : nil
-			end
-		end.compact.reverse.join ' '
-	end
-end
-
 class ::OpenSSL::PKey::EC
 	def type
 		:ecc
@@ -70,18 +17,23 @@ class ::OpenSSL::PKey::EC
 		"ECC #{self.size} bits"
 	end
 
-	def status
-		case self.size
-			when 0...160
-				:critical
-			when 160...192
-				:error
-			when 192...256
-				:warning
-			when 256...364
-			else
-				:good
-		end
+	include ::CryptCheck::Statused
+
+	CHECKS = [
+			[:weak_key, -> (s) do
+				case s.size
+					when 0...160
+						:critical
+					when 160...192
+						:error
+					when 192...256
+						:warning
+				end
+			end]
+	].freeze
+
+	def checks
+		CHECKS
 	end
 end
 
@@ -98,16 +50,21 @@ class ::OpenSSL::PKey::RSA
 		"RSA #{self.size} bits"
 	end
 
-	def status
-		case self.size
-			when 0...1024
-				:critical
-			when 1024...2048
-				:error
-			when 2048...4096
-			else
-				:good
-		end
+	include ::CryptCheck::Statused
+
+	CHECKS = [
+			[:weak_key, -> (s) do
+				case s.size
+					when 0...1024
+						:critical
+					when 1024...2048
+						:error
+				end
+			end]
+	].freeze
+
+	def checks
+		CHECKS
 	end
 end
 
@@ -124,8 +81,14 @@ class ::OpenSSL::PKey::DSA
 		"DSA #{self.size} bits"
 	end
 
-	def status
-		return :critical
+	include ::CryptCheck::Statused
+
+	CHECKS = [
+			[:weak_key, -> (_) { :critical }]
+	].freeze
+
+	def checks
+		CHECKS
 	end
 end
 
@@ -142,16 +105,23 @@ class ::OpenSSL::PKey::DH
 		"DH #{self.size} bits"
 	end
 
-	def status
-		case self.size
-			when 0...1024
-				:critical
-			when 1024...2048
-				:error
-			when 2048...4096
-			else
-				:good
-		end
+	include ::CryptCheck::Statused
+
+	CHECKS = [
+			[:weak_dh, -> (s) do
+				case s.size
+					when 0...1024
+						:critical
+					when 1024...2048
+						:error
+					else
+						:warning
+				end
+			end]
+	].freeze
+
+	def checks
+		CHECKS
 	end
 end
 
