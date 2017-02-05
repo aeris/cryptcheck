@@ -131,6 +131,15 @@ describe CryptCheck::Tls::Server do
 		end
 	end
 
+	describe '#supported_ciphers' do
+		it 'must detect supported cipher' do
+			ciphers = server.supported_ciphers
+							  .map { |k, v| [k.to_sym, v.keys.collect(&:name)] }
+							  .to_h[:TLSv1_2]
+			expect(ciphers).to match_array %w(ECDHE-ECDSA-AES128-SHA)
+		end
+	end
+
 	describe '#supported_curves' do
 		it 'must detect no supported curves' do
 			s      = server :rsa, ciphers: %w(AES128-SHA)
