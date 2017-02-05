@@ -46,7 +46,7 @@ describe CryptCheck::Tls::Server do
 	def server(type=:ecdsa, **kargs)
 		params = DEFAULT_PARAMETERS[type].dup
 		params.merge!(kargs) if kargs
-		host, port = '127.0.0.1', 5000
+		host, port = '127.0.0.1', 15000
 		params.merge!({ host: host, port: port })
 		tls_serv **params do
 			CryptCheck::Tls::TcpServer.new 'localhost', ::Socket::PF_INET, host, port
