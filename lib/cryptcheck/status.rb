@@ -9,6 +9,10 @@ module CryptCheck
 			LEVELS.each &block
 		end
 
+		def self.empty
+			self.collect { |s| [s, []] }.to_h
+		end
+
 		def self.status(statuses)
 			statuses = self.convert statuses
 			self.min LEVELS, statuses

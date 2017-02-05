@@ -124,7 +124,7 @@ module CryptCheck
 			end
 
 			def calculate_states
-				states = Status.collect { |s| [s, []] }.to_h
+				states = Status.empty
 				@checks.each do |name, check, status|
 					result = check.call @server
 					if result
