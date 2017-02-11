@@ -109,9 +109,15 @@ module CryptCheck
 
 			include ::CryptCheck::State
 
-			CHECKS = [:weak_sign, -> (s) do
-				not (SIGNATURE_ALGORITHMS_X509[s.signature_algorithm] & WEAK_SIGN).empty?
-			end, :critical].freeze
+			CHECKS = WEAK_SIGN.collect do |level, hashes|
+				hashes.collect do |hash|
+					["#{hash}_sign".to_sym, -> (s) { s.send "#{hash}?" }, level]
+				end
+			end.flatten(1).freeze
+
+			def checks
+				CHECKS
+			end
 
 			def children
 				[self.key]

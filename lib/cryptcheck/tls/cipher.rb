@@ -36,11 +36,10 @@ module CryptCheck
 					ccm:       %w(CCM)
 			}
 
-			attr_reader :method, :name, :states, :status
+			attr_reader :method, :name
 
 			def initialize(method, name)
 				@method, @name = method, name
-				fetch_states
 			end
 
 			extend Enumerable
@@ -102,70 +101,33 @@ module CryptCheck
 				size <= 64
 			end
 
-			CHECKS = [
-					[:psk, Proc.new { |s| s.psk? }, :critical],
-					[:srp, Proc.new { |s| s.srp? }, :critical],
-					[:dss, Proc.new { |s| s.dss? }, :critical],
-					[:anonymous, Proc.new { |s| s.anonymous? }, :critical],
-					[:null, Proc.new { |s| s.null? }, :critical],
-					[:export, Proc.new { |s| s.export? }, :critical],
-					[:des, Proc.new { |s| s.des? }, :critical],
-					[:md5, Proc.new { |s| s.md5? }, :critical],
-
-					[:rc4, Proc.new { |s| s.rc4? }, :error],
-					[:sweet32, Proc.new { |s| s.sweet32? }, :error],
-
-					#[:cbc, Proc.new { |s| s.cbc? }, :warning],
-					[:dhe, Proc.new { |s| s.dhe? }, :warning],
-					[:no_pfs, Proc.new { |s| not s.pfs? }, :warning],
-
-					[:pfs, Proc.new { |s| s.pfs? }, :good],
-					[:ecdhe, Proc.new { |s| s.ecdhe? }, :good],
-					[:aead, Proc.new { |s| s.aead? }, :good],
-			]
-
-			def fetch_states
-				@states = Status.collect { |s| [s, []] }.to_h
-				CHECKS.each do |name, check, status|
-					result = check.call self
-					@states[status ? status : result] << name if result
-				end
-				statuses = @states.reject { |_, v| v.empty? }.keys
-				@status  = Status[statuses]
-			end
-
 			def to_s(type = :long)
 				case type
 					when :long
-						states = @states.collect { |k, vs| vs.collect { |v| v.to_s.colorize k } }.flatten.join ' '
-						"#{@method} #{@name.colorize @status} [#{states}]"
+						states = self.states.collect { |k, vs| vs.collect { |v| v.to_s.colorize k } }.flatten.join ' '
+						"#{@method} #{@name.colorize self.status} [#{states}]"
 					when :short
-						@name.colorize @status
+						@name.colorize self.status
 				end
 			end
 
-			PRIORITY = { good: 1, none: 2, warning: 3, error: 4, critical: 5 }
+			def <=>(other)
+				compare = State.compare self, other
+				return compare unless compare == 0
 
-			def self.sort(ciphers)
-				ciphers.sort do |a, b|
-					error_a, error_b = PRIORITY[a.score], PRIORITY[b.score]
-					compare          = error_a <=> error_b
-					next compare unless compare == 0
+				size_a, size_b = a.size, b.size
+				compare        = size_b <=> size_a
+				return compare unless compare == 0
 
-					size_a, size_b = a.size, b.size
-					compare        = size_b <=> size_a
-					next compare unless compare == 0
+				dh_a, dh_b = a.dh, b.dh
+				return -1 if not dh_a and dh_b
+				return 1 if dh_a and not dh_b
+				return a.name <=> b.name if not dh_a and not dh_b
 
-					dh_a, dh_b = a.dh, b.dh
-					next -1 if not dh_a and dh_b
-					next 1 if dh_a and not dh_b
-					next a.name <=> b.name if not dh_a and not dh_b
+				compare = b.dh.size <=> a.dh.size
+				return compare unless compare == 0
 
-					compare = b.dh.size <=> a.dh.size
-					next compare unless compare == 0
-
-					a.name <=> b.name
-				end
+				a.name <=> b.name
 			end
 
 			def self.list(cipher_suite = 'ALL:COMPLEMENTOFALL', method: :TLSv1_2)
@@ -265,8 +227,33 @@ module CryptCheck
 				end
 			end
 
+			include State
+
+			CHECKS = [
+					[:dss, -> (c) { c.dss? }, :critical],
+					[:anonymous, -> (c) { c.anonymous? }, :critical],
+					[:null, -> (c) { c.null? }, :critical],
+					[:export, -> (c) { c.export? }, :critical],
+					[:des, -> (c) { c.des? }, :critical],
+					[:md5, -> (c) { c.md5? }, :critical],
+
+					[:rc4, -> (c) { c.rc4? }, :error],
+					[:sweet32, -> (c) { c.sweet32? }, :error],
+
+					[:no_pfs, -> (c) { not c.pfs? }, :warning],
+					[:pfs, -> (c) { c.pfs? }, :good],
+					[:dhe, -> (c) { c.dhe? }, :warning],
+					[:ecdhe, -> (c) { c.ecdhe? }, :good],
+
+					[:aead, -> (c) { c.aead? }, :good]
+			].freeze
+
+			def checks
+				CHECKS
+			end
+
 			def <=>(other)
-				status = Status.compare self, other
+				status = State.compare self, other
 				return status if status != 0
 				@name <=> other.name
 			end
@@ -275,8 +262,8 @@ module CryptCheck
 			SUPPORTED = Method.collect do |m|
 				context         = ::OpenSSL::SSL::SSLContext.new m.to_sym
 				context.ciphers = ALL
-
-				[m, context.ciphers.collect { |c| Cipher.new m, c.first }.sort ]
+				ciphers         = context.ciphers.collect { |c| Cipher.new m, c.first }
+				[m, ciphers.sort]
 			end.to_h.freeze
 		end
 	end

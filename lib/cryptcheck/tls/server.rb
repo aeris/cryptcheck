@@ -33,32 +33,16 @@ module CryptCheck
 				tlsv1_2? and not ssl? and not tlsv1? and not tlsv1_1?
 			end
 
-			def pfs?
-				uniq_supported_ciphers.any? { |c| c.pfs? }
-			end
-
 			def pfs_only?
 				uniq_supported_ciphers.all? { |c| c.pfs? }
-			end
-
-			def ecdhe?
-				uniq_supported_ciphers.any? { |c| c.ecdhe? }
 			end
 
 			def ecdhe_only?
 				uniq_supported_ciphers.all? { |c| c.ecdhe? }
 			end
 
-			def aead?
-				uniq_supported_ciphers.any? { |c| c.aead? }
-			end
-
 			def aead_only?
 				uniq_supported_ciphers.all? { |c| c.aead? }
-			end
-
-			def sweet32?
-				uniq_supported_ciphers.any? { |c| c.sweet32? }
 			end
 
 			def fallback_scsv?
@@ -72,31 +56,9 @@ module CryptCheck
 			include State
 
 			CHECKS = [
-					# Protocols
-					[:ssl, -> (s) { s.ssl? }, :critical],
-					[:tls12, -> (s) { s.tlsv1_2? }, :good],
-					[:tls12_only, -> (s) { s.tlsv1_2_only? }, :perfect],
-
-					# Ciphers
-					[:dss, -> (s) { s.dss? }, :critical],
-					[:anonymous, -> (s) { s.anonymous? }, :critical],
-					[:null, -> (s) { s.null? }, :critical],
-					[:export, -> (s) { s.export? }, :critical],
-					[:des, -> (s) { s.des? }, :critical],
-					[:md5, -> (s) { s.md5? }, :critical],
-
-					[:rc4, -> (s) { s.rc4? }, :error],
-					[:sweet32, -> (s) { s.sweet32? }, :error],
-
-					[:no_pfs, -> (s) { not s.pfs_only? }, :warning],
-					[:pfs, -> (s) { s.pfs? }, :good],
+					[:tlsv1_2_only, -> (s) { s.tlsv1_2_only? }, :perfect],
 					[:pfs_only, -> (s) { s.pfs_only? }, :perfect],
-
-					[:no_ecdhe, -> (s) { not s.ecdhe? }, :warning],
-					[:ecdhe, -> (s) { s.ecdhe? }, :good],
 					[:ecdhe_only, -> (s) { s.ecdhe_only? }, :perfect],
-
-					[:aead, -> (s) { s.aead? }, :good],
 					#[:aead_only, -> (s) { s.aead_only? }, :best],
 			].freeze
 
@@ -112,7 +74,7 @@ module CryptCheck
 			end
 
 			def children
-				@certs + @dh
+				@certs + @dh + @supported_methods + uniq_supported_ciphers
 			end
 
 			include Engine

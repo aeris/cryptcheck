@@ -33,13 +33,17 @@ module CryptCheck
 				EXISTING.find_index(self) <=> EXISTING.find_index(other)
 			end
 
-			# def eql?(other)
-			# 	self.to_sym.eql? other.to_sym
-			# end
-			#
-			# def equal?(other)
-			# 	self.to_sym.equal? other.to_sym
-			# end
+			include State
+
+			CHECKS = [
+					[:sslv2, -> (s) { s == :SSLv2 }, :critical],
+					[:sslv3, -> (s) { s == :SSLv3 }, :critical],
+					[:tlsv1_2, -> (s) { s == :TLSv1_2 }, :good]
+			]
+
+			def checks
+				CHECKS
+			end
 		end
 	end
 end

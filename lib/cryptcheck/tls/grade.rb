@@ -1,12 +1,12 @@
 module CryptCheck
 	module Tls
 		class Grade
-			attr_reader :server, :grade, :states
+			attr_reader :server, :grade, :status
 
 			def initialize(server)
 				@server = server
+				@status = @server.status
 				@checks = checks
-				@states = calculate_states
 				@grade  = calculate_grade
 			end
 
@@ -30,39 +30,70 @@ module CryptCheck
 
 				Logger.info { "Grade : #{self.grade.colorize color }" }
 				Logger.info { '' }
-				Status.each do |color|
-					states = @states[color]
+				State.each do |color|
+					states = @status[color]
 					Logger.info { "#{color.to_s.capitalize} : #{states.collect { |s| s.to_s.colorize color }.join ' '}" } unless states.empty?
 				end
 			end
 
 			private
+			CHECKS = {
+					critical: %i(
+						mdc2_sign md2_sign md4_sign md5_sign sha_sign sha1_sign
+						weak_key
+						weak_dh
+						sslv2 sslv3
+					),
+					error:    %i(
+						weak_key
+						weak_dh
+					),
+					warning:  %i(
+						weak_key
+						weak_dh
+						dhe
+					),
+					good:     %i(
+						tls12
+					),
+					perfect:  %i(
+						tls12_only
+					),
+					best:     %i(
+
+							  )
+			}.freeze
+
+			def checks
+
+			end
+
 			def calculate_grade
 				case
-					when !@states[:critical].empty?
+					when !@status[:critical].empty?
 						return 'G'
-					when !@states[:error].empty?
+					when !@status[:error].empty?
 						return 'F'
-					when !@states[:warning].empty?
+					when !@status[:warning].empty?
 						return 'E'
 				end
 
 				goods = @checks.select { |c| c.last == :good }.collect &:first
 				unless goods.empty?
-					return 'D' if @states[:good].empty?
-					return 'C' if @states[:good] != goods
+					return 'D' if @status[:good].empty?
+					return 'C' if @status[:good] != goods
 				end
 
 				perfects = @checks.select { |c| c.last == :perfect }.collect &:first
 				unless perfects.empty?
-					return 'C+' if @states[:perfect].empty?
-					return 'B' if @states[:perfect] != perfects
+					return 'C+' if @status[:perfect].empty?
+					return 'B' if @status[:perfect] != perfects
 				end
 
 				bests = @checks.select { |c| c.last == :best }.collect &:first
 				unless bests.empty?
-					return 'B+' if @states[:best].empty?
-					return 'A' if @states[:best] != bests
+					return 'B+' if @status[:best].empty?
+					return 'A' if @status[:best] != bests
 				end
 
 				'A+'

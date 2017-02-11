@@ -114,8 +114,6 @@ class ::OpenSSL::PKey::DH
 						:critical
 					when 1024...2048
 						:error
-					else
-						:warning
 				end
 			end]
 	].freeze

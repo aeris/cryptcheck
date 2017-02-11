@@ -4,7 +4,7 @@ require 'timeout'
 require 'yaml'
 
 module CryptCheck
-	MAX_ANALYSIS_DURATION = 120
+	MAX_ANALYSIS_DURATION = 600
 	PARALLEL_ANALYSIS     = 10
 
 	class AnalysisFailure
