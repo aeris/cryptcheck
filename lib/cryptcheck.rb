@@ -4,20 +4,9 @@ require 'timeout'
 require 'yaml'
 
 module CryptCheck
-	MAX_ANALYSIS_DURATION = 600
 	PARALLEL_ANALYSIS     = 10
 
-	class AnalysisFailure
-		attr_reader :error
 
-		def initialize(error)
-			@error = error
-		end
-
-		def to_s
-			@error.to_s
-		end
-	end
 
 	class NoTLSAvailableServer
 		attr_reader :server
@@ -43,11 +32,13 @@ module CryptCheck
 		autoload :TcpServer, 'cryptcheck/tls/server'
 		autoload :UdpServer, 'cryptcheck/tls/server'
 		autoload :Grade, 'cryptcheck/tls/grade'
+		autoload :Host, 'cryptcheck/tls/host'
 
 		autoload :Https, 'cryptcheck/tls/https'
 		module Https
 			autoload :Server, 'cryptcheck/tls/https/server'
 			autoload :Grade, 'cryptcheck/tls/https/grade'
+			autoload :Host, 'cryptcheck/tls/https/host'
 		end
 
 		autoload :Xmpp, 'cryptcheck/tls/xmpp'

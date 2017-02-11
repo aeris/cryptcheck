@@ -6,7 +6,7 @@ module CryptCheck
 			class Server < Tls::TcpServer
 				attr_reader :hsts
 
-				def initialize(hostname, family, ip, port=443)
+				def initialize(hostname, ip, family, port=443)
 					super
 					fetch_hsts
 				end
