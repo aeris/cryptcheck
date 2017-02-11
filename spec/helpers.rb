@@ -3,6 +3,7 @@ require 'rubygems'
 require 'bundler/setup'
 Bundler.require :default, :development
 require 'cryptcheck'
+require 'faketime'
 Dir['./spec/**/support/**/*.rb'].sort.each { |f| require f }
 
 require 'simplecov'
@@ -38,6 +39,10 @@ module Helpers
 				   type
 			   end
 		OpenSSL::X509::Certificate.new File.read "spec/resources/#{name}.crt"
+	end
+
+	def chain(chain)
+		chain.collect { |f| self.cert f }
 	end
 
 	def dh(name)

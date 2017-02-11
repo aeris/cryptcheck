@@ -1,5 +1,3 @@
-require 'faketime'
-
 describe CryptCheck::Tls::Server do
 	before :all do
 		FakeTime.freeze Time.utc(2000, 1, 1)
