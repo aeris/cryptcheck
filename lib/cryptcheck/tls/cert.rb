@@ -107,7 +107,7 @@ module CryptCheck
 				@cert.issuer
 			end
 
-			include ::CryptCheck::State
+			include State
 
 			CHECKS = WEAK_SIGN.collect do |level, hashes|
 				hashes.collect do |hash|

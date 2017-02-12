@@ -43,6 +43,11 @@ module CryptCheck
 			LEVELS.find_index(a.status) <=> LEVELS.find_index(b.status)
 		end
 
+		def performed_checks
+			self.states # Force internal resolution
+			@performed_checks
+		end
+
 		private
 		def self.convert(status)
 			status = [status] unless status.respond_to? :first
@@ -77,12 +82,22 @@ module CryptCheck
 		end
 
 		def personal_states
-			states = State.empty
-			checks.each do |check|
+			states           = State.empty
+			performed_checks = checks
+			performed_checks.each do |check|
 				level, name = perform_check check
 				next unless level
 				states[level] << name
 			end
+
+			performed_checks  = [
+					performed_checks
+							.collect { |n, _, l| [l, n] }
+							.group_by(&:first)
+							.map { |k, v| [k, v.collect(&:last)] }.to_h
+			] + children.collect(&:performed_checks)
+			@performed_checks = State.merge *performed_checks
+
 			states
 		end
 

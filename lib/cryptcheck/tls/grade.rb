@@ -5,8 +5,8 @@ module CryptCheck
 
 			def initialize(server)
 				@server = server
-				@checks = checks
 				@states = @server.states
+				@checks = @server.performed_checks
 				Logger.info { '' }
 				Logger.ap :checks, @checks
 				Logger.ap :states, @states
@@ -33,42 +33,6 @@ module CryptCheck
 			end
 
 			private
-			CHECKS = {
-					best:     %i(
-
-							  ),
-					perfect:  %i(
-						tlsv1_2_only
-						pfs_only
-						ecdhe_only
-					),
-					good:     %i(
-						tlsv1_2
-						pfs
-						ecdhe
-						aead
-					),
-					warning:  %i(
-						weak_key
-						weak_dh
-						dhe
-					),
-					error:    %i(
-						weak_key
-						weak_dh
-					),
-					critical: %i(
-						mdc2_sign md2_sign md4_sign md5_sign sha_sign sha1_sign
-						weak_key
-						weak_dh
-						sslv2 sslv3
-					),
-			}.freeze
-
-			def checks
-				CHECKS
-			end
-
 			def calculate_grade
 				return 'V' unless @server.valid?
 				return 'T' unless @server.trusted?
@@ -93,13 +57,6 @@ module CryptCheck
 						unless missed.empty?
 							Logger.info { "Missing #{type} : #{missed}" }
 							return score2
-						end
-
-						# I'm not error prone. The code yes.
-						additional = available - expected
-						unless additional.empty?
-							Logger.fatal { "Developper missed #{type} : #{additional}".colorize :critical }
-							exit -1
 						end
 					end
 				end

@@ -39,6 +39,14 @@ module CryptCheck
 						@name == other.name
 				end
 			end
+
+			include State
+
+			CHECKS = [].freeze
+
+			def checks
+				CHECKS
+			end
 		end
 	end
 end
