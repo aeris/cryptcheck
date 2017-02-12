@@ -47,7 +47,7 @@ describe CryptCheck::Tls::Server do
 		host, port = '127.0.0.1', 15000
 		params.merge!({ host: host, port: port })
 		tls_serv **params do
-			CryptCheck::Tls::TcpServer.new 'localhost', ::Socket::PF_INET, host, port
+			CryptCheck::Tls::TcpServer.new 'localhost', host, ::Socket::PF_INET, port
 		end
 	end
 
