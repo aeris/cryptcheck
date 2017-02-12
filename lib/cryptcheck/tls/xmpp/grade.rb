@@ -2,10 +2,12 @@ module CryptCheck
 	module Tls
 		module Xmpp
 			class Grade < Tls::Grade
+				CHECKS = {
+						good: %i(required)
+				}
+
 				def checks
-					super + [
-							[:required, Proc.new { |s| s.required? }, :good],
-					]
+					State.merge super, CHECKS
 				end
 			end
 		end

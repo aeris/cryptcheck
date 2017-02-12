@@ -53,6 +53,14 @@ module CryptCheck
 				@cert.extensions.any? { |e| e.oid == '1.3.6.1.5.5.7.1.24' }
 			end
 
+			def valid?
+				@valid
+			end
+
+			def trusted?
+				@trusted
+			end
+
 			include State
 
 			CHECKS = [

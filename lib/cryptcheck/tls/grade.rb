@@ -1,16 +1,17 @@
 module CryptCheck
 	module Tls
 		class Grade
-			attr_reader :server, :grade, :status
+			attr_reader :server, :grade
 
 			def initialize(server)
 				@server = server
-				@status = @server.status
 				@checks = checks
-				@grade  = calculate_grade
-			end
+				@states = @server.states
+				Logger.info { '' }
+				Logger.ap :checks, @checks
+				Logger.ap :states, @states
+				@grade = calculate_grade
 
-			def display
 				color = case @grade
 							when 'A', 'A+'
 								:best
@@ -24,76 +25,83 @@ module CryptCheck
 								:error
 							when 'G'
 								:critical
-							when 'M', 'T'
+							when 'T', 'V'
 								:unknown
 						end
 
 				Logger.info { "Grade : #{self.grade.colorize color }" }
-				Logger.info { '' }
-				State.each do |color|
-					states = @status[color]
-					Logger.info { "#{color.to_s.capitalize} : #{states.collect { |s| s.to_s.colorize color }.join ' '}" } unless states.empty?
-				end
 			end
 
 			private
 			CHECKS = {
-					critical: %i(
-						mdc2_sign md2_sign md4_sign md5_sign sha_sign sha1_sign
-						weak_key
-						weak_dh
-						sslv2 sslv3
+					best:     %i(
+
+							  ),
+					perfect:  %i(
+						tlsv1_2_only
+						pfs_only
+						ecdhe_only
 					),
-					error:    %i(
-						weak_key
-						weak_dh
+					good:     %i(
+						tlsv1_2
+						pfs
+						ecdhe
+						aead
 					),
 					warning:  %i(
 						weak_key
 						weak_dh
 						dhe
 					),
-					good:     %i(
-						tls12
+					error:    %i(
+						weak_key
+						weak_dh
 					),
-					perfect:  %i(
-						tls12_only
+					critical: %i(
+						mdc2_sign md2_sign md4_sign md5_sign sha_sign sha1_sign
+						weak_key
+						weak_dh
+						sslv2 sslv3
 					),
-					best:     %i(
-
-							  )
 			}.freeze
 
 			def checks
-
+				CHECKS
 			end
 
 			def calculate_grade
+				return 'V' unless @server.valid?
+				return 'T' unless @server.trusted?
+
 				case
-					when !@status[:critical].empty?
+					when !@states[:critical].empty?
 						return 'G'
-					when !@status[:error].empty?
+					when !@states[:error].empty?
 						return 'F'
-					when !@status[:warning].empty?
+					when !@states[:warning].empty?
 						return 'E'
 				end
 
-				goods = @checks.select { |c| c.last == :good }.collect &:first
-				unless goods.empty?
-					return 'D' if @status[:good].empty?
-					return 'C' if @status[:good] != goods
-				end
+				[[:good, 'D', 'C'],
+				 [:perfect, 'C', 'B'],
+				 [:best, 'B', 'A']].each do |type, score1, score2|
+					expected = @checks[type]
+					unless expected.empty?
+						available = @states[type]
+						return score1 if available.empty?
+						missed = expected - available
+						unless missed.empty?
+							Logger.info { "Missing #{type} : #{missed}" }
+							return score2
+						end
 
-				perfects = @checks.select { |c| c.last == :perfect }.collect &:first
-				unless perfects.empty?
-					return 'C+' if @status[:perfect].empty?
-					return 'B' if @status[:perfect] != perfects
-				end
-
-				bests = @checks.select { |c| c.last == :best }.collect &:first
-				unless bests.empty?
-					return 'B+' if @status[:best].empty?
-					return 'A' if @status[:best] != bests
+						# I'm not error prone. The code yes.
+						additional = available - expected
+						unless additional.empty?
+							Logger.fatal { "Developper missed #{type} : #{additional}".colorize :critical }
+							exit -1
+						end
+					end
 				end
 
 				'A+'

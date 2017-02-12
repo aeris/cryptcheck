@@ -1,6 +1,3 @@
-require 'erb'
-require 'parallel'
-
 module CryptCheck
 	module Tls
 		module Xmpp

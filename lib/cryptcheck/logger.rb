@@ -1,6 +1,6 @@
 module CryptCheck
 	class Logger
-		LEVELS = %i(trace debug info warning error fatal none)
+		LEVELS  = %i(trace debug info warning error fatal none)
 		@@level = :info
 
 		def self.level=(level)
@@ -10,6 +10,16 @@ module CryptCheck
 		def self.log(level, string=nil, output: $stdout, &block)
 			return unless enabled? level
 			output.puts(string ? string : block.call)
+		end
+
+		if Object.respond_to? :ai
+			def self.ap(name, object)
+				self.debug { "#{name} : #{object.ai}" }
+			end
+		else
+			def self.ap(name, object)
+				self.debug { "#{name} : #{object}" }
+			end
 		end
 
 		LEVELS.each do |level|

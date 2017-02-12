@@ -29,8 +29,8 @@ module CryptCheck
 
 			attr_reader :certs, :keys, :dh, :supported_methods, :supported_ciphers, :supported_curves, :curves_preference
 
-			def initialize(hostname, family, ip, port)
-				@hostname, @family, @ip, @port = hostname, family, ip, port
+			def initialize(hostname, ip, family, port)
+				@hostname, @ip, @family, @port = hostname, ip, family, port
 				@dh                            = []
 
 				@name = "#@ip:#@port"
@@ -412,6 +412,7 @@ module CryptCheck
 				# Then, filter cert to keep uniq fingerprint
 				@certs = certs.uniq { |c| c.fingerprint }
 
+				@trusted = @valid = true
 				@certs.each do |cert|
 					key      = cert.key
 					identity = cert.valid?(@hostname || @ip)
@@ -422,11 +423,13 @@ module CryptCheck
 						Logger.info { '    Identity : ' + 'valid'.colorize(:good) }
 					else
 						Logger.info { '    Identity : ' + 'invalid'.colorize(:error) }
+						@valid = false
 					end
 					if trust == :trusted
 						Logger.info { '    Trust : ' + 'trusted'.colorize(:good) }
 					else
 						Logger.info { '    Trust : ' + 'untrusted'.colorize(:error) + ' - ' + trust }
+						@trusted = false
 					end
 				end
 				@keys = @certs.collect &:key
