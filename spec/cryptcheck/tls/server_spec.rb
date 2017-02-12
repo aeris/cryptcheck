@@ -69,28 +69,6 @@ describe CryptCheck::Tls::Server do
 		end
 	end
 
-	describe '#md5_sign?' do
-		it 'must detect server using MD5 certificate' do
-			expect(server.md5_sign?).to be false
-			expect(server(material: [:md5, [:rsa, 1024]]).md5_sign?).to be true
-		end
-	end
-
-	describe '#sha1_sign?' do
-		it 'must detect server using SHA1 certificate' do
-			expect(server.sha1_sign?).to be false
-			expect(server(material: [:sha1, [:rsa, 1024]]).sha1_sign?).to be true
-		end
-	end
-
-	describe '#sha2_sign?' do
-		it 'must detect server using SHA2 certificate' do
-			expect(server.sha2_sign?).to be true
-			expect(server(material: [:md5]).sha2_sign?).to be false
-			expect(server(material: [:sha1]).sha2_sign?).to be false
-		end
-	end
-
 	describe '#supported_methods' do
 		it 'must detect SSLv2' do
 			s       = server :sslv2
