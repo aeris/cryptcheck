@@ -87,7 +87,6 @@ module CryptCheck
 							server.new *a, **kargs
 						end
 					ap s.states
-					exit
 					if grade
 						g = grade.new s
 						Logger.info { '' }

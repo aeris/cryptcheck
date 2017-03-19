@@ -7,46 +7,8 @@ describe CryptCheck::Tls::Server do
 		FakeTime.unfreeze
 	end
 
-	default_parameters       = {
-			methods:           %i(TLSv1_2),
-			chain:             %w(intermediate ca),
-			curves:            %i(prime256v1),
-			server_preference: true
-	}.freeze
-	default_ecdsa_parameters = default_parameters.merge({
-																material: [[:ecdsa, :prime256v1]],
-																ciphers:  %i(ECDHE-ECDSA-AES128-SHA),
-																curves:   %i(prime256v1)
-														}).freeze
-	default_rsa_parameters   = default_parameters.merge({
-																material: [[:rsa, 1024]],
-																ciphers:  %i(ECDHE-RSA-AES128-SHA),
-																curves:   %i(prime256v1),
-																dh:       1024
-														}).freeze
-	default_mixed_parameters = default_parameters.merge({
-																material: [[:ecdsa, :prime256v1], [:rsa, 1024]],
-																ciphers:  %i(ECDHE-ECDSA-AES128-SHA ECDHE-RSA-AES128-SHA),
-																curves:   %i(prime256v1),
-																dh:       1024
-														}).freeze
-	default_sslv2_parameters = default_parameters.merge({
-																methods:  :SSLv2,
-																material: [[:rsa, 1024]],
-																ciphers:  %i(RC4-MD5),
-																chain:    []
-														}).freeze
-	DEFAULT_PARAMETERS       = { ecdsa: default_ecdsa_parameters.freeze,
-								 rsa:   default_rsa_parameters.freeze,
-								 mixed: default_mixed_parameters.freeze,
-								 sslv2: default_sslv2_parameters.freeze }.freeze
-
-	def server(type=:ecdsa, **kargs)
-		params = DEFAULT_PARAMETERS[type].dup
-		params.merge!(kargs) if kargs
-		host, port = '127.0.0.1', 15000
-		params.merge!({ host: host, port: port })
-		tls_serv **params do
+	def server(*args, **kargs)
+		do_in_serv *args, **kargs do |host, port|
 			CryptCheck::Tls::TcpServer.new 'localhost', host, ::Socket::PF_INET, port
 		end
 	end

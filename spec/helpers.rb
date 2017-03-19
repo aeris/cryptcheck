@@ -21,7 +21,9 @@ module Helpers
 	DEFAULT_MATERIAL = [[:ecdsa, :prime256v1]]
 	DEFAULT_CHAIN    = %w(intermediate ca)
 	DEFAULT_HOST     = 'localhost'
-	DEFAULT_PORT     = 5000
+	DEFAULT_IPv4     = '127.0.0.1'
+	DEFAULT_IPv6     = '::1'
+	DEFAULT_PORT     = 15000
 
 	def key(type, name=nil)
 		name = if name
@@ -93,7 +95,7 @@ module Helpers
 		context         = if methods == :SSLv2
 							  OpenSSL::SSL::SSLContext.new :SSLv2
 						  else
-							  context = OpenSSL::SSL::SSLContext.new
+							  context         = OpenSSL::SSL::SSLContext.new
 							  context.options |= OpenSSL::SSL::OP_NO_SSLv2 unless methods.include? :SSLv2
 							  context.options |= OpenSSL::SSL::OP_NO_SSLv3 unless methods.include? :SSLv3
 							  context.options |= OpenSSL::SSL::OP_NO_TLSv1 unless methods.include? :TLSv1
@@ -107,13 +109,57 @@ module Helpers
 		context.keys             = keys
 		context.extra_chain_cert = chain unless chain.empty?
 
-		context.ciphers         = ciphers.join ':'
+		context.ciphers = ciphers.join ':'
 		if methods != :SSLv2
 			context.tmp_dh_callback = proc { dh } if dh
 			context.ecdh_curves     = curves.join ':' if curves
 		end
 
 		context
+	end
+
+	default_parameters       = {
+			methods:           %i(TLSv1_2),
+			chain:             %w(intermediate ca),
+			curves:            %i(prime256v1),
+			server_preference: true
+	}.freeze
+	default_ecdsa_parameters = default_parameters.merge({
+																material: [[:ecdsa, :prime256v1]],
+																ciphers:  %i(ECDHE-ECDSA-AES128-SHA),
+																curves:   %i(prime256v1)
+														}).freeze
+	default_rsa_parameters   = default_parameters.merge({
+																material: [[:rsa, 1024]],
+																ciphers:  %i(ECDHE-RSA-AES128-SHA),
+																curves:   %i(prime256v1),
+																dh:       1024
+														}).freeze
+	default_mixed_parameters = default_parameters.merge({
+																material: [[:ecdsa, :prime256v1], [:rsa, 1024]],
+																ciphers:  %i(ECDHE-ECDSA-AES128-SHA ECDHE-RSA-AES128-SHA),
+																curves:   %i(prime256v1),
+																dh:       1024
+														}).freeze
+	default_sslv2_parameters = default_parameters.merge({
+																methods:  :SSLv2,
+																material: [[:rsa, 1024]],
+																ciphers:  %i(RC4-MD5),
+																chain:    []
+														}).freeze
+	DEFAULT_PARAMETERS       = { ecdsa: default_ecdsa_parameters.freeze,
+								 rsa:   default_rsa_parameters.freeze,
+								 mixed: default_mixed_parameters.freeze,
+								 sslv2: default_sslv2_parameters.freeze }.freeze
+
+	def do_in_serv(type=:ecdsa, **kargs)
+		params = DEFAULT_PARAMETERS[type].dup
+		host, port = Helpers::DEFAULT_HOST, Helpers::DEFAULT_PORT
+		params.merge!({ host: host, port: port })
+		params.merge!(kargs) if kargs
+		tls_serv **params do
+			yield host, port if block_given?
+		end
 	end
 
 	def tls_serv(host: DEFAULT_HOST, port: DEFAULT_PORT,
@@ -140,7 +186,7 @@ module Helpers
 		end
 	end
 
-	def plain_serv(host='127.0.0.1', port=5000, process: nil, &block)
+	def plain_serv(host=DEFAULT_HOST, port=DEFAULT_PORT, process: nil, &block)
 		tcp_server = TCPServer.new host, port
 		begin
 			serv tcp_server, process, &block
@@ -149,10 +195,10 @@ module Helpers
 		end
 	end
 
-	def starttls_serv(key: DEFAULT_KEY, domain: 'localhost', # Key & certificate
+	def starttls_serv(key: DEFAULT_KEY, domain: DEFAULT_HOST, # Key & certificate
 					  version: DEFAULT_METHOD, ciphers: DEFAULT_CIPHERS, # TLS version and ciphers
 					  dh: DEFAULT_DH_SIZE, ecdh: DEFAULT_ECC_CURVE, # DHE & ECDHE
-					  host: '127.0.0.1', port: 5000, # Binding
+					  host: DEFAULT_HOST, port: DEFAULT_PORT, # Binding
 					  plain_process: nil, process: nil, &block)
 		context                      = context(key: key, domain: domain, version: version, ciphers: ciphers, dh: dh, ecdh: ecdh)
 		tcp_server                   = TCPServer.new host, port
@@ -203,8 +249,13 @@ module Helpers
 
 	def expect_grade_error(grades, host, ip, port, error)
 		server = grades[[host, ip, port]]
-		expect(server).to be_a CryptCheck::AnalysisFailure
+		expect(server).to be_a CryptCheck::Tls::AnalysisFailure
 		expect(server.to_s).to eq error
+	end
+
+	def expect_error(error, type, message)
+		expect(error).to be_a type
+		expect(error.message).to eq message
 	end
 end
 

@@ -5,7 +5,7 @@ module CryptCheck
 	module Tls
 		module Engine
 			TCP_TIMEOUT = 10
-			SSL_TIMEOUT = 2*TCP_TIMEOUT
+			TLS_TIMEOUT = 2*TCP_TIMEOUT
 
 			class TLSException < ::StandardError
 			end
@@ -21,13 +21,25 @@ module CryptCheck
 			class InappropriateFallback < TLSException
 			end
 			class Timeout < ::StandardError
+				def initialize(ip, port)
+					@message = "Timeout when connecting to #{ip}:#{port} (max #{TCP_TIMEOUT.humanize})"
+				end
+
+				def to_s
+					@message
+				end
 			end
 			class TLSTimeout < Timeout
+				def initialize(ip, port)
+					@message = "Timeout when TLS connecting to #{ip}:#{port} (max #{TLS_TIMEOUT.humanize})"
+				end
 			end
 			class ConnectionError < ::StandardError
 			end
 
-			attr_reader :certs, :keys, :dh, :supported_methods, :supported_ciphers, :supported_curves, :curves_preference
+			attr_reader :hostname, :ip, :family, :port, :certs, :keys, :dh,
+						:supported_methods, :supported_ciphers,
+						:supported_curves, :curves_preference
 
 			def initialize(hostname, ip, family, port)
 				@hostname, @ip, @family, @port = hostname, ip, family, port
@@ -64,6 +76,7 @@ module CryptCheck
 				Logger.info { '' }
 				Logger.info { 'Supported methods' }
 				@supported_methods = Method.select { |m| supported_method? m }
+				raise TLSNotAvailableException if @supported_methods.empty?
 			end
 
 			def supported_cipher?(method, cipher)
@@ -310,12 +323,14 @@ module CryptCheck
 					block_given? ? block.call(socket) : nil
 				rescue ::IO::WaitReadable
 					#Logger.trace { "Waiting for read to #{@ip}:#{@port}" }
-					raise Timeout, "Timeout when connect to #{@ip}:#{@port} (max #{TCP_TIMEOUT.humanize})" unless IO.select [socket], nil, nil, TCP_TIMEOUT
+					raise Timeout.new(@ip, @port) unless IO.select [socket], nil, nil, TCP_TIMEOUT
 					retry
 				rescue ::IO::WaitWritable
 					#Logger.trace { "Waiting for write to #{@ip}:#{@port}" }
-					raise Timeout, "Timeout when connect to #{@ip}:#{@port} (max #{TCP_TIMEOUT.humanize})" unless IO.select nil, [socket], nil, TCP_TIMEOUT
+					raise Timeout.new(@ip, @port) unless IO.select nil, [socket], nil, TCP_TIMEOUT
 					retry
+				rescue Errno::ECONNREFUSED => e
+					raise ConnectionError, e
 				ensure
 					socket.close
 				end
@@ -331,11 +346,11 @@ module CryptCheck
 					return block_given? ? block.call(ssl_socket) : nil
 				rescue ::OpenSSL::SSL::SSLErrorWaitReadable
 					#Logger.trace { "Waiting for SSL read to #{name}" }
-					raise TLSTimeout, "Timeout when TLS connect to #{@ip}:#{@port} (max #{SSL_TIMEOUT.humanize})" unless IO.select [ssl_socket], nil, nil, SSL_TIMEOUT
+					raise TLSTimeout.new(@ip, @port) unless IO.select [ssl_socket], nil, nil, TLS_TIMEOUT
 					retry
 				rescue ::OpenSSL::SSL::SSLErrorWaitWritable
 					#Logger.trace { "Waiting for SSL write to #{name}" }
-					raise TLSTimeout, "Timeout when TLS connect to #{@ip}:#{@port} (max #{SSL_TIMEOUT.humanize})" unless IO.select nil, [ssl_socket], nil, SSL_TIMEOUT
+					raise TLSTimeout.new(@ip, @port) unless IO.select nil, [ssl_socket], nil, TLS_TIMEOUT
 					retry
 				rescue ::OpenSSL::SSL::SSLError => e
 					case e.message
@@ -387,10 +402,15 @@ module CryptCheck
 				end
 
 				Logger.trace { "Try method=#{method} / ciphers=#{ciphers} / curves=#{curves} / scsv=#{fallback}" }
-				connect do |socket|
-					ssl_connect socket, ssl_context, method do |ssl_socket|
-						return block_given? ? block.call(ssl_socket) : ssl_socket
+				begin
+					connect do |socket|
+						ssl_connect socket, ssl_context, method do |ssl_socket|
+							return block_given? ? block.call(ssl_socket) : ssl_socket
+						end
 					end
+				rescue => e
+					Logger.trace { "Error occurs : #{e}" }
+					raise
 				end
 			end
 

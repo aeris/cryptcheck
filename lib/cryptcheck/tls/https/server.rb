@@ -19,7 +19,7 @@ module CryptCheck
 												   {
 														   follow_redirects: false,
 														   verify:           false,
-														   timeout:          SSL_TIMEOUT,
+														   timeout: TLS_TIMEOUT,
 														   ssl_version:      @supported_methods.first.to_sym,
 														   ciphers:          Cipher::ALL
 												   }
