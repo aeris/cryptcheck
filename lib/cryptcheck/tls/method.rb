@@ -36,12 +36,14 @@ module CryptCheck
 			include State
 
 			CHECKS = [
-					[:sslv2, -> (s) { s == :SSLv2 }, :critical],
-					[:sslv3, -> (s) { s == :SSLv3 }, :critical],
-					[:tlsv1_2, -> (s) { s == :TLSv1_2 }, :good]
+					[:sslv2, :critical, -> (s) { s == :SSLv2 }],
+					[:sslv3, :critical, -> (s) { s == :SSLv3 }],
+					[:tlsv1_0, :error, -> (s) { s == :TLSv1 }],
+					[:tlsv1_1, :warning, -> (s) { s == :TLSv1_1 }]
 			]
 
-			def checks
+			protected
+			def available_checks
 				CHECKS
 			end
 		end

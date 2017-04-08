@@ -16,7 +16,7 @@ module CryptCheck
 							when 'A', 'A+'
 								:best
 							when 'B', 'B+'
-								:perfect
+								:great
 							when 'C', 'C+'
 								:good
 							when 'E'
@@ -30,6 +30,10 @@ module CryptCheck
 						end
 
 				Logger.info { "Grade : #{self.grade.colorize color }" }
+			end
+
+			def to_h
+				{ checks: @checks, states: @states }
 			end
 
 			private
@@ -47,7 +51,7 @@ module CryptCheck
 				end
 
 				[[:good, 'D', 'C'],
-				 [:perfect, 'C', 'B'],
+				 [:great, 'C', 'B'],
 				 [:best, 'B', 'A']].each do |type, score1, score2|
 					expected = @checks[type]
 					unless expected.empty?

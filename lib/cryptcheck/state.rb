@@ -1,15 +1,31 @@
 module CryptCheck
 	module State
 		def states
-			@status ||= calculate_states
+			# Remove duplicated test for each level
+			@states ||= self.checks.group_by { |c| c[1] }.collect do |level, checks|
+				states = checks.group_by(&:first).collect do |name, checks|
+					states = checks.collect &:last
+					# true > false > nil
+					state  = if states.include? true
+								 true
+							 elsif states.include? false
+								 false
+							 else
+								 nil
+							 end
+					[name, state]
+				end.to_h
+				[level, states]
+			end.to_h
 		end
 
 		def status
-			State.status self.states.reject { |_, v| v.empty? }.keys
+			@status ||= State.status self.checks.select { |c| c.last == true }.collect { |c| c[1] }
 		end
 
-		LEVELS   = %i(best perfect good warning error critical).freeze
-		PROBLEMS = %i(warning error critical).freeze
+		BADS   = %i(critical error warning).freeze
+		GOODS  = %i(good great best).freeze
+		LEVELS = (BADS + GOODS).freeze
 
 		extend Enumerable
 
@@ -32,7 +48,7 @@ module CryptCheck
 
 		def self.problem(states)
 			states = self.convert states
-			self.min PROBLEMS, states
+			self.min BADS, states
 		end
 
 		def self.sort(states)
@@ -40,12 +56,19 @@ module CryptCheck
 		end
 
 		def self.compare(a, b)
-			LEVELS.find_index(a.status) <=> LEVELS.find_index(b.status)
+			a = LEVELS.find_index(a.status) || (LEVELS.size - 1) / 2.0
+			b = LEVELS.find_index(b.status) || (LEVELS.size - 1) / 2.0
+			a <=> b
 		end
 
 		def performed_checks
 			self.states # Force internal resolution
 			@performed_checks
+		end
+
+		protected
+		def checks
+			@checks ||= self.available_checks.collect { |c| perform_check c }.flatten(1) + children.collect(&:checks).flatten(1)
 		end
 
 		private
@@ -57,6 +80,11 @@ module CryptCheck
 		end
 
 		def self.min(levels, states)
+			return nil if states.empty?
+			(levels & states).first
+		end
+
+		def self.max(levels, states)
 			return nil if states.empty?
 			(levels & states).last
 		end
@@ -74,37 +102,27 @@ module CryptCheck
 		end
 
 		def perform_check(check)
-			name, check, level = check
-			result             = check.call self
-			return nil unless result
-			level ||= result
-			[level, name]
-		end
+			name, levels, check = check
+			result              = check.call self
+			case levels
+				when Symbol # Expected result is true/false/nil
+					return [[name, levels, result]]
+				else # Expected result is the best/worst case
+					# N/A, so return all levels as N/A
+					return levels.collect { |l| [name, l, nil] } if result.nil?
 
-		def personal_states
-			states           = State.empty
-			performed_checks = checks
-			performed_checks.each do |check|
-				level, name = perform_check check
-				next unless level
-				states[level] << name
+					checks = []
+					if BADS.include? result
+						checks += (GOODS & levels).collect { |l| [name, l, false] }
+						index  = BADS.index result
+						checks += (BADS & levels).collect { |l| [name, l, BADS.index(l) >= index] }
+					else
+						checks += (BADS & levels).collect { |l| [name, l, false] }
+						index  = GOODS.index result
+						checks += (GOODS & levels).collect { |l| [name, l, GOODS.index(l) <= index] }
+					end
+					return checks
 			end
-
-			performed_checks  = [
-					performed_checks
-							.collect { |n, _, l| [l, n] }
-							.group_by(&:first)
-							.map { |k, v| [k, v.collect(&:last)] }.to_h
-			] + children.collect(&:performed_checks)
-			@performed_checks = State.merge *performed_checks
-
-			states
-		end
-
-		def calculate_states
-			children_states = children.collect(&:states)
-			states          = [personal_states] + children_states
-			State.merge *states
 		end
 	end
 end

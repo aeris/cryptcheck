@@ -1,11 +1,11 @@
 module CryptCheck
 	class Logger
 		LEVELS  = %i(trace debug info warning error fatal none)
-		@@level = :info
 
 		def self.level=(level)
 			@@level = level.to_sym
 		end
+		self.level = ENV.fetch 'LOG', :info
 
 		def self.log(level, string=nil, output: $stdout, &block)
 			return unless enabled? level

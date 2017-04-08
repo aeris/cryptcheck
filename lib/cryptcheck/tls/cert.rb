@@ -107,15 +107,16 @@ module CryptCheck
 				@cert.issuer
 			end
 
+			protected
 			include State
 
 			CHECKS = WEAK_SIGN.collect do |level, hashes|
 				hashes.collect do |hash|
-					["#{hash}_sign".to_sym, -> (s) { s.send "#{hash}?" }, level]
+					["#{hash}_sign".to_sym, level, -> (s) { s.send "#{hash}?" }]
 				end
 			end.flatten(1).freeze
 
-			def checks
+			def available_checks
 				CHECKS
 			end
 

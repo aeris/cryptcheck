@@ -40,11 +40,13 @@ module CryptCheck
 				end
 			end
 
+			protected
 			include State
 
 			CHECKS = [].freeze
 
-			def checks
+			protected
+			def available_checks
 				CHECKS
 			end
 		end

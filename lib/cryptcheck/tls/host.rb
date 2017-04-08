@@ -44,25 +44,37 @@ module CryptCheck
 					end
 					[[@hostname, ip, @port], result]
 				end.to_h
+			# rescue StandardError
+			# 	raise
 			rescue => e
 				@error = e
 			end
 
-			def to_json
-				JSON.generate(@servers.collect do |host, result|
-					hostname, ip, _ = host
-					json            = {
-							hostname: hostname,
-							ip:       ip,
-					}
-					case result
-						when Grade
-							json[:result] = result.to_json
-						else
-							json[:error] = result.message
+			def to_h
+				target = {
+						target: { hostname: @hostname, port: @port },
+				}
+				if @error
+					target[:error] = @error
+				else
+					target[:hosts] = @servers.collect do |host, grade|
+						hostname, ip, port = host
+						host               = {
+								hostname: hostname,
+								ip:       ip,
+								port:     port
+						}
+						case grade
+							when Grade
+								host[:analysis] = grade.server.to_h
+								host[:status]   = grade.to_h
+							else
+								host[:error] = grade.message
+						end
+						host
 					end
-					json
-				end)
+				end
+				target
 			end
 
 			private

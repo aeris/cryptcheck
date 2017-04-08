@@ -104,7 +104,7 @@ module CryptCheck
 			def to_s(type = :long)
 				case type
 					when :long
-						states = self.states.collect { |k, vs| vs.collect { |v| v.to_s.colorize k } }.flatten.join ' '
+						states = self.states.collect { |k, vs| vs.select { |_, c| c == true }.collect { |v| v.first.to_s.colorize k } }.flatten.join ' '
 						"#{@method} #{@name.colorize self.status} [#{states}]"
 					when :short
 						@name.colorize self.status
@@ -227,28 +227,26 @@ module CryptCheck
 				end
 			end
 
+			protected
 			include State
 
 			CHECKS = [
-					[:dss, -> (c) { c.dss? }, :critical],
-					[:anonymous, -> (c) { c.anonymous? }, :critical],
-					[:null, -> (c) { c.null? }, :critical],
-					[:export, -> (c) { c.export? }, :critical],
-					[:des, -> (c) { c.des? }, :critical],
-					[:md5, -> (c) { c.md5? }, :critical],
+					[:dss, :critical, -> (c) { c.dss? }],
+					[:anonymous, :critical, -> (c) { c.anonymous? }],
+					[:null, :critical, -> (c) { c.null? }],
+					[:export, :critical, -> (c) { c.export? }],
+					[:des, :critical, -> (c) { c.des? }],
+					[:md5, :critical, -> (c) { c.md5? }],
+					[:rc4, :critical, -> (c) { c.rc4? }],
+					[:sweet32, :critical, -> (c) { c.sweet32? }],
 
-					[:rc4, -> (c) { c.rc4? }, :error],
-					[:sweet32, -> (c) { c.sweet32? }, :error],
+					[:pfs, :error, -> (c) { not c.pfs? }],
+					[:dhe, :warning, -> (c) { c.dhe? }],
 
-					[:no_pfs, -> (c) { not c.pfs? }, :warning],
-					[:pfs, -> (c) { c.pfs? }, :good],
-					[:dhe, -> (c) { c.dhe? }, :warning],
-					[:ecdhe, -> (c) { c.ecdhe? }, :good],
-
-					[:aead, -> (c) { c.aead? }, :good]
+					[:aead, :good, -> (c) { c.aead? }]
 			].freeze
 
-			def checks
+			def available_checks
 				CHECKS
 			end
 

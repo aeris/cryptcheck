@@ -48,11 +48,11 @@ module CryptCheck
 					hsts? and @hsts >= LONG_HSTS
 				end
 
-				def checks
+				protected
+				def available_checks
 					super + [
-							[:hsts, -> (s) { s.hsts? }, :good],
-							[:hsts_long, -> (s) { s.hsts_long? }, :perfect],
-							#[:must_staple, -> (s) { s.must_staple? }, :best],
+							[:hsts, %i(warning good great), -> (s) { s.hsts_long? ? :great : s.hsts? ? :good : :warning }],
+							#[:must_staple, :best, -> (s) { s.must_staple? }],
 					]
 				end
 			end

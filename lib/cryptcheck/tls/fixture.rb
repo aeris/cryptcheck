@@ -17,10 +17,11 @@ class ::OpenSSL::PKey::EC
 		"ECC #{self.size} bits"
 	end
 
+	protected
 	include ::CryptCheck::State
 
 	CHECKS = [
-			[:weak_key, -> (s) do
+			[:ecc, %i(critical error warning), -> (s) do
 				case s.size
 					when 0...160
 						:critical
@@ -32,7 +33,7 @@ class ::OpenSSL::PKey::EC
 			end]
 	].freeze
 
-	def checks
+	def available_checks
 		CHECKS
 	end
 end
@@ -50,10 +51,11 @@ class ::OpenSSL::PKey::RSA
 		"RSA #{self.size} bits"
 	end
 
+	protected
 	include ::CryptCheck::State
 
 	CHECKS = [
-			[:weak_key, -> (s) do
+			[:rsa, %i(critical error), -> (s) do
 				case s.size
 					when 0...1024
 						:critical
@@ -63,7 +65,7 @@ class ::OpenSSL::PKey::RSA
 			end]
 	].freeze
 
-	def checks
+	def available_checks
 		CHECKS
 	end
 end
@@ -84,10 +86,11 @@ class ::OpenSSL::PKey::DSA
 	include ::CryptCheck::State
 
 	CHECKS = [
-			[:weak_key, -> (_) { :critical }]
+			[:dsa, :critical, -> (_) { true }]
 	].freeze
 
-	def checks
+	protected
+	def available_checks
 		CHECKS
 	end
 end
@@ -105,10 +108,11 @@ class ::OpenSSL::PKey::DH
 		"DH #{self.size} bits"
 	end
 
+	protected
 	include ::CryptCheck::State
 
 	CHECKS = [
-			[:weak_dh, -> (s) do
+			[:dh, %i(critical error), -> (s) do
 				case s.size
 					when 0...1024
 						:critical
@@ -118,7 +122,8 @@ class ::OpenSSL::PKey::DH
 			end]
 	].freeze
 
-	def checks
+	protected
+	def available_checks
 		CHECKS
 	end
 end

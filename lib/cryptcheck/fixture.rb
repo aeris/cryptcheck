@@ -6,7 +6,7 @@ class String
 			error:    :red,
 			warning:  :light_red,
 			good:     :green,
-			perfect:  :blue,
+			great:  :blue,
 			best:     :magenta,
 			unknown:  { background: :black }
 	}

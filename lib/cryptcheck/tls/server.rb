@@ -61,24 +61,23 @@ module CryptCheck
 				@trusted
 			end
 
+			def to_h
+
+			end
+
+			protected
 			include State
 
 			CHECKS = [
-					[:tlsv1_2_only, -> (s) { s.tlsv1_2_only? }, :perfect],
-					[:pfs_only, -> (s) { s.pfs_only? }, :perfect],
-					[:ecdhe_only, -> (s) { s.ecdhe_only? }, :perfect],
-					#[:aead_only, -> (s) { s.aead_only? }, :best],
+					[:fallback_scsv, :good, -> (s) { s.fallback_scsv? }]
+			# [:tlsv1_2_only, -> (s) { s.tlsv1_2_only? }, :great],
+			# [:pfs_only, -> (s) { s.pfs_only? }, :great],
+			# [:ecdhe_only, -> (s) { s.ecdhe_only? }, :great],
+			#[:aead_only, -> (s) { s.aead_only? }, :best],
 			].freeze
 
-			def checks
-				checks = CHECKS
-				unless self.fallback_scsv? == nil
-					checks += [
-							[:no_fallback_scsv, -> (s) { not s.fallback_scsv? }, :error],
-							[:fallback_scsv, -> (s) { s.fallback_scsv? }, :good]
-					]
-				end
-				checks
+			def available_checks
+				CHECKS
 			end
 
 			def children

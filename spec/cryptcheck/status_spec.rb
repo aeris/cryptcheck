@@ -13,7 +13,7 @@ describe CryptCheck::State do
 					[:critical, :warning]  => :critical,
 					[:critical, nil]       => :critical,
 					[:critical, :good]     => :critical,
-					[:critical, :perfect]  => :critical,
+					[:critical, :great]    => :critical,
 					[:critical, :best]     => :critical,
 
 					[:error, :critical]    => :critical,
@@ -21,7 +21,7 @@ describe CryptCheck::State do
 					[:error, :warning]     => :error,
 					[:error, nil]          => :error,
 					[:error, :good]        => :error,
-					[:error, :perfect]     => :error,
+					[:error, :great]       => :error,
 					[:error, :best]        => :error,
 
 					[:warning, :critical]  => :critical,
@@ -29,7 +29,7 @@ describe CryptCheck::State do
 					[:warning, :warning]   => :warning,
 					[:warning, nil]        => :warning,
 					[:warning, :good]      => :warning,
-					[:warning, :perfect]   => :warning,
+					[:warning, :great]     => :warning,
 					[:warning, :best]      => :warning,
 
 					[:good, :critical]     => :critical,
@@ -37,23 +37,23 @@ describe CryptCheck::State do
 					[:good, :warning]      => :warning,
 					[:good, nil]           => :good,
 					[:good, :good]         => :good,
-					[:good, :perfect]      => :good,
+					[:good, :great]        => :good,
 					[:good, :best]         => :good,
 
-					[:perfect, :critical]  => :critical,
-					[:perfect, :error]     => :error,
-					[:perfect, :warning]   => :warning,
-					[:perfect, nil]        => :perfect,
-					[:perfect, :good]      => :good,
-					[:perfect, :perfect]   => :perfect,
-					[:perfect, :best]      => :perfect,
+					[:great, :critical]    => :critical,
+					[:great, :error]       => :error,
+					[:great, :warning]     => :warning,
+					[:great, nil]          => :great,
+					[:great, :good]        => :good,
+					[:great, :great]       => :great,
+					[:great, :best]        => :great,
 
 					[:best, :critical]     => :critical,
 					[:best, :error]        => :error,
 					[:best, :warning]      => :warning,
 					[:best, nil]           => :best,
 					[:best, :good]         => :good,
-					[:best, :perfect]      => :perfect,
+					[:best, :great]        => :great,
 					[:best, :best]         => :best
 			}.each do |levels, result|
 				got = CryptCheck::State.status levels
@@ -76,7 +76,7 @@ describe CryptCheck::State do
 					[:critical, :warning]  => :critical,
 					[:critical, nil]       => :critical,
 					[:critical, :good]     => :critical,
-					[:critical, :perfect]  => :critical,
+					[:critical, :great]    => :critical,
 					[:critical, :best]     => :critical,
 
 					[:error, :critical]    => :critical,
@@ -84,7 +84,7 @@ describe CryptCheck::State do
 					[:error, :warning]     => :error,
 					[:error, nil]          => :error,
 					[:error, :good]        => :error,
-					[:error, :perfect]     => :error,
+					[:error, :great]       => :error,
 					[:error, :best]        => :error,
 
 					[:warning, :critical]  => :critical,
@@ -92,7 +92,7 @@ describe CryptCheck::State do
 					[:warning, :warning]   => :warning,
 					[:warning, nil]        => :warning,
 					[:warning, :good]      => :warning,
-					[:warning, :perfect]   => :warning,
+					[:warning, :great]     => :warning,
 					[:warning, :best]      => :warning,
 
 					[:good, :critical]     => :critical,
@@ -100,23 +100,23 @@ describe CryptCheck::State do
 					[:good, :warning]      => :warning,
 					[:good, nil]           => nil,
 					[:good, :good]         => nil,
-					[:good, :perfect]      => nil,
+					[:good, :great]        => nil,
 					[:good, :best]         => nil,
 
-					[:perfect, :critical]  => :critical,
-					[:perfect, :error]     => :error,
-					[:perfect, :warning]   => :warning,
-					[:perfect, nil]        => nil,
-					[:perfect, :good]      => nil,
-					[:perfect, :perfect]   => nil,
-					[:perfect, :best]      => nil,
+					[:great, :critical]    => :critical,
+					[:great, :error]       => :error,
+					[:great, :warning]     => :warning,
+					[:great, nil]          => nil,
+					[:great, :good]        => nil,
+					[:great, :great]       => nil,
+					[:great, :best]        => nil,
 
 					[:best, :critical]     => :critical,
 					[:best, :error]        => :error,
 					[:best, :warning]      => :warning,
 					[:best, nil]           => nil,
 					[:best, :good]         => nil,
-					[:best, :perfect]      => nil,
+					[:best, :great]        => nil,
 					[:best, :best]         => nil
 			}.each do |levels, result|
 				got = CryptCheck::State.problem levels
@@ -133,7 +133,6 @@ describe CryptCheck::State do
 
 	describe '#states' do
 		def match_states(actual, **expected)
-			expected = ::CryptCheck::State.empty.merge expected
 			expect(actual.states).to eq expected
 		end
 
@@ -141,7 +140,7 @@ describe CryptCheck::State do
 			Class.new do
 				include ::CryptCheck::State
 
-				def checks
+				def available_checks
 					[]
 				end
 			end.new
@@ -150,11 +149,11 @@ describe CryptCheck::State do
 			Class.new do
 				include ::CryptCheck::State
 
-				def checks
+				def available_checks
 					[
-							[:foo, -> (_) { true }, :critical],
-							[:bar, -> (_) { :error }],
-							[:baz, -> (_) { false }]
+							[:foo, :critical, -> (_) { true }],
+							[:bar, :error, -> (_) { true }],
+							[:baz, :warning, -> (_) { false }]
 					]
 				end
 			end.new
@@ -163,8 +162,8 @@ describe CryptCheck::State do
 			child = Class.new do
 				include ::CryptCheck::State
 
-				def checks
-					[[:bar, -> (_) { :error }]]
+				def available_checks
+					[[:bar, :error, -> (_) { true }]]
 				end
 			end.new
 			Class.new do
@@ -174,8 +173,32 @@ describe CryptCheck::State do
 					@child = child
 				end
 
-				def checks
-					[[:foo, -> (_) { :critical }]]
+				def available_checks
+					[[:foo, :critical, -> (_) { true }]]
+				end
+
+				def children
+					[@child]
+				end
+			end.new child
+		end
+		let(:duplicated) do
+			child = Class.new do
+				include ::CryptCheck::State
+
+				def available_checks
+					[[:foo, :error, -> (_) { true }]]
+				end
+			end.new
+			Class.new do
+				include ::CryptCheck::State
+
+				def initialize(child)
+					@child = child
+				end
+
+				def available_checks
+					[[:foo, :critical, -> (_) { true }]]
 				end
 
 				def children
@@ -183,29 +206,103 @@ describe CryptCheck::State do
 				end
 			end.new(child)
 		end
-		let(:duplicated) do
-			child = Class.new do
+
+		it 'must return the level if single level specified' do
+			obj = Class.new do
 				include ::CryptCheck::State
 
-				def checks
-					[[:foo, -> (_) { :critical }]]
+				def available_checks
+					[[:foo, :critical, -> (_) { true }]]
 				end
 			end.new
-			Class.new do
+			expect(obj.states).to eq({ critical: { foo: true } })
+
+			obj = Class.new do
 				include ::CryptCheck::State
 
-				def initialize(child)
-					@child = child
+				def available_checks
+					[[:foo, :critical, -> (_) { false }]]
 				end
+			end.new
+			expect(obj.states).to eq({ critical: { foo: false } })
 
-				def checks
-					[[:foo, -> (_) { :critical }]]
-				end
+			obj = Class.new do
+				include ::CryptCheck::State
 
-				def children
-					[@child]
+				def available_checks
+					[[:foo, :critical, -> (_) { nil }]]
 				end
-			end.new(child)
+			end.new
+			expect(obj.states).to eq({ critical: { foo: nil } })
+		end
+
+		it 'must return all levels if multiple levels specified' do
+			obj = Class.new do
+				include ::CryptCheck::State
+
+				def available_checks
+					[[:foo, %i(critical error good great), -> (_) { :critical }]]
+				end
+			end.new
+			expect(obj.states).to eq({
+											 critical: { foo: true },
+											 error:    { foo: true },
+											 good:     { foo: false },
+											 great:    { foo: false } })
+
+			obj = Class.new do
+				include ::CryptCheck::State
+
+				def available_checks
+					[[:foo, %i(critical error good great), -> (_) { :error }]]
+				end
+			end.new
+			expect(obj.states).to eq({
+											 critical: { foo: false },
+											 error:    { foo: true },
+											 good:     { foo: false },
+											 great:    { foo: false } })
+
+
+			obj = Class.new do
+				include ::CryptCheck::State
+
+				def available_checks
+					[[:foo, %i(critical error good great), -> (_) { :great }]]
+				end
+			end.new
+			expect(obj.states).to eq({
+											 critical: { foo: false },
+											 error:    { foo: false },
+											 good:     { foo: true },
+											 great:    { foo: true } })
+
+
+			obj = Class.new do
+				include ::CryptCheck::State
+
+				def available_checks
+					[[:foo, %i(critical error good great), -> (_) { :good }]]
+				end
+			end.new
+			expect(obj.states).to eq({
+											 critical: { foo: false },
+											 error:    { foo: false },
+											 good:     { foo: true },
+											 great:    { foo: false } })
+
+			obj = Class.new do
+				include ::CryptCheck::State
+
+				def available_checks
+					[[:foo, %i(critical error good great), -> (_) { nil }]]
+				end
+			end.new
+			expect(obj.states).to eq({
+											 critical: { foo: nil },
+											 error:    { foo: nil },
+											 good:     { foo: nil },
+											 great:    { foo: nil } })
 		end
 
 		it 'must return empty if no check nor child' do
@@ -213,15 +310,15 @@ describe CryptCheck::State do
 		end
 
 		it 'must return personal status if no child' do
-			match_states childless, critical: %i(foo), error: %i(bar)
+			match_states childless, critical: { foo: true }, error: { bar: true }, warning: { baz: false }
 		end
 
 		it 'must return personal and children statuses' do
-			match_states parent, critical: %i(foo), error: %i(bar)
+			match_states parent, critical: { foo: true }, error: { bar: true}
 		end
 
 		it 'must return remove duplicated status' do
-			match_states duplicated, critical: %i(foo)
+			match_states duplicated, critical: { foo: true }, error: { foo: true }
 		end
 	end
 
@@ -230,7 +327,7 @@ describe CryptCheck::State do
 			empty = Class.new do
 				include ::CryptCheck::State
 
-				def checks
+				def available_checks
 					[]
 				end
 			end.new
@@ -241,8 +338,8 @@ describe CryptCheck::State do
 			empty = Class.new do
 				include ::CryptCheck::State
 
-				def checks
-					[[:foo, -> (_) { :critical }]]
+				def available_checks
+					[[:foo, :critical, -> (_) { true }]]
 				end
 			end.new
 			expect(empty.status).to be :critical
@@ -252,9 +349,9 @@ describe CryptCheck::State do
 			empty = Class.new do
 				include ::CryptCheck::State
 
-				def checks
-					[[:foo, -> (_) { :critical }],
-					 [:bar, -> (_) { :error }]]
+				def available_checks
+					[[:foo, :critical, -> (_) { true }],
+					 [:bar, :error, -> (_) { true }]]
 				end
 			end.new
 			expect(empty.status).to be :critical
