@@ -5,6 +5,23 @@ module CryptCheck
 				@grade ||= calculate_grade
 			end
 
+			GRADE_STATUS = {
+					V: :critical,
+					T: :critical,
+
+					G: :critical,
+					F: :error,
+					E: :warning,
+					D: nil,
+					C: :good,
+					B: :great,
+					A: :best,
+					:'A+' => :best
+			}
+			def grade_status
+				GRADE_STATUS.fetch self.grade, :unknown
+			end
+
 			private
 			def calculate_grade
 				return :V unless self.valid?
