@@ -48,6 +48,10 @@ module CryptCheck
 					hsts? and @hsts >= LONG_HSTS
 				end
 
+				def to_h
+					super.merge({ hsts: @hsts })
+				end
+
 				protected
 				def available_checks
 					super + [

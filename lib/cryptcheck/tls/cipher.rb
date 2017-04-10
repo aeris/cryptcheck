@@ -111,6 +111,15 @@ module CryptCheck
 				end
 			end
 
+			def to_h
+				hmac = self.hmac
+				{
+						protocol:   @method, name: self.name, key_exchange: self.kex, authentication: self.auth,
+						encryption: { name: self.encryption, mode: self.mode, block_size: self.block_size },
+						hmac:       { name: hmac.first, size: hmac.last }, states: self.states
+				}
+			end
+
 			def <=>(other)
 				compare = State.compare self, other
 				return compare unless compare == 0

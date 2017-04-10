@@ -139,7 +139,7 @@ module CryptCheck
 			def fetch_dh
 				@dh = @supported_ciphers.collect do |_, ciphers|
 					ciphers.values.collect(&:tmp_key).select { |d| d.is_a? OpenSSL::PKey::DH }
-				end.flatten
+				end.flatten.uniq &:fingerprint
 			end
 
 			def fetch_ecdsa_certs
@@ -455,21 +455,9 @@ module CryptCheck
 				@keys = @certs.collect &:key
 			end
 
-			def uniq_dh
-				dh, find = [], []
-				@dh.each do |k|
-					f = [k.type, k.size]
-					unless find.include? f
-						dh << k
-						find << f
-					end
-				end
-				@dh = dh
-			end
-
 			private
 			def uniq_supported_ciphers
-				@supported_ciphers.values.collect(&:keys).flatten.uniq
+				@uniq_supported_ciphers ||= @supported_ciphers.values.collect(&:keys).flatten.uniq
 			end
 		end
 	end

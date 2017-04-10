@@ -27,6 +27,10 @@ module CryptCheck
 				super.colorize colors
 			end
 
+			def to_h
+				{ protocol: self.to_sym, states: self.states }
+			end
+
 			alias :to_sym :__getobj__
 
 			def <=>(other)

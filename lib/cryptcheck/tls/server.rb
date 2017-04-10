@@ -62,7 +62,16 @@ module CryptCheck
 			end
 
 			def to_h
-
+				{
+						certs:            @certs.collect(&:to_h),
+						dh:               @dh.collect(&:to_h),
+						protocols:        @supported_methods.collect(&:to_h),
+						ciphers:          uniq_supported_ciphers.collect(&:to_h),
+						cipher_suites:    @preferences.collect { |p, cs| { protocol: p, cipher_suite: cs.collect(&:name) } },
+						curves:           @supported_curves.collect(&:to_h),
+						curve_preference: @curves_preference.collect(&:name),
+						fallback_scsv:    @fallback_scsv
+				}
 			end
 
 			protected

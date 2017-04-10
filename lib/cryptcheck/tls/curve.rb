@@ -29,6 +29,10 @@ module CryptCheck
 				@name
 			end
 
+			def to_h
+				{ name: @name, states: self.states }
+			end
+
 			def ==(other)
 				case other
 					when String

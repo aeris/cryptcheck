@@ -1,5 +1,11 @@
 require 'openssl'
 
+class ::OpenSSL::PKey::PKey
+	def fingerprint
+		::OpenSSL::Digest::SHA256.hexdigest self.to_der
+	end
+end
+
 class ::OpenSSL::PKey::EC
 	def type
 		:ecc
@@ -15,6 +21,10 @@ class ::OpenSSL::PKey::EC
 
 	def to_s
 		"ECC #{self.size} bits"
+	end
+
+	def to_h
+		{ type: :ecc, curve: self.curve, size: self.size, fingerprint: self.fingerprint, states: self.states }
 	end
 
 	protected
@@ -51,6 +61,10 @@ class ::OpenSSL::PKey::RSA
 		"RSA #{self.size} bits"
 	end
 
+	def to_h
+		{ type: :rsa, size: self.size, fingerprint: self.fingerprint, states: self.states }
+	end
+
 	protected
 	include ::CryptCheck::State
 
@@ -83,6 +97,10 @@ class ::OpenSSL::PKey::DSA
 		"DSA #{self.size} bits"
 	end
 
+	def to_h
+		{ type: :dsa, size: self.size, fingerprint: self.fingerprint, states: self.states }
+	end
+
 	include ::CryptCheck::State
 
 	CHECKS = [
@@ -106,6 +124,10 @@ class ::OpenSSL::PKey::DH
 
 	def to_s
 		"DH #{self.size} bits"
+	end
+
+	def to_h
+		{ size: self.size, fingerprint: self.fingerprint, states: self.states }
 	end
 
 	protected
