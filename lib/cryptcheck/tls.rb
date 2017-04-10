@@ -4,7 +4,7 @@ require 'parallel'
 module CryptCheck
 	module Tls
 		def self.analyze(host, port)
-			::CryptCheck.analyze host, port, TcpServer, Grade
+			::CryptCheck.analyze host, port, TcpServer
 		end
 
 		def self.key_to_s(key)

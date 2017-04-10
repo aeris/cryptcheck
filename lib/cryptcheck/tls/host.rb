@@ -36,7 +36,9 @@ module CryptCheck
 						server = ::Timeout.timeout MAX_ANALYSIS_DURATION do
 							server(*args)
 						end
-						grade server
+						Logger.info ''
+						Logger.info { "Grade : #{server.grade.to_s.colorize server.status}" }
+						server
 					rescue Engine::TLSException, Engine::ConnectionError, Engine::Timeout => e
 						AnalysisFailure.new e
 					rescue ::Timeout::Error
@@ -57,19 +59,20 @@ module CryptCheck
 				if @error
 					target[:error] = @error
 				else
-					target[:hosts] = @servers.collect do |host, grade|
+					target[:hosts] = @servers.collect do |host, server|
 						hostname, ip, port = host
 						host               = {
 								hostname: hostname,
 								ip:       ip,
 								port:     port
 						}
-						case grade
-							when Grade
-								host[:analysis] = grade.server.to_h
-								host[:status]   = grade.to_h
+						case server
+							when Server
+								host[:handshakes] = server.to_h
+								host[:states]   = server.states
+								host[:grade]   = server.grade
 							else
-								host[:error] = grade.message
+								host[:error] = server.message
 						end
 						host
 					end
@@ -90,10 +93,6 @@ module CryptCheck
 
 			def server(*args)
 				TcpServer.new *args
-			end
-
-			def grade(server)
-				Grade.new server
 			end
 		end
 	end

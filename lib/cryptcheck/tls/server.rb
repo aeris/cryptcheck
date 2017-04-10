@@ -85,6 +85,7 @@ module CryptCheck
 			end
 
 			include Engine
+			include Grade
 		end
 
 		class TcpServer < Server

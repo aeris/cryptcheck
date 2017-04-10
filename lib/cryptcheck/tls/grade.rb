@@ -1,71 +1,31 @@
 module CryptCheck
 	module Tls
-		class Grade
-			attr_reader :server, :grade
-
-			def initialize(server)
-				@server = server
-				@states = @server.states
-				@checks = @server.performed_checks
-				Logger.info { '' }
-				Logger.ap :checks, @checks
-				Logger.ap :states, @states
-				@grade = calculate_grade
-
-				color = case @grade
-							when 'A', 'A+'
-								:best
-							when 'B', 'B+'
-								:great
-							when 'C', 'C+'
-								:good
-							when 'E'
-								:warning
-							when 'F'
-								:error
-							when 'G'
-								:critical
-							when 'T', 'V'
-								:unknown
-						end
-
-				Logger.info { "Grade : #{self.grade.colorize color }" }
-			end
-
-			def to_h
-				{ checks: @checks, states: @states }
+		module Grade
+			def grade
+				@grade ||= calculate_grade
 			end
 
 			private
 			def calculate_grade
-				return 'V' unless @server.valid?
-				return 'T' unless @server.trusted?
+				return :V unless self.valid?
+				return :T unless self.trusted?
 
-				case
-					when !@states[:critical].empty?
-						return 'G'
-					when !@states[:error].empty?
-						return 'F'
-					when !@states[:warning].empty?
-						return 'E'
+				states = self.states
+
+				{ critical: :G, error: :F, warning: :E }.each do |type, grade|
+					return grade if states[type].any? { |s| s == true }
 				end
 
-				[[:good, 'D', 'C'],
-				 [:great, 'C', 'B'],
-				 [:best, 'B', 'A']].each do |type, score1, score2|
-					expected = @checks[type]
-					unless expected.empty?
-						available = @states[type]
-						return score1 if available.empty?
-						missed = expected - available
-						unless missed.empty?
-							Logger.info { "Missing #{type} : #{missed}" }
-							return score2
-						end
+				{good: %i(D C), great: %i(C B), best: %i(B A)}.each do |type, scores|
+					state = states[type]
+					return scores.first if state.all? { |s| s != false }
+					if state.any? { |s| s == false }
+						Logger.info { "Missing #{type} : #{states[type].select { |s| s == false }.collect &:key}" }
+						return scores.last
 					end
 				end
 
-				'A+'
+				:'A+'
 			end
 		end
 	end

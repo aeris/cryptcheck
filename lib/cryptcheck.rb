@@ -37,20 +37,17 @@ module CryptCheck
 		autoload :Https, 'cryptcheck/tls/https'
 		module Https
 			autoload :Server, 'cryptcheck/tls/https/server'
-			autoload :Grade, 'cryptcheck/tls/https/grade'
 			autoload :Host, 'cryptcheck/tls/https/host'
 		end
 
 		autoload :Xmpp, 'cryptcheck/tls/xmpp'
 		module Xmpp
 			autoload :Server, 'cryptcheck/tls/xmpp/server'
-			autoload :Grade, 'cryptcheck/tls/xmpp/grade'
 		end
 
 		autoload :Smtp, 'cryptcheck/tls/smtp'
 		module Smtp
 			autoload :Server, 'cryptcheck/tls/smtp/server'
-			autoload :Grade, 'cryptcheck/tls/smtp/grade'
 		end
 	end
 
@@ -59,7 +56,6 @@ module CryptCheck
 		autoload :Packet, 'cryptcheck/ssh/packet'
 		autoload :Server, 'cryptcheck/ssh/server'
 		autoload :SshNotSupportedServer, 'cryptcheck/ssh/server'
-		autoload :Grade, 'cryptcheck/ssh/grade'
 	end
 
 	private
@@ -106,7 +102,7 @@ module CryptCheck
 		end.to_h
 	end
 
-	def self.analyze(host, port, server, grade, *args, **kargs)
+	def self.analyze(host, port, server, *args, **kargs)
 		addresses = begin
 			addresses host
 		rescue ::SocketError => e
@@ -115,7 +111,7 @@ module CryptCheck
 			error = AnalysisFailure.new "Unable to resolve #{host}"
 			return { key => error }
 		end
-		analyze_addresses host, addresses, port, server, grade, *args, **kargs
+		analyze_addresses host, addresses, port, server, *args, **kargs
 	end
 
 	def self.analyze_hosts(hosts, template, output, groups: nil, &block)

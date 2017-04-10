@@ -61,11 +61,6 @@ module CryptCheck
 			a <=> b
 		end
 
-		def performed_checks
-			self.states # Force internal resolution
-			@performed_checks
-		end
-
 		protected
 		def checks
 			@checks ||= self.available_checks.collect { |c| perform_check c }.flatten(1) + children.collect(&:checks).flatten(1)
