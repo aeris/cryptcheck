@@ -88,7 +88,7 @@ module CryptCheck
 			end
 
 			def fingerprint
-				::OpenSSL::Digest::SHA256.hexdigest @cert.to_der
+				@cert.fingerprint
 			end
 
 			def key
@@ -120,10 +120,11 @@ module CryptCheck
 						fingerprint: self.fingerprint,
 						chain:       @chain.collect do |cert|
 							{
-									subject:  cert.subject.to_s,
-									serial:   cert.serial.to_s,
-									issuer:   cert.issuer.to_s,
-									lifetime: { not_before: cert.not_before, not_after: cert.not_after }
+									subject:     cert.subject.to_s,
+									serial:      cert.serial.to_s,
+									issuer:      cert.issuer.to_s,
+									fingerprint: cert.fingerprint,
+									lifetime:    { not_before: cert.not_before, not_after: cert.not_after }
 							}
 						end,
 						key:         self.key.to_h,

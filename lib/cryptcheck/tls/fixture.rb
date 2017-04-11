@@ -150,6 +150,12 @@ class ::OpenSSL::PKey::DH
 	end
 end
 
+class ::OpenSSL::X509::Certificate
+	def fingerprint
+		::OpenSSL::Digest::SHA256.hexdigest self.to_der
+	end
+end
+
 class ::OpenSSL::X509::Store
 	def add_chains(chains)
 		chains = [chains] unless chains.is_a? Enumerable
