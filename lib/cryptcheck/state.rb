@@ -2,7 +2,7 @@ module CryptCheck
 	module State
 		def states
 			# Remove duplicated test for each level
-			@states ||= self.checks.group_by { |c| c[1] }.collect do |level, checks|
+			@states ||= State.empty.merge(self.checks.group_by { |c| c[1] }.collect do |level, checks|
 				states = checks.group_by(&:first).collect do |name, checks|
 					states = checks.collect &:last
 					# true > false > nil
@@ -16,7 +16,7 @@ module CryptCheck
 					[name, state]
 				end.to_h
 				[level, states]
-			end.to_h
+			end.to_h)
 		end
 
 		def status
@@ -27,6 +27,13 @@ module CryptCheck
 		GOODS  = %i(good great best).freeze
 		LEVELS = (BADS + GOODS).freeze
 
+		def self.good?(level)
+			GOODS.include? level
+		end
+		def self.bad?(level)
+			BADS.include? level
+		end
+
 		extend Enumerable
 
 		def self.each(&block)
@@ -34,7 +41,7 @@ module CryptCheck
 		end
 
 		def self.empty
-			self.collect { |s| [s, []] }.to_h
+			self.collect { |s| [s, {}] }.to_h
 		end
 
 		def self.status(states)

@@ -5,6 +5,7 @@ module CryptCheck
 				@grade ||= calculate_grade
 			end
 
+			GRADES = %i(A+ A B+ B C+ C D E F G V T X)
 			GRADE_STATUS = {
 					V: :critical,
 					T: :critical,
@@ -14,7 +15,9 @@ module CryptCheck
 					E: :warning,
 					D: nil,
 					C: :good,
+					:'C+' => :good,
 					B: :great,
+					:'B+' => :great,
 					A: :best,
 					:'A+' => :best
 			}
