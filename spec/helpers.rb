@@ -226,14 +226,12 @@ module Helpers
 		end
 	end
 
-	def grade(grades, host, ip, port)
-		grades[[host, ip, port]]
+	def server(servers, host, ip, port)
+		servers[[host, ip, port]]
 	end
 
-	def expect_grade(grades, host, ip, port, family)
-		grade = grade grades, host, ip, port
-		expect(grade).to be_a CryptCheck::Tls::Grade
-		server = grade.server
+	def expect_grade(servers, host, ip, port, family)
+		server = server servers, host, ip, port
 		expect(server).to be_a CryptCheck::Tls::Server
 		expect(server.hostname).to eq host
 		expect(server.ip).to eq ip
@@ -244,11 +242,10 @@ module Helpers
 										when :ipv6
 											Socket::AF_INET6
 									end
-		[grade, server]
 	end
 
-	def expect_grade_error(grades, host, ip, port, error)
-		server = grades[[host, ip, port]]
+	def expect_grade_error(servers, host, ip, port, error)
+		server = servers[[host, ip, port]]
 		expect(server).to be_a CryptCheck::Tls::AnalysisFailure
 		expect(server.to_s).to eq error
 	end

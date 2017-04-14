@@ -2,7 +2,7 @@ module CryptCheck
 	module Tls
 		module Https
 			def self.analyze(host, port=443)
-				::CryptCheck.analyze host, port, Server, Grade
+				::CryptCheck.analyze host, port, Server
 			end
 
 			def self.analyze_file(input, output)

@@ -132,9 +132,11 @@ describe CryptCheck::State do
 	end
 
 	describe '#states' do
-		def match_states(actual, **expected)
-			expect(actual.states).to eq expected
+		def match_states(obj, **expected)
+			expected = CryptCheck::State.empty.merge expected
+			expect(obj.states).to eq expected
 		end
+
 
 		let(:empty) do
 			Class.new do
@@ -215,7 +217,7 @@ describe CryptCheck::State do
 					[[:foo, :critical, -> (_) { true }]]
 				end
 			end.new
-			expect(obj.states).to eq({ critical: { foo: true } })
+			match_states obj, critical: { foo: true }
 
 			obj = Class.new do
 				include ::CryptCheck::State
@@ -224,7 +226,7 @@ describe CryptCheck::State do
 					[[:foo, :critical, -> (_) { false }]]
 				end
 			end.new
-			expect(obj.states).to eq({ critical: { foo: false } })
+			match_states obj, critical: { foo: false }
 
 			obj = Class.new do
 				include ::CryptCheck::State
@@ -233,7 +235,7 @@ describe CryptCheck::State do
 					[[:foo, :critical, -> (_) { nil }]]
 				end
 			end.new
-			expect(obj.states).to eq({ critical: { foo: nil } })
+			match_states obj, critical: { foo: nil }
 		end
 
 		it 'must return all levels if multiple levels specified' do
@@ -244,11 +246,10 @@ describe CryptCheck::State do
 					[[:foo, %i(critical error good great), -> (_) { :critical }]]
 				end
 			end.new
-			expect(obj.states).to eq({
-											 critical: { foo: true },
-											 error:    { foo: true },
-											 good:     { foo: false },
-											 great:    { foo: false } })
+			match_states obj, critical: { foo: true },
+						 error:         { foo: true },
+						 good:          { foo: false },
+						 great:         { foo: false }
 
 			obj = Class.new do
 				include ::CryptCheck::State
@@ -257,11 +258,10 @@ describe CryptCheck::State do
 					[[:foo, %i(critical error good great), -> (_) { :error }]]
 				end
 			end.new
-			expect(obj.states).to eq({
-											 critical: { foo: false },
-											 error:    { foo: true },
-											 good:     { foo: false },
-											 great:    { foo: false } })
+			match_states obj, critical: { foo: false },
+						 error:         { foo: true },
+						 good:          { foo: false },
+						 great:         { foo: false }
 
 
 			obj = Class.new do
@@ -271,11 +271,10 @@ describe CryptCheck::State do
 					[[:foo, %i(critical error good great), -> (_) { :great }]]
 				end
 			end.new
-			expect(obj.states).to eq({
-											 critical: { foo: false },
-											 error:    { foo: false },
-											 good:     { foo: true },
-											 great:    { foo: true } })
+			match_states obj, critical: { foo: false },
+						 error:         { foo: false },
+						 good:          { foo: true },
+						 great:         { foo: true }
 
 
 			obj = Class.new do
@@ -285,11 +284,10 @@ describe CryptCheck::State do
 					[[:foo, %i(critical error good great), -> (_) { :good }]]
 				end
 			end.new
-			expect(obj.states).to eq({
-											 critical: { foo: false },
-											 error:    { foo: false },
-											 good:     { foo: true },
-											 great:    { foo: false } })
+			match_states obj, critical: { foo: false },
+						 error:         { foo: false },
+						 good:          { foo: true },
+						 great:         { foo: false }
 
 			obj = Class.new do
 				include ::CryptCheck::State
@@ -298,11 +296,10 @@ describe CryptCheck::State do
 					[[:foo, %i(critical error good great), -> (_) { nil }]]
 				end
 			end.new
-			expect(obj.states).to eq({
-											 critical: { foo: nil },
-											 error:    { foo: nil },
-											 good:     { foo: nil },
-											 great:    { foo: nil } })
+			match_states obj, critical: { foo: nil },
+						 error:         { foo: nil },
+						 good:          { foo: nil },
+						 great:         { foo: nil }
 		end
 
 		it 'must return empty if no check nor child' do
@@ -314,7 +311,7 @@ describe CryptCheck::State do
 		end
 
 		it 'must return personal and children statuses' do
-			match_states parent, critical: { foo: true }, error: { bar: true}
+			match_states parent, critical: { foo: true }, error: { bar: true }
 		end
 
 		it 'must return remove duplicated status' do

@@ -38,6 +38,7 @@ module CryptCheck
 						end
 						Logger.info ''
 						Logger.info { "Grade : #{server.grade.to_s.colorize server.grade_status}" }
+						Logger.info { server.states.ai }
 						server
 					rescue Engine::TLSException, Engine::ConnectionError, Engine::Timeout => e
 						AnalysisFailure.new e
@@ -46,8 +47,6 @@ module CryptCheck
 					end
 					[[@hostname, ip, @port], result]
 				end.to_h
-			rescue StandardError
-				raise
 			rescue => e
 				@error = e
 			end
@@ -69,8 +68,8 @@ module CryptCheck
 						case server
 							when Server
 								host[:handshakes] = server.to_h
-								host[:states]   = server.states
-								host[:grade]   = server.grade
+								host[:states]     = server.states
+								host[:grade]     = server.grade
 							else
 								host[:error] = server.message
 						end
