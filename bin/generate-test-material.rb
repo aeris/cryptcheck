@@ -7,7 +7,6 @@ require 'socket'
 require 'cryptcheck'
 
 LOG       = ::CryptCheck::Logger
-LOG.level = ENV['LOG'] || :info
 
 OpenSSL::PKey::EC.send :alias_method, :private?, :private_key?
 

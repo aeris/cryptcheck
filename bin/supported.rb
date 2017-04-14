@@ -14,3 +14,7 @@ CryptCheck::Tls::Cipher.each do |method, ciphers|
 		puts "  #{cipher}"
 	end
 end
+
+puts
+puts 'Supported curves'
+puts CryptCheck::Tls::Curve::SUPPORTED.collect(&:to_s).sort.join ' '
