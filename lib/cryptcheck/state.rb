@@ -30,8 +30,39 @@ module CryptCheck
 		def self.good?(level)
 			GOODS.include? level
 		end
+
 		def self.bad?(level)
 			BADS.include? level
+		end
+
+		def self.good_or_bad(level)
+			if self.good?(level)
+				:good
+			else
+				:bad
+			end
+		end
+
+		def self.state(states, level)
+			state =states[level].values.uniq
+			case State.good_or_bad(level)
+				when :bad
+					if state.include? true
+						true
+					else
+						false
+					end
+				when :good
+					if state.include? false
+						if state.include? true
+							:some
+						else
+							false
+						end
+					else
+						:all
+					end
+			end
 		end
 
 		extend Enumerable

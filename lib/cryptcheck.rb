@@ -4,12 +4,11 @@ require 'timeout'
 require 'yaml'
 
 module CryptCheck
-	PARALLEL_ANALYSIS     = 10
-
-
+	PARALLEL_ANALYSIS = 10
 
 	class NoTLSAvailableServer
 		attr_reader :server
+
 		def initialize(server)
 			@server = OpenStruct.new hostname: server
 		end
@@ -20,6 +19,7 @@ module CryptCheck
 	end
 
 	autoload :State, 'cryptcheck/state'
+	autoload :Grade, 'cryptcheck/grade'
 	autoload :Logger, 'cryptcheck/logger'
 	autoload :Tls, 'cryptcheck/tls'
 	module Tls
@@ -31,7 +31,6 @@ module CryptCheck
 		autoload :Server, 'cryptcheck/tls/server'
 		autoload :TcpServer, 'cryptcheck/tls/server'
 		autoload :UdpServer, 'cryptcheck/tls/server'
-		autoload :Grade, 'cryptcheck/tls/grade'
 		autoload :Host, 'cryptcheck/tls/host'
 
 		autoload :Https, 'cryptcheck/tls/https'
@@ -94,7 +93,7 @@ module CryptCheck
 				end
 			rescue => e
 				e = Tls::Server::TLSException.new "Too long analysis (max #{MAX_ANALYSIS_DURATION.humanize})" \
- 						if e.message == 'execution expired'
+ 						  if e.message == 'execution expired'
 				raise unless e.is_a? Tls::Server::TLSException
 				Logger.error e
 				[key, AnalysisFailure.new(e)]
@@ -107,7 +106,7 @@ module CryptCheck
 			addresses host
 		rescue ::SocketError => e
 			Logger::error e
-			key = [host, nil, port]
+			key   = [host, nil, port]
 			error = AnalysisFailure.new "Unable to resolve #{host}"
 			return { key => error }
 		end
