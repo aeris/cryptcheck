@@ -357,6 +357,11 @@ module CryptCheck
 		end
 
 		describe '::state' do
+			it 'must return false on bad case with nothing' do
+				states = { critical: {} }
+				expect(State.state states, :critical).to be_falsey
+			end
+
 			it 'must return false on bad case with only nil' do
 				states = { critical: { foo: nil } }
 				expect(State.state states, :critical).to be_falsey
@@ -370,6 +375,11 @@ module CryptCheck
 			it 'must return true on bad case with a single true' do
 				states = { critical: { foo: false, bar: nil, baz: true } }
 				expect(State.state states, :critical).to be_truthy
+			end
+
+			it 'must return :all on good case with nothing' do
+				states = { best: {} }
+				expect(State.state states, :best).to eq :all
 			end
 
 			it 'must return :all on good case with only nil' do
