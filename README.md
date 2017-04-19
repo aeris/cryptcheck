@@ -23,7 +23,7 @@ I recommend to use [RBEnv](https://github.com/sstephenson/rbenv) and it
 [Ruby-build](https://github.com/sstephenson/ruby-build) plugin to build a new
 ruby environment instead of your system one.
 
-Currently supported Ruby stack is v2.2.2.
+Currently supported Ruby stack is v2.3.0.
 
 ## OpenSSL library and Ruby extension
 To be able to test for (very) weak ciphers and to have access to DH parameters,
