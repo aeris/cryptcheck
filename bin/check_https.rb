@@ -3,4 +3,7 @@ $:.unshift File.expand_path File.join File.dirname(__FILE__), '../lib'
 require 'rubygems'
 require 'bundler/setup'
 require 'cryptcheck'
-::CryptCheck::Tls::Https::Host.new ARGV[0], ARGV.fetch(1, 443)
+
+args, port = ARGV
+args = [args, port] if port
+hosts = ::CryptCheck::Tls::Https.analyze *args

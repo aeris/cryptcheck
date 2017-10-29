@@ -1,0 +1,4 @@
+#!/bin/bash
+: ${RBENV_ROOT:=$HOME/.rbenv}
+DIR="$(readlink -m "$(dirname "$0")")"
+LD_LIBRARY_PATH="${DIR}/../lib" "${RBENV_ROOT}/shims/bundle" $*

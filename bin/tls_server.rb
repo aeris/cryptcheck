@@ -68,7 +68,7 @@ def certificate(key)
 end
 
 key = OpenSSL::PKey::RSA.new File.read 'config/rsa-2048.pem'
-#key = OpenSSL::PKey::EC.new('secp521r1').generate_key
+# key = OpenSSL::PKey::EC.new('prime256v1').generate_key
 cert = certificate key
 
 CryptCheck::Logger.info 'Starting server'
@@ -78,13 +78,13 @@ context = OpenSSL::SSL::SSLContext.new
 #context         = OpenSSL::SSL::SSLContext.new :TLSv1_1
 context.cert    = cert
 context.key     = key
-context.ciphers = ARGV[0] || 'ECDHE+AESGCM'
+context.ciphers = ARGV[0] || 'EECDH+AESGCM'
 
-dh                      = OpenSSL::PKey::DH.new File.read 'config/dh-4096.pem'
-context.tmp_dh_callback = proc { dh }
+#dh                      = OpenSSL::PKey::DH.new File.read 'config/dh-4096.pem'
+#context.tmp_dh_callback = proc { dh }
 #context.ecdh_curves = CryptCheck::Tls::Server::SUPPORTED_CURVES.join ':'
 #context.ecdh_curves = 'secp384r1:secp521r1:sect571r1'
-context.ecdh_curves     = 'secp384r1'
+#context.ecdh_curves     = 'prime256v1'
 #ecdh = OpenSSL::PKey::EC.new('secp384r1').generate_key
 #context.tmp_ecdh_callback = proc { ecdh }
 
@@ -92,6 +92,9 @@ host, port = '::', 5000
 tcp_server              = TCPServer.new host, port
 tls_server              = OpenSSL::SSL::SSLServer.new tcp_server, context
 ::CryptCheck::Logger.info "Server started on #{host}:#{port}"
+# ::CryptCheck::Logger.info "Supported ciphers:"
+# context.ciphers.each { |c| ::CryptCheck::Logger.info c.first }
+
 
 loop do
 	begin
@@ -101,15 +104,18 @@ loop do
 
 		dh = connection.tmp_key
 		cipher = connection.cipher
-		cipher = CryptCheck::Tls::Cipher.new method, cipher, dh
+		cipher = CryptCheck::Tls::Cipher.new method, cipher.first
 		states = cipher.states
-		text   = %i(critical error warning good perfect best).collect do |s|
-			states[s].collect { |t| t.to_s.colorize s }.join ' '
-		end.reject &:empty?
-		text   = text.join ' '
+		# p states
+		# text   = %i(critical error warning good perfect best).collect do |s|
+		# 	states[s].collect { |t| t.to_s.colorize s }.join ' '
+		# end.reject &:empty?
+		# text = []
+		# text   = text.join ' '
+		# text = ''
 
 		dh     = dh ? " (#{'PFS'.colorize :good} : #{CryptCheck::Tls.key_to_s dh})" : ''
-		CryptCheck::Logger.info { "#{CryptCheck::Tls.colorize method} / #{cipher.colorize}#{dh} [#{text}]" }
+		CryptCheck::Logger.info { "#{cipher}#{dh}" }
 
 		data       = connection.gets
 		if data
