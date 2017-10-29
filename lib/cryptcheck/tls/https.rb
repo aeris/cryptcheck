@@ -1,12 +1,11 @@
+require 'resolv'
+
 module CryptCheck
 	module Tls
 		module Https
-			def self.analyze(host, port=443)
-				::CryptCheck.analyze host, port, Server
-			end
-
-			def self.analyze_file(input, output)
-				::CryptCheck.analyze_file(input, 'output/https.erb', output) { |host| self.analyze host }
+			def self.analyze(hostname, port = 443)
+				host = Host.new hostname, port
+				Tls.aggregate host
 			end
 		end
 	end

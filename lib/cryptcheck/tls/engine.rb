@@ -4,6 +4,7 @@ require 'openssl'
 module CryptCheck
 	module Tls
 		module Engine
+			SLOW_DOWN   = ENV.fetch('SLOW_DOWN', '0').to_i
 			TCP_TIMEOUT = 10
 			TLS_TIMEOUT = 2*TCP_TIMEOUT
 
@@ -176,11 +177,15 @@ module CryptCheck
 						ecdsa = ciphers.keys.detect &:ecdsa?
 						next unless ecdsa
 						@supported_curves = Curve.select do |curve|
-							next true if curve == ecdsa_curve # ECDSA curve is always supported
+							if curve == ecdsa_curve
+								# ECDSA curve is always supported
+								Logger.info { "  ECC curve #{curve.name}" }
+								next true
+							end
 							begin
-								connection       = ssl_client method, ecdsa, curves: [curve, ecdsa_curve]
+								connection = ssl_client method, ecdsa, curves: [curve, ecdsa_curve]
 								# Not too fast !!!
-								# Handshake will **always** succeed, because ECDSA
+								# Handshake will **always** succeed, because ECDSA
 								# curve is always supported.
 								# So, we need to test for the real curve!
 								# Treaky case : if server preference is enforced,
@@ -248,7 +253,7 @@ module CryptCheck
 											 Logger.info { 'Curves preference : ' + 'client preference'.colorize(:warning) }
 											 :client
 										 else
-											 sort        = -> (a, b) do
+											 sort        = lambda do |a, b|
 												 curves = [a, b]
 												 if cipher.ecdsa?
 													 # In case of ECDSA, add the cert key at the end
@@ -273,10 +278,10 @@ module CryptCheck
 				if @supported_methods.size > 1
 					# We will try to connect to the not better supported method
 					method = @supported_methods[1]
-
 					begin
 						ssl_client method, fallback: true
-					rescue InappropriateFallback
+					rescue InappropriateFallback,
+							CipherNotAvailable # Seems some servers reply with "sslv3 alert handshake failure"...
 						@fallback_scsv = true
 					end
 				else
@@ -284,12 +289,12 @@ module CryptCheck
 				end
 
 				text, color = case @fallback_scsv
-								  when true
-									  ['supported', :good]
-								  when false
-									  ['not supported', :error]
-								  when nil
-									  ['not applicable', :unknown]
+							  when true
+								  ['supported', :good]
+							  when false
+								  ['not supported', :error]
+							  when nil
+								  ['not applicable', :unknown]
 							  end
 				Logger.info { 'Fallback SCSV : ' + text.colorize(color) }
 			end
@@ -311,6 +316,7 @@ module CryptCheck
 			end
 
 			private
+
 			def connect(&block)
 				socket   = ::Socket.new @family, sock_type
 				sockaddr = ::Socket.sockaddr_in @port, @ip
@@ -354,26 +360,26 @@ module CryptCheck
 					retry
 				rescue ::OpenSSL::SSL::SSLError => e
 					case e.message
-						when /state=SSLv2 read server hello A$/,
-								/state=SSLv3 read server hello A$/,
-								/state=SSLv3 read server hello A: wrong version number$/,
-								/state=SSLv3 read server hello A: tlsv1 alert protocol version$/,
-								/state=SSLv3 read server key exchange A: sslv3 alert handshake failure$/
-							raise MethodNotAvailable, e
-						when /state=SSLv2 read server hello A: peer error no cipher$/,
-								/state=error: no ciphers available$/,
-								/state=SSLv3 read server hello A: sslv3 alert handshake failure$/,
-								/state=error: missing export tmp dh key$/,
-								/state=error: wrong curve$/
-							raise CipherNotAvailable, e
-						when /state=SSLv3 read server hello A: tlsv1 alert inappropriate fallback$/
-							raise InappropriateFallback, e
+					when /state=SSLv2 read server hello A$/,
+							/state=SSLv3 read server hello A$/,
+							/state=SSLv3 read server hello A: wrong version number$/,
+							/state=SSLv3 read server hello A: tlsv1 alert protocol version$/,
+							/state=SSLv3 read server key exchange A: sslv3 alert handshake failure$/
+						raise MethodNotAvailable, e
+					when /state=SSLv2 read server hello A: peer error no cipher$/,
+							/state=error: no ciphers available$/,
+							/state=SSLv3 read server hello A: sslv3 alert handshake failure$/,
+							/state=error: missing export tmp dh key$/,
+							/state=error: wrong curve$/
+						raise CipherNotAvailable, e
+					when /state=SSLv3 read server hello A: tlsv1 alert inappropriate fallback$/
+						raise InappropriateFallback, e
 					end
 					raise
 				rescue ::SystemCallError => e
 					case e.message
-						when /^Connection reset by peer - SSL_connect$/
-							raise TLSNotAvailableException, e
+					when /^Connection reset by peer - SSL_connect$/
+						raise TLSNotAvailableException, e
 					end
 					raise
 				ensure
@@ -382,6 +388,7 @@ module CryptCheck
 			end
 
 			def ssl_client(method, ciphers = nil, curves: nil, fallback: false, &block)
+				sleep SLOW_DOWN if SLOW_DOWN > 0
 				ssl_context = ::OpenSSL::SSL::SSLContext.new method.to_sym
 				ssl_context.enable_fallback_scsv if fallback
 
@@ -394,7 +401,7 @@ module CryptCheck
 				ssl_context.ciphers = ciphers
 
 				if curves
-					curves                  = [curves] unless curves.is_a? Enumerable
+					curves = [curves] unless curves.is_a? Enumerable
 					# OpenSSL fails if the same curve is selected multiple times
 					# So because Array#uniq preserves order, remove the less prefered ones
 					curves                  = curves.collect(&:name).uniq.join ':'
@@ -421,14 +428,14 @@ module CryptCheck
 				# Let's begin the fun
 				# First, collect "standard" connections
 				# { method => { cipher => connection, ... }, ... }
-				certs  = @supported_ciphers.values.collect(&:values).flatten 1
+				certs = @supported_ciphers.values.collect(&:values).flatten 1
 				# Then, collect "ecdsa" connections
 				# { curve => connection, ... }
-				certs  += @ecdsa_certs.values
+				certs += @ecdsa_certs.values
 				# For anonymous cipher, there is no certificate at all
-				certs  = certs.reject { |c| c.peer_cert.nil? }
+				certs = certs.reject { |c| c.peer_cert.nil? }
 				# Then, fetch cert
-				certs  = certs.collect { |c| Cert.new c }
+				certs = certs.collect { |c| Cert.new c }
 				# Then, filter cert to keep uniq fingerprint
 				@certs = certs.uniq { |c| c.fingerprint }
 

@@ -96,7 +96,7 @@ module CryptCheck
 		def self.compare(a, b)
 			a = LEVELS.find_index(a.status) || (LEVELS.size - 1) / 2.0
 			b = LEVELS.find_index(b.status) || (LEVELS.size - 1) / 2.0
-			a <=> b
+			b <=> a
 		end
 
 		protected

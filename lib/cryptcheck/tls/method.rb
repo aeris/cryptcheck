@@ -31,7 +31,7 @@ module CryptCheck
 				{ protocol: self.to_sym, states: self.states }
 			end
 
-			alias :to_sym :__getobj__
+			alias to_sym __getobj__
 
 			def <=>(other)
 				EXISTING.find_index(self) <=> EXISTING.find_index(other)
@@ -44,7 +44,7 @@ module CryptCheck
 					[:sslv3, :critical, -> (s) { s == :SSLv3 }],
 					[:tlsv1_0, :error, -> (s) { s == :TLSv1 }],
 					[:tlsv1_1, :warning, -> (s) { s == :TLSv1_1 }]
-			]
+			].freeze
 
 			protected
 			def available_checks

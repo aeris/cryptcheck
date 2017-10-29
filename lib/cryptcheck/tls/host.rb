@@ -1,4 +1,5 @@
 require 'awesome_print'
+AwesomePrint.force_colors = true
 require 'timeout'
 
 module CryptCheck
@@ -31,7 +32,7 @@ module CryptCheck
 
 				first    = true
 				@servers = resolve.collect do |args|
-					_, ip, _, _ = args
+					_, ip = args
 					first ? (first = false) : Logger.info { '' }
 					result = begin
 						server = ::Timeout.timeout MAX_ANALYSIS_DURATION do
@@ -42,24 +43,31 @@ module CryptCheck
 						Logger.info { server.states.ai }
 						server
 					rescue Engine::TLSException, Engine::ConnectionError, Engine::Timeout => e
+						# Logger.error { e.backtrace }
+						Logger.error { e }
 						AnalysisFailure.new e
 					rescue ::Timeout::Error
+						# Logger.error { e.backtrace }
+						Logger.error { e }
 						TooLongAnalysis.new
 					end
 					[[@hostname, ip, @port], result]
 				end.to_h
 			rescue => e
+				# Logger.error { e.backtrace }
+				Logger.error { e }
 				@error = e
 			end
 
+			def key
+				{ hostname: @hostname, port: @port }
+			end
+
 			def to_h
-				target = {
-						target: { hostname: @hostname, port: @port },
-				}
 				if @error
-					target[:error] = @error
+					target = { error: @error }
 				else
-					target[:hosts] = @servers.collect do |host, server|
+					target = @servers.collect do |host, server|
 						hostname, ip, port = host
 						host               = {
 								hostname: hostname,
@@ -72,7 +80,7 @@ module CryptCheck
 								host[:states]     = server.states
 								host[:grade]     = server.grade
 							else
-								host[:error] = server.message
+								host[:error] = server.to_s
 						end
 						host
 					end
@@ -81,10 +89,11 @@ module CryptCheck
 			end
 
 			private
+
 			def resolve
 				begin
 					ip = IPAddr.new @hostname
-					return [[nil, ip.to_s, ip.family]]
+					return [[nil, ip.to_s, ip.family, @port]]
 				rescue IPAddr::InvalidAddressError
 				end
 				::Addrinfo.getaddrinfo(@hostname, nil, nil, :STREAM)

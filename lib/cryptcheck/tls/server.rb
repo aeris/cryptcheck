@@ -62,15 +62,32 @@ module CryptCheck
 			end
 
 			def to_h
+				ciphers_preference = @preferences.collect do |p, cs|
+					case cs
+					when :client
+						{ protocol: p, client: true }
+					when nil
+						{ protocol: p, na: true }
+					else
+						{ protocol: p, cipher_suite: cs.collect(&:to_h) }
+					end
+				end
+
+				curves_preferences = case @curves_preference
+									 when :client
+										 :client
+									 else
+										 @curves_preference&.collect(&:name)
+									 end
 				{
-						certs:            @certs.collect(&:to_h),
-						dh:               @dh.collect(&:to_h),
-						protocols:        @supported_methods.collect(&:to_h),
-						ciphers:          uniq_supported_ciphers.collect(&:to_h),
-						cipher_suites:    @preferences.collect { |p, cs| { protocol: p, cipher_suite: cs.collect(&:name) } },
-						curves:           @supported_curves.collect(&:to_h),
-						curve_preference: @curves_preference.collect(&:name),
-						fallback_scsv:    @fallback_scsv
+						certs:              @certs.collect(&:to_h),
+						dh:                 @dh.collect(&:to_h),
+						protocols:          @supported_methods.collect(&:to_h),
+						ciphers:            uniq_supported_ciphers.collect(&:to_h),
+						ciphers_preference: ciphers_preference,
+						curves:             @supported_curves.collect(&:to_h),
+						curves_preference:  curves_preferences,
+						fallback_scsv:      @fallback_scsv
 				}
 			end
 
@@ -78,11 +95,11 @@ module CryptCheck
 			include State
 
 			CHECKS = [
-					[:fallback_scsv, :good, -> (s) { s.fallback_scsv? }]
+					[:fallback_scsv, :good, -> (s) { s.fallback_scsv? }],
 			# [:tlsv1_2_only, -> (s) { s.tlsv1_2_only? }, :great],
 			# [:pfs_only, -> (s) { s.pfs_only? }, :great],
 			# [:ecdhe_only, -> (s) { s.ecdhe_only? }, :great],
-			#[:aead_only, -> (s) { s.aead_only? }, :best],
+			# [:aead_only, -> (s) { s.aead_only? }, :best],
 			].freeze
 
 			def available_checks

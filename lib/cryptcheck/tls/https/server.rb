@@ -6,7 +6,7 @@ module CryptCheck
 			class Server < Tls::TcpServer
 				attr_reader :hsts
 
-				def initialize(hostname, ip, family, port=443)
+				def initialize(hostname, ip, family, port = 443)
 					super
 					fetch_hsts
 				end
@@ -19,7 +19,7 @@ module CryptCheck
 												   {
 														   follow_redirects: false,
 														   verify:           false,
-														   timeout: TLS_TIMEOUT,
+														   timeout:          TLS_TIMEOUT,
 														   ssl_version:      @supported_methods.first.to_sym,
 														   ciphers:          Cipher::ALL
 												   }
@@ -31,7 +31,8 @@ module CryptCheck
 								return
 							end
 						end
-					rescue
+					rescue Exception => e
+						Logger.debug { e }
 					end
 
 					Logger.info { 'No HSTS'.colorize :warning }
@@ -42,7 +43,7 @@ module CryptCheck
 					!@hsts.nil?
 				end
 
-				LONG_HSTS = 6*30*24*60*60
+				LONG_HSTS = 6 * 30 * 24 * 60 * 60
 
 				def hsts_long?
 					hsts? and @hsts >= LONG_HSTS
@@ -53,10 +54,11 @@ module CryptCheck
 				end
 
 				protected
+
 				def available_checks
 					super + [
 							[:hsts, %i(warning good great), -> (s) { s.hsts_long? ? :great : s.hsts? ? :good : :warning }],
-							#[:must_staple, :best, -> (s) { s.must_staple? }],
+					#[:must_staple, :best, -> (s) { s.must_staple? }],
 					]
 				end
 			end

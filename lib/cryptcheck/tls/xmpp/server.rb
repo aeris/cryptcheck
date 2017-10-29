@@ -3,31 +3,31 @@ require 'nokogiri'
 module CryptCheck
 	module Tls
 		module Xmpp
-			TLS_NAMESPACE = 'urn:ietf:params:xml:ns:xmpp-tls'
-
 			class Server < Tls::TcpServer
 				attr_reader :domain
 
-				def initialize(hostname, family, ip, port=nil, domain: nil, type: :s2s)
+				def initialize(hostname, ip, family, port = nil, domain: nil, type: :s2s)
 					domain         ||= hostname
-					@type, @domain = type, domain
+					@domain, @type = domain, type
 					port           = case type
-										 when :s2s
-											 5269
-										 when :c2s
-											 5222
+									 when :s2s
+										 5269
+									 when :c2s
+										 5222
 									 end unless port
-					super hostname, family, ip, port
+					super hostname, ip, family, port
 					Logger.info { '' }
 					Logger.info { self.required? ? 'Required'.colorize(:good) : 'Not required'.colorize(:warning) }
 				end
 
+				TLS_NAMESPACE = 'urn:ietf:params:xml:ns:xmpp-tls'.freeze
+
 				def ssl_connect(socket, context, method, &block)
 					type = case @type
-							   when :s2s then
-								   'jabber:server'
-							   when :c2s then
-								   'jabber:client'
+						   when :s2s then
+							   'jabber:server'
+						   when :c2s then
+							   'jabber:client'
 						   end
 					socket.puts "<?xml version='1.0' ?><stream:stream xmlns:stream='http://etherx.jabber.org/streams' xmlns='#{type}' to='#{@domain}' version='1.0'>"
 					response = ''

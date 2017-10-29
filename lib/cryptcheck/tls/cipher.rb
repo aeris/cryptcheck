@@ -26,15 +26,17 @@ module CryptCheck
 					des:       %w(DES-CBC),
 					des3:      %w(3DES DES-CBC3),
 					aes:       %w(AES(128|256) AES-(128|256)),
+					aes128:    %w(AES128 AES-128),
+					aes256:    %w(AES256 AES-256),
 					camellia:  %w(CAMELLIA(128|256)),
 					seed:      %w(SEED),
 					idea:      %w(IDEA),
 					chacha20:  %w(CHACHA20),
 
-					#cbc:       %w(CBC),
+					# cbc:      %w(CBC),
 					gcm:       %w(GCM),
 					ccm:       %w(CCM)
-			}
+			}.freeze
 
 			attr_reader :method, :name
 
@@ -49,6 +51,7 @@ module CryptCheck
 			end
 
 			def self.[](method)
+				method = Method[method] if method.is_a? Symbol
 				SUPPORTED[method]
 			end
 
@@ -63,6 +66,15 @@ module CryptCheck
 				RUBY_EVAL
 			end
 
+			def self.aes?(cipher)
+				aes?(cipher) or aes?(cipher)
+			end
+
+			def aes?
+				aes128? or aes256?
+			end
+
+
 			def self.cbc?(cipher)
 				!aead? cipher
 			end
@@ -76,7 +88,7 @@ module CryptCheck
 			end
 
 			def aead?
-				gcm? or ccm?
+				gcm? or ccm? or chacha20?
 			end
 
 			def ssl?
@@ -96,7 +108,7 @@ module CryptCheck
 			end
 
 			def sweet32?
-				size = self.block_size
+				size = self.encryption[1]
 				return false unless size # Not block encryption
 				size <= 64
 			end
@@ -115,7 +127,7 @@ module CryptCheck
 				hmac = self.hmac
 				{
 						protocol:   @method, name: self.name, key_exchange: self.kex, authentication: self.auth,
-						encryption: { name: self.encryption, mode: self.mode, block_size: self.block_size },
+						encryption: self.encryption,
 						hmac:       { name: hmac.first, size: hmac.last }, states: self.states
 				}
 			end
@@ -177,23 +189,27 @@ module CryptCheck
 			def encryption
 				case
 					when chacha20?
-						:chacha20
-					when aes?
-						:aes
+						[:chacha20, nil, 128, self.mode]
+					when aes128?
+						[:aes, 128, 128, self.mode]
+					when aes256?
+						[:aes, 128, 128, self.mode]
 					when camellia?
-						:camellia
+						[:camellia, 128, 128, self.mode]
 					when seed?
-						:seed
+						[:seed, 128, 128, self.mode]
 					when idea?
-						:idea
+						[:idea, 64, 128, self.mode]
 					when des3?
-						:'3des'
+						[:'3des', 64, 112, self.mode]
 					when des?
-						:des
+						[:des, 64, 56, self.mode]
 					when rc4?
-						:rc4
+						[:rc4, nil, nil, self.mode]
 					when rc2?
-						:rc2
+						[:rc2, 64, 64, self.mode]
+					when null?
+						[nil, nil, nil, nil]
 				end
 			end
 
@@ -203,21 +219,12 @@ module CryptCheck
 						:gcm
 					when ccm?
 						:ccm
-					when rc4? || chacha20?
+					when chacha20?
+						:aead
+					when rc4?
 						nil
 					else
 						:cbc
-				end
-			end
-
-			def block_size
-				case self.encryption
-					when :'3des', :idea, :rc2
-						64
-					when :aes, :camellia, :seed
-						128
-					else
-						nil
 				end
 			end
 
@@ -265,7 +272,7 @@ module CryptCheck
 				@name <=> other.name
 			end
 
-			ALL       = 'ALL:COMPLEMENTOFALL'
+			ALL       = 'ALL:COMPLEMENTOFALL'.freeze
 			SUPPORTED = Method.collect do |m|
 				context         = ::OpenSSL::SSL::SSLContext.new m.to_sym
 				context.ciphers = ALL

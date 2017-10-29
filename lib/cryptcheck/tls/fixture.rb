@@ -33,12 +33,14 @@ class ::OpenSSL::PKey::EC
 	CHECKS = [
 			[:ecc, %i(critical error warning), -> (s) do
 				case s.size
-					when 0...160
-						:critical
-					when 160...192
-						:error
-					when 192...256
-						:warning
+				when 0...160
+					:critical
+				when 160...192
+					:error
+				when 192...256
+					:warning
+				else
+					false
 				end
 			end]
 	].freeze
@@ -69,12 +71,14 @@ class ::OpenSSL::PKey::RSA
 	include ::CryptCheck::State
 
 	CHECKS = [
-			[:rsa, %i(critical error), -> (s) do
+			[:rsa, %i(critical error), ->(s) do
 				case s.size
-					when 0...1024
-						:critical
-					when 1024...2048
-						:error
+				when 0...1024
+					:critical
+				when 1024...2048
+					:error
+				else
+					false
 				end
 			end]
 	].freeze
@@ -136,10 +140,12 @@ class ::OpenSSL::PKey::DH
 	CHECKS = [
 			[:dh, %i(critical error), -> (s) do
 				case s.size
-					when 0...1024
-						:critical
-					when 1024...2048
-						:error
+				when 0...1024
+					:critical
+				when 1024...2048
+					:error
+				else
+					false
 				end
 			end]
 	].freeze
@@ -161,17 +167,17 @@ class ::OpenSSL::X509::Store
 		chains = [chains] unless chains.is_a? Enumerable
 		chains.each do |chain|
 			case chain
-				when ::OpenSSL::X509::Certificate
-					self.add_cert chain
+			when ::OpenSSL::X509::Certificate
+				self.add_cert chain
+			else
+				if File.directory?(chain)
+					Dir.entries(chain)
+							.collect { |e| File.join chain, e }
+							.select { |e| File.file? e }
+							.each { |f| self.add_file f }
 				else
-					if File.directory?(chain)
-						Dir.entries(chain)
-								.collect { |e| File.join chain, e }
-								.select { |e| File.file? e }
-								.each { |f| self.add_file f }
-					else
-						self.add_file chain
-					end
+					self.add_file chain
+				end
 			end
 		end
 	end
