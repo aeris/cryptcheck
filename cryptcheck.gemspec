@@ -11,7 +11,7 @@ Gem::Specification.new do |spec|
 	spec.summary     = %q{Check best practices on crypto-stack implementation}
 	spec.description = %q{Verify if best practices are well implemented on current crypto-stack (TLS & SSH) protocol (HTTPS, SMTP, XMPP, SSH & VPN)}
 	spec.homepage    = 'https://tls.imirhil.fr'
-	spec.license     = 'AGPLv3+'
+	spec.license     = 'AGPL-3.0+'
 
 	if spec.respond_to?(:metadata)
 		spec.metadata['allowed_push_host'] = 'TODO: Set to "http://mygemserver.com"'
@@ -30,6 +30,7 @@ Gem::Specification.new do |spec|
 	spec.add_development_dependency 'rake', '~> 11.2', '>= 11.2.2'
 	spec.add_development_dependency 'rspec', '~> 3.2', '>= 3.2.0'
 	spec.add_development_dependency 'ffi', '~> 1.9', '>= 1.9.17'
+	spec.add_development_dependency 'pry-byebug'
 
 	spec.add_dependency 'httparty', '~> 0.13', '>= 0.13.3'
 	spec.add_dependency 'nokogiri', '~> 1.6', '>= 1.6.6'
