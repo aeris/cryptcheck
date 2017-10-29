@@ -1,11 +1,7 @@
 module CryptCheck::Tls
 	describe Server do
-		before :all do
-			FakeTime.freeze Time.utc(2000, 1, 1)
-		end
-
-		after :all do
-			FakeTime.unfreeze
+		around :each do |example|
+			FakeTime.freeze (Time.utc 2000, 1, 1) { example.run }
 		end
 
 		def server(*args, **kargs)

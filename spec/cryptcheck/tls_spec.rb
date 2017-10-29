@@ -11,5 +11,5 @@ describe CryptCheck::Tls do
 		CryptCheck::Tls.analyze *args
 	end
 
-	include_examples :analysis
+	# include_examples :analysis
 end

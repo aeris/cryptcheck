@@ -1,12 +1,14 @@
 module CryptCheck::Tls
 	describe Cert do
+		around :each do |example|
+			FakeTime.freeze(Time.utc 2000, 6, 1) { example.run }
+		end
+
 		describe '::trusted?' do
 			it 'must accept valid certificate' do
-				FakeTime.freeze Time.utc(2000, 1, 1) do
-					cert, *chain, ca = chain(%w(ecdsa-prime256v1 intermediate ca))
-					trust            = Cert.trusted? cert, chain, roots: ca
-					expect(trust).to eq :trusted
-				end
+				cert, *chain, ca = chain(%w(ecdsa-prime256v1 intermediate ca))
+				trust            = Cert.trusted? cert, chain, roots: ca
+				expect(trust).to eq :trusted
 			end
 
 			it 'must reject self signed certificate' do

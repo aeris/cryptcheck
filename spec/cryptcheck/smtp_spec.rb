@@ -25,5 +25,5 @@ describe CryptCheck::Tls::Smtp do
 		CryptCheck::Tls::Smtp.analyze *args
 	end
 
-	include_examples :analysis
+	# include_examples :analysis
 end
