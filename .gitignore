@@ -1,9 +1,8 @@
-*.iml
 *.gem
 *.pem
 .rakeTasks
-.idea/
 /build/
+/tmp/
 /coverage/
 /db/*.sqlite3
 /db/schema.rb
