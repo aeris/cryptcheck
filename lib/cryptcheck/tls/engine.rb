@@ -149,10 +149,11 @@ module CryptCheck
 				@supported_ciphers.each do |method, ciphers|
 					ecdsa = ciphers.keys.detect &:ecdsa?
 					next unless ecdsa
+					ecdsa_curve = Curve.new ciphers[ecdsa].tmp_key.curve
 
 					@ecdsa_certs = Curve.collect do |curve|
 						begin
-							connection = ssl_client method, ecdsa, curves: curve
+							connection = ssl_client method, ecdsa, curves: [curve, ecdsa_curve]
 							[curve, connection]
 						rescue TLSException
 							nil
