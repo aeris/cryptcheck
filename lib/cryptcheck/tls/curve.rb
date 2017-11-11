@@ -4,6 +4,7 @@ module CryptCheck
 			attr_reader :name
 
 			def initialize(name)
+				name = name.to_sym if name.is_a? String
 				@name = name
 			end
 

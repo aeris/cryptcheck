@@ -41,6 +41,7 @@ module CryptCheck
 			attr_reader :method, :name
 
 			def initialize(method, name)
+				name = name.first if name.is_a? Array
 				@method, @name = method, name
 			end
 
