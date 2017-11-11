@@ -156,7 +156,7 @@ module CryptCheck
 				context         = OpenSSL::SSL::SSLContext.new method
 				context.ciphers = cipher_suite
 				ciphers         = context.ciphers.collect { |c| self.new method, c }
-				self.sort ciphers
+				ciphers.sort
 			end
 
 			def kex
@@ -190,27 +190,27 @@ module CryptCheck
 			def encryption
 				case
 					when chacha20?
-						[:chacha20, nil, 128, self.mode]
+						[:chacha20, 256, :stream, self.mode]
 					when aes128?
 						[:aes, 128, 128, self.mode]
 					when aes256?
-						[:aes, 128, 128, self.mode]
+						[:aes, 256, 256, self.mode]
 					when camellia?
 						[:camellia, 128, 128, self.mode]
 					when seed?
 						[:seed, 128, 128, self.mode]
 					when idea?
-						[:idea, 64, 128, self.mode]
+						[:idea, 128, 64, self.mode]
 					when des3?
-						[:'3des', 64, 112, self.mode]
+						[:'3des', 112, 64, self.mode]
 					when des?
-						[:des, 64, 56, self.mode]
+						[:des, 56, 64, self.mode]
 					when rc4?
-						[:rc4, nil, nil, self.mode]
+						[:rc4, 128, :stream, self.mode]
 					when rc2?
 						[:rc2, 64, 64, self.mode]
 					when null?
-						[nil, nil, nil, nil]
+						[nil, 0, 0, nil]
 				end
 			end
 
