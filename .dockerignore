@@ -1,0 +1,7 @@
+.git
+.rbenv
+.gem
+.bundle
+.bash_profile
+.ruby-version
+build

@@ -60,6 +60,11 @@ Simply run the corresponding runner of what you want to test :
 If you want more information of what is going on under the hood, run the command
 with debug enabled, like ```bin/check_https example.org debug```
 
+## With Docker
+You can create the docker image with `docker build -t cryptcheck .`
+
+Execute with `docker run -t cryptcheck check_https example.org`
+
 ## Understanding results
 Rank goes from "A+" (perfect) to "F" (very weak).<br/>
 "M" means your certificate and your hostname mismatch.<br/>
