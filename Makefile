@@ -11,11 +11,12 @@ RUBY_OPENSSL_EXT_DIR = $(RUBY_DIR)/ext/openssl
 RBENV_DIR = $(RBENV_ROOT)/versions/$(RUBY_VERSION)-cryptcheck
 RUBY_LIB_DIR = $(RBENV_DIR)/lib/ruby/$(RUBY_MAJOR_VERSION).0
 RBENV_ROOT ?= ~/.rbenv
-export LIBRARY_PATH = $(PWD)/lib
-export C_INCLUDE_PATH = $(PWD)/$(OPENSSL_DIR)/include
-export LD_LIBRARY_PATH = $(PWD)/lib
+export LIBRARY_PATH ?= $(PWD)/lib
+export C_INCLUDE_PATH ?= $(PWD)/$(OPENSSL_DIR)/include
+export LD_LIBRARY_PATH ?= $(PWD)/lib
 
 .SECONDARY:
+.SUFFIXES:
 
 all: libs ext
 
@@ -56,6 +57,9 @@ $(OPENSSL_DIR)/libssl.so \
 $(OPENSSL_DIR)/libcrypto.so: $(OPENSSL_DIR)/Makefile
 	$(MAKE) -C $(OPENSSL_DIR)
 
+install-openssl: $(OPENSSL_DIR)/Makefile
+	$(MAKE) -C $(OPENSSL_DIR) install
+
 LIBS = lib/libssl.so lib/libcrypto.so lib/libssl.so.$(OPENSSL_LIB_VERSION) lib/libcrypto.so.$(OPENSSL_LIB_VERSION)
 lib/%.so: $(OPENSSL_DIR)/%.so
 	cp $< $@
@@ -63,21 +67,35 @@ lib/%.so.$(OPENSSL_LIB_VERSION): lib/%.so
 	ln -fs $(notdir $(subst .$(OPENSSL_LIB_VERSION),,$@)) $@
 libs: $(LIBS)
 
+$(RBENV_ROOT)/:
+	git clone https://github.com/rbenv/rbenv/ $@ -b v1.1.1 --depth 1
+
+$(RBENV_ROOT)/plugins/ruby-build/: | $(RBENV_ROOT)/
+	git clone https://github.com/rbenv/ruby-build/ $@ -b v20171215 --depth 1
+
+$(RBENV_ROOT)/plugins/ruby-build/share/ruby-build/$(RUBY_VERSION): | $(RBENV_ROOT)/plugins/ruby-build/
+
 build/$(RUBY_VERSION)-cryptcheck: $(RBENV_ROOT)/plugins/ruby-build/share/ruby-build/$(RUBY_VERSION)
 	cp $< $@
-install-ruby: build/$(RUBY_VERSION)-cryptcheck $(LIBS) | $(OPENSSL_DIR)/
+
+install-rbenv: build/$(RUBY_VERSION)-cryptcheck
+
+install-rbenv-cryptcheck: build/$(RUBY_VERSION)-cryptcheck $(LIBS) | $(OPENSSL_DIR)/
 	cat tmp_key.patch set_ecdh_curves.patch fallback_scsv.patch multiple_certs.patch | \
 	RUBY_BUILD_CACHE_PATH=$(PWD)/build \
 	RUBY_BUILD_DEFINITIONS=$(PWD)/build \
 	rbenv install -fp $(RUBY_VERSION)-cryptcheck
-	rbenv sequester $(RUBY_VERSION)-cryptcheck
+	# rbenv sequester $(RUBY_VERSION)-cryptcheck
 	rbenv local $(RUBY_VERSION)-cryptcheck
 	gem install bundler
-	bundle
+	bundle install --without test development
+
 $(RUBY_LIB_DIR)/openssl/ssl.rb: $(RUBY_OPENSSL_EXT_DIR)/lib/openssl/ssl.rb
 	cp $< $@
+
 $(RUBY_LIB_DIR)/x86_64-linux/openssl.so: $(RUBY_OPENSSL_EXT_DIR)/openssl.so
 	cp $< $@
+
 sync-ruby: $(RUBY_LIB_DIR)/openssl/ssl.rb $(RUBY_LIB_DIR)/x86_64-linux/openssl.so
 
 build/$(RUBY_NAME).tar.xz: | build/
@@ -85,12 +103,12 @@ build/$(RUBY_NAME).tar.xz: | build/
 
 $(RUBY_DIR)/: build/$(RUBY_NAME).tar.xz
 	tar -C build -xf $<
+	patch -d $@ -p1 < tmp_key.patch
+	patch -d $@ -p1 < set_ecdh_curves.patch
+	patch -d $@ -p1 < fallback_scsv.patch
+	patch -d $@ -p1 < multiple_certs.patch
 
 $(RUBY_OPENSSL_EXT_DIR)/Makefile: libs | $(RUBY_DIR)/
-	patch -d $(RUBY_DIR)/ -p1 < tmp_key.patch
-	patch -d $(RUBY_DIR)/ -p1 < set_ecdh_curves.patch
-	patch -d $(RUBY_DIR)/ -p1 < fallback_scsv.patch
-	patch -d $(RUBY_DIR)/ -p1 < multiple_certs.patch
 	cd $(RUBY_OPENSSL_EXT_DIR) && ruby extconf.rb
 
 $(RUBY_OPENSSL_EXT_DIR)/openssl.so: $(LIBS) $(RUBY_OPENSSL_EXT_DIR)/Makefile
@@ -100,6 +118,9 @@ lib/openssl.so: $(RUBY_OPENSSL_EXT_DIR)/openssl.so
 	cp $< $@
 
 ext: lib/openssl.so
+
+install-ruby: $(RUBY_DIR)/
+	cd $(RUBY_DIR)/ && ./configure --enable-shared --disable-install-rdoc && make install
 
 spec/faketime/libfaketime.so: spec/faketime/faketime.c spec/faketime/faketime.h
 	$(CC) $^ -o $@ -shared -fPIC -ldl -std=c99 -Werror -Wall

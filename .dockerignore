@@ -1,0 +1,8 @@
+Dockerfile
+.git/*
+build/*
+tmp/*
+log/*
+output/*
+lib/*.so
+lib/*.so.*
