@@ -194,7 +194,7 @@ module CryptCheck
 					when aes128?
 						[:aes, 128, 128, self.mode]
 					when aes256?
-						[:aes, 256, 256, self.mode]
+						[:aes, 256, 128, self.mode]
 					when camellia?
 						[:camellia, 128, 128, self.mode]
 					when seed?
