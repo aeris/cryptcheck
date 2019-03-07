@@ -20,6 +20,10 @@ You can use Docker to run it safely for your system:
 docker run --net=host --rm aeris22/cryptcheck:v2 bin/check_https.rb example.org
 ```
 
+You can also use https://framagit.org/framasoft/cryptcheck-dashboard to use
+[GitlabCI](https://docs.gitlab.com/ee/ci/README.html) to test your websites and publish
+a dashboard on [Gitlab pages](https://docs.gitlab.com/ee/user/project/pages/).
+
 # Setup
 ## Ruby
 You need a fully operationnal Ruby stack.
