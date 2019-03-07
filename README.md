@@ -14,6 +14,12 @@ today totally deprecated ciphers.
 Don’t deploy it on production machine to avoid any security troubles, or use VM
 to isolate them !
 
+You can use Docker to run it safely for your system:
+
+```
+docker run --net=host --rm aeris22/cryptcheck:v2 bin/check_https.rb example.org
+```
+
 # Setup
 ## Ruby
 You need a fully operationnal Ruby stack.
