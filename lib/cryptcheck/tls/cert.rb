@@ -1,8 +1,9 @@
 module CryptCheck
 	module Tls
 		class Cert
-			DEFAULT_CA_DIRECTORIES = [
-					'/usr/share/ca-certificates/mozilla'
+			DEFAULT_CA_DIRECTORIES = %w[
+					/usr/share/ca-certificates/mozilla
+					/etc/ca-certificates/extracted/cadir
 			]
 
 			SIGNATURE_ALGORITHMS      = %i(md2 mdc2 md4 md5 ripemd160 sha sha1 sha2 rsa dss ecc ghost).freeze

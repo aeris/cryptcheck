@@ -282,7 +282,8 @@ module CryptCheck
 					begin
 						ssl_client method, fallback: true
 					rescue InappropriateFallback,
-							CipherNotAvailable # Seems some servers reply with "sslv3 alert handshake failure"...
+							CipherNotAvailable, # Seems some servers reply with "sslv3 alert handshake failure"…
+							MethodNotAvailable, # Seems some servers reply with "wrong version number"…
 						@fallback_scsv = true
 					end
 				else

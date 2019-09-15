@@ -170,6 +170,7 @@ class ::OpenSSL::X509::Store
 			when ::OpenSSL::X509::Certificate
 				self.add_cert chain
 			else
+				next unless File.exists? chain
 				if File.directory?(chain)
 					Dir.entries(chain)
 							.collect { |e| File.join chain, e }

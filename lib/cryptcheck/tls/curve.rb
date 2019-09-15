@@ -4,7 +4,7 @@ module CryptCheck
 			attr_reader :name
 
 			def initialize(name)
-				name = name.to_sym if name.is_a? String
+				name  = name.to_sym if name.is_a? String
 				@name = name
 			end
 
@@ -36,12 +36,12 @@ module CryptCheck
 
 			def ==(other)
 				case other
-					when String
-						@name == other.to_sym
-					when Symbol
-						@name == other
-					else
-						@name == other.name
+				when String
+					@name == other.to_sym
+				when Symbol
+					@name == other
+				else
+					@name == other.name
 				end
 			end
 

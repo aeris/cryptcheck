@@ -11,4 +11,5 @@
 /lib/*.so.*
 /.ruby-version
 /rakefile
+.bundle/
 Gemfile.lock

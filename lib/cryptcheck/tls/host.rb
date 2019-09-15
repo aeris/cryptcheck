@@ -46,17 +46,20 @@ module CryptCheck
 						# Logger.error { e.backtrace }
 						Logger.error { e }
 						AnalysisFailure.new e
+						raise
 					rescue ::Timeout::Error
 						# Logger.error { e.backtrace }
 						Logger.error { e }
 						TooLongAnalysis.new
+						raise
 					end
 					[[@hostname, ip, @port], result]
 				end.to_h
 			rescue => e
-				# Logger.error { e.backtrace }
+				Logger.error { e.backtrace }
 				Logger.error { e }
 				@error = e
+				raise
 			end
 
 			def key
