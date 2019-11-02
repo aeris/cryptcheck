@@ -1,6 +1,8 @@
---- a/lib/resolv.rb	2017-10-29 13:02:49.280729153 +0100
-+++ b/lib/resolv.rb	2017-10-29 13:02:37.340717366 +0100
-@@ -1644,7 +1641,7 @@
+diff --git a/lib/resolv.rb b/lib/resolv.rb
+index c977584..93afebb 100644
+--- a/lib/resolv.rb
++++ b/lib/resolv.rb
+@@ -1677,7 +1677,7 @@ def get_rr
            name = self.get_name
            type, klass, ttl = self.get_unpack('nnN')
            typeclass = Resource.get_class(type, klass)
@@ -9,127 +11,127 @@
            res.instance_variable_set :@ttl, ttl
            return name, ttl, res
          end
-@@ -1659,7 +1656,7 @@
+@@ -1692,7 +1692,7 @@ def encode_rdata(msg) # :nodoc:
          raise EncodeError.new("#{self.class} is query.")
        end
-
+ 
 -      def self.decode_rdata(msg) # :nodoc:
 +      def self.decode_rdata(msg, len) # :nodoc:
          raise DecodeError.new("#{self.class} is query.")
        end
      end
-@@ -1680,7 +1677,7 @@
+@@ -1713,7 +1713,7 @@ def encode_rdata(msg) # :nodoc:
          raise NotImplementedError.new
        end
-
+ 
 -      def self.decode_rdata(msg) # :nodoc:
 +      def self.decode_rdata(msg, len) # :nodoc:
          raise NotImplementedError.new
        end
-
-@@ -1737,7 +1734,7 @@
+ 
+@@ -1770,7 +1770,7 @@ def encode_rdata(msg) # :nodoc:
            msg.put_bytes(data)
          end
-
+ 
 -        def self.decode_rdata(msg) # :nodoc:
 +        def self.decode_rdata(msg, _) # :nodoc:
            return self.new(msg.get_bytes)
          end
-
-@@ -1772,7 +1769,7 @@
+ 
+@@ -1805,7 +1805,7 @@ def encode_rdata(msg) # :nodoc:
            msg.put_name(@name)
          end
-
+ 
 -        def self.decode_rdata(msg) # :nodoc:
 +        def self.decode_rdata(msg, _) # :nodoc:
            return self.new(msg.get_name)
          end
        end
-@@ -1860,7 +1857,7 @@
+@@ -1893,7 +1893,7 @@ def encode_rdata(msg) # :nodoc:
            msg.put_pack('NNNNN', @serial, @refresh, @retry, @expire, @minimum)
          end
-
+ 
 -        def self.decode_rdata(msg) # :nodoc:
 +        def self.decode_rdata(msg, _) # :nodoc:
            mname = msg.get_name
            rname = msg.get_name
            serial, refresh, retry_, expire, minimum = msg.get_unpack('NNNNN')
-@@ -1906,7 +1903,7 @@
+@@ -1939,7 +1939,7 @@ def encode_rdata(msg) # :nodoc:
            msg.put_string(@os)
          end
-
+ 
 -        def self.decode_rdata(msg) # :nodoc:
 +        def self.decode_rdata(msg, _) # :nodoc:
            cpu = msg.get_string
            os = msg.get_string
            return self.new(cpu, os)
-@@ -1940,7 +1937,7 @@
+@@ -1973,7 +1973,7 @@ def encode_rdata(msg) # :nodoc:
            msg.put_name(@emailbx)
          end
-
+ 
 -        def self.decode_rdata(msg) # :nodoc:
 +        def self.decode_rdata(msg, _) # :nodoc:
            rmailbx = msg.get_string
            emailbx = msg.get_string
            return self.new(rmailbx, emailbx)
-@@ -1978,7 +1975,7 @@
+@@ -2011,7 +2011,7 @@ def encode_rdata(msg) # :nodoc:
            msg.put_name(@exchange)
          end
-
+ 
 -        def self.decode_rdata(msg) # :nodoc:
 +        def self.decode_rdata(msg, _) # :nodoc:
            preference, = msg.get_unpack('n')
            exchange = msg.get_name
            return self.new(preference, exchange)
-@@ -2012,7 +2009,7 @@
+@@ -2045,7 +2045,7 @@ def encode_rdata(msg) # :nodoc:
            msg.put_string_list(@strings)
          end
-
+ 
 -        def self.decode_rdata(msg) # :nodoc:
 +        def self.decode_rdata(msg, _) # :nodoc:
            strings = msg.get_string_list
            return self.new(*strings)
          end
-@@ -2089,7 +2086,7 @@
+@@ -2122,7 +2122,7 @@ def encode_rdata(msg) # :nodoc:
            msg.put_bytes(@altitude.altitude)
          end
-
+ 
 -        def self.decode_rdata(msg) # :nodoc:
 +        def self.decode_rdata(msg, _) # :nodoc:
            version    = msg.get_bytes(1)
            ssize      = msg.get_bytes(1)
            hprecision = msg.get_bytes(1)
-@@ -2159,7 +2156,7 @@
+@@ -2192,7 +2192,7 @@ def encode_rdata(msg) # :nodoc:
              msg.put_bytes(@address.address)
            end
-
+ 
 -          def self.decode_rdata(msg) # :nodoc:
 +          def self.decode_rdata(msg, _) # :nodoc:
              return self.new(IPv4.new(msg.get_bytes(4)))
            end
          end
-@@ -2204,7 +2201,7 @@
+@@ -2237,7 +2237,7 @@ def encode_rdata(msg) # :nodoc:
              msg.put_bytes(@bitmap)
            end
-
+ 
 -          def self.decode_rdata(msg) # :nodoc:
 +          def self.decode_rdata(msg, _) # :nodoc:
              address = IPv4.new(msg.get_bytes(4))
              protocol, = msg.get_unpack("n")
              bitmap = msg.get_bytes
-@@ -2236,7 +2233,7 @@
+@@ -2269,7 +2269,7 @@ def encode_rdata(msg) # :nodoc:
              msg.put_bytes(@address.address)
            end
-
+ 
 -          def self.decode_rdata(msg) # :nodoc:
 +          def self.decode_rdata(msg, _) # :nodoc:
              return self.new(IPv6.new(msg.get_bytes(16)))
            end
          end
-@@ -2306,7 +2303,7 @@
+@@ -2339,7 +2339,7 @@ def encode_rdata(msg) # :nodoc:
              msg.put_name(@target)
            end
-
+ 
 -          def self.decode_rdata(msg) # :nodoc:
 +          def self.decode_rdata(msg, _) # :nodoc:
              priority, = msg.get_unpack("n")

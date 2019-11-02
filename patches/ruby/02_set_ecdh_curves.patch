@@ -87,7 +87,7 @@ index 955579c..6e2f5b5 100644
  void HMAC_CTX_cleanup(HMAC_CTX *ctx);
  #endif
 diff --git a/ext/openssl/ossl_ssl.c b/ext/openssl/ossl_ssl.c
-index dc35d5a..cc17a0c 100644
+index 9167959..8bd198a 100644
 --- a/ext/openssl/ossl_ssl.c
 +++ b/ext/openssl/ossl_ssl.c
 @@ -161,6 +161,18 @@ ossl_sslctx_s_alloc(VALUE klass)
@@ -109,7 +109,7 @@ index dc35d5a..cc17a0c 100644
      return obj;
  }
  
-@@ -711,19 +723,33 @@ ossl_sslctx_setup(VALUE self)
+@@ -718,19 +730,33 @@ ossl_sslctx_setup(VALUE self)
  #endif
  
  #if !defined(OPENSSL_NO_EC)
@@ -153,7 +153,7 @@ index dc35d5a..cc17a0c 100644
          store = GetX509StorePtr(val); /* NO NEED TO DUP */
          SSL_CTX_set_cert_store(ctx, store);
          SSL_CTX_set_ex_data(ctx, ossl_ssl_ex_store_p, (void*)1);
-@@ -731,7 +757,7 @@ ossl_sslctx_setup(VALUE self)
+@@ -738,7 +764,7 @@ ossl_sslctx_setup(VALUE self)
  
      val = ossl_sslctx_get_extra_cert(self);
      if(!NIL_P(val)){
@@ -162,7 +162,7 @@ index dc35d5a..cc17a0c 100644
      }
  
      /* private key may be bundled in certificate file. */
-@@ -755,22 +781,21 @@ ossl_sslctx_setup(VALUE self)
+@@ -762,22 +788,21 @@ ossl_sslctx_setup(VALUE self)
  
      val = ossl_sslctx_get_client_ca(self);
      if(!NIL_P(val)){
@@ -198,7 +198,7 @@ index dc35d5a..cc17a0c 100644
      }
  
      val = ossl_sslctx_get_ca_file(self);
-@@ -778,15 +803,15 @@ ossl_sslctx_setup(VALUE self)
+@@ -785,15 +810,15 @@ ossl_sslctx_setup(VALUE self)
      val = ossl_sslctx_get_ca_path(self);
      ca_path = NIL_P(val) ? NULL : StringValuePtr(val);
      if(ca_file || ca_path){
@@ -217,7 +217,7 @@ index dc35d5a..cc17a0c 100644
  
      val = ossl_sslctx_get_timeout(self);
      if(!NIL_P(val)) SSL_CTX_set_timeout(ctx, NUM2LONG(val));
-@@ -797,26 +822,26 @@ ossl_sslctx_setup(VALUE self)
+@@ -804,26 +829,26 @@ ossl_sslctx_setup(VALUE self)
  #ifdef HAVE_SSL_CTX_SET_NEXT_PROTO_SELECT_CB
      val = rb_iv_get(self, "@npn_protocols");
      if (!NIL_P(val)) {
@@ -254,7 +254,7 @@ index dc35d5a..cc17a0c 100644
      }
  #endif
  
-@@ -824,31 +849,31 @@ ossl_sslctx_setup(VALUE self)
+@@ -831,31 +856,31 @@ ossl_sslctx_setup(VALUE self)
  
      val = ossl_sslctx_get_sess_id_ctx(self);
      if (!NIL_P(val)){
@@ -298,7 +298,7 @@ index dc35d5a..cc17a0c 100644
      }
  #endif
  
-@@ -953,6 +978,87 @@ ossl_sslctx_set_ciphers(VALUE self, VALUE v)
+@@ -960,6 +985,87 @@ ossl_sslctx_set_ciphers(VALUE self, VALUE v)
      return v;
  }
  
@@ -386,7 +386,7 @@ index dc35d5a..cc17a0c 100644
  /*
   *  call-seq:
   *     ctx.session_add(session) -> true | false
-@@ -2075,6 +2181,7 @@ Init_ossl_ssl(void)
+@@ -2084,6 +2190,7 @@ Init_ossl_ssl(void)
       */
      rb_attr(cSSLContext, rb_intern("client_cert_cb"), 1, 1, Qfalse);
  
@@ -394,7 +394,7 @@ index dc35d5a..cc17a0c 100644
      /*
       * A callback invoked when ECDH parameters are required.
       *
-@@ -2082,10 +2189,11 @@ Init_ossl_ssl(void)
+@@ -2091,10 +2198,11 @@ Init_ossl_ssl(void)
       * flag indicating the use of an export cipher and the keylength
       * required.
       *
@@ -408,7 +408,7 @@ index dc35d5a..cc17a0c 100644
  
      /*
       * Sets the context in which a session can be reused.  This allows
-@@ -2221,6 +2329,7 @@ Init_ossl_ssl(void)
+@@ -2230,6 +2338,7 @@ Init_ossl_ssl(void)
      rb_define_method(cSSLContext, "ssl_version=", ossl_sslctx_set_ssl_version, 1);
      rb_define_method(cSSLContext, "ciphers",     ossl_sslctx_get_ciphers, 0);
      rb_define_method(cSSLContext, "ciphers=",    ossl_sslctx_set_ciphers, 1);

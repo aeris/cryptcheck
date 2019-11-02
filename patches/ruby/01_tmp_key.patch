@@ -11,10 +11,10 @@ index 0b7fa2a..76487f7 100644
    have_func("ENGINE_add")
    have_func("ENGINE_load_builtin_engines")
 diff --git a/ext/openssl/ossl_ssl.c b/ext/openssl/ossl_ssl.c
-index 7a0eb4e..dc35d5a 100644
+index cd35ee3..9167959 100644
 --- a/ext/openssl/ossl_ssl.c
 +++ b/ext/openssl/ossl_ssl.c
-@@ -1911,6 +1911,25 @@ ossl_ssl_alpn_protocol(VALUE self)
+@@ -1920,6 +1920,25 @@ ossl_ssl_alpn_protocol(VALUE self)
  	return rb_str_new((const char *) out, outlen);
  }
  # endif
@@ -40,7 +40,7 @@ index 7a0eb4e..dc35d5a 100644
  #endif /* !defined(OPENSSL_NO_SOCK) */
  
  void
-@@ -2305,6 +2324,9 @@ Init_ossl_ssl(void)
+@@ -2314,6 +2333,9 @@ Init_ossl_ssl(void)
      rb_define_method(cSSLSocket, "session=",    ossl_ssl_set_session, 1);
      rb_define_method(cSSLSocket, "verify_result", ossl_ssl_get_verify_result, 0);
      rb_define_method(cSSLSocket, "client_ca", ossl_ssl_get_client_ca_list, 0);

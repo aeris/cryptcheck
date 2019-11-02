@@ -1,11 +1,11 @@
 diff --git a/ext/openssl/lib/openssl/ssl.rb b/ext/openssl/lib/openssl/ssl.rb
-index bcb167e..5f688db 100644
+index bcb167e..cd82e6d 100644
 --- a/ext/openssl/lib/openssl/ssl.rb
 +++ b/ext/openssl/lib/openssl/ssl.rb
 @@ -70,7 +70,7 @@ class SSLContext
          DEFAULT_CERT_STORE.flags = OpenSSL::X509::V_FLAG_CRL_CHECK_ALL
        end
-
+ 
 -      INIT_VARS = ["cert", "key", "client_ca", "ca_file", "ca_path",
 +      INIT_VARS = ["client_ca", "ca_file", "ca_path",
          "timeout", "verify_mode", "verify_depth", "renegotiation_cb",
@@ -20,7 +20,7 @@ index bcb167e..5f688db 100644
          INIT_VARS.each { |v| instance_variable_set v, nil }
          self.options = self.options | OpenSSL::SSL::OP_ALL
          return unless version
-@@ -131,6 +132,22 @@ def set_params(params={})
+@@ -131,6 +133,22 @@ def set_params(params={})
          end
          return params
        end
@@ -41,16 +41,16 @@ index bcb167e..5f688db 100644
 +        self.keys.first
 +      end
      end
-
+ 
      module SocketForwarder
 diff --git a/ext/openssl/ossl_ssl.c b/ext/openssl/ossl_ssl.c
-index 9f7ee0b..9437793 100644
+index 184c864..8f08918 100644
 --- a/ext/openssl/ossl_ssl.c
 +++ b/ext/openssl/ossl_ssl.c
 @@ -36,8 +36,8 @@ VALUE cSSLSocket;
  static VALUE eSSLErrorWaitReadable;
  static VALUE eSSLErrorWaitWritable;
-
+ 
 -#define ossl_sslctx_set_cert(o,v)        	rb_iv_set((o),"@cert",(v))
 -#define ossl_sslctx_set_key(o,v)         	rb_iv_set((o),"@key",(v))
 +#define ossl_sslctx_set_certs(o,v)        	rb_iv_set((o),"@certs",(v))
@@ -61,7 +61,7 @@ index 9f7ee0b..9437793 100644
 @@ -50,8 +50,8 @@ static VALUE eSSLErrorWaitWritable;
  #define ossl_sslctx_set_client_cert_cb(o,v) 	rb_iv_set((o),"@client_cert_cb",(v))
  #define ossl_sslctx_set_sess_id_ctx(o, v) 	rb_iv_set((o),"@session_id_context",(v))
-
+ 
 -#define ossl_sslctx_get_cert(o)          	rb_iv_get((o),"@cert")
 -#define ossl_sslctx_get_key(o)           	rb_iv_get((o),"@key")
 +#define ossl_sslctx_get_certs(o)          	rb_iv_get((o),"@certs")
@@ -69,19 +69,19 @@ index 9f7ee0b..9437793 100644
  #define ossl_sslctx_get_client_ca(o)     	rb_iv_get((o),"@client_ca")
  #define ossl_sslctx_get_ca_file(o)       	rb_iv_get((o),"@ca_file")
  #define ossl_sslctx_get_ca_path(o)       	rb_iv_get((o),"@ca_path")
-@@ -713,7 +713,8 @@ ossl_sslctx_setup(VALUE self)
+@@ -720,7 +720,8 @@ ossl_sslctx_setup(VALUE self)
      char *ca_path = NULL, *ca_file = NULL;
      int verify_mode;
      long i;
 -    VALUE val;
 +    VALUE val, val2;
 +    int cert_defined = 0, key_defined = 0;
-
+ 
      if(OBJ_FROZEN(self)) return Qnil;
      GetSSLCTX(self, ctx);
-@@ -761,19 +762,39 @@ ossl_sslctx_setup(VALUE self)
+@@ -768,19 +769,39 @@ ossl_sslctx_setup(VALUE self)
      }
-
+ 
      /* private key may be bundled in certificate file. */
 -    val = ossl_sslctx_get_cert(self);
 -    cert = NIL_P(val) ? NULL : GetX509CertPtr(val); /* NO DUP NEEDED */
@@ -130,22 +130,22 @@ index 9f7ee0b..9437793 100644
          if (!SSL_CTX_check_private_key(ctx)) {
              ossl_raise(eSSLError, "SSL_CTX_check_private_key");
          }
-@@ -2128,14 +2149,14 @@ Init_ossl_ssl(void)
+@@ -2137,14 +2158,14 @@ Init_ossl_ssl(void)
      rb_define_alloc_func(cSSLContext, ossl_sslctx_s_alloc);
-
+ 
      /*
 -     * Context certificate
 +     * Context certificates
       */
 -    rb_attr(cSSLContext, rb_intern("cert"), 1, 1, Qfalse);
 +    rb_attr(cSSLContext, rb_intern("certs"), 1, 1, Qfalse);
-
+ 
      /*
 -     * Context private key
 +     * Context private keys
       */
 -    rb_attr(cSSLContext, rb_intern("key"), 1, 1, Qfalse);
 +    rb_attr(cSSLContext, rb_intern("keys"), 1, 1, Qfalse);
-
+ 
      /*
       * A certificate or Array of certificates that will be sent to the client.

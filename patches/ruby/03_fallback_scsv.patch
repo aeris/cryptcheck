@@ -31,10 +31,10 @@ index 9893757..bcb167e 100644
  
        ##
 diff --git a/ext/openssl/ossl_ssl.c b/ext/openssl/ossl_ssl.c
-index cc17a0c..9f7ee0b 100644
+index 8bd198a..184c864 100644
 --- a/ext/openssl/ossl_ssl.c
 +++ b/ext/openssl/ossl_ssl.c
-@@ -978,6 +978,31 @@ ossl_sslctx_set_ciphers(VALUE self, VALUE v)
+@@ -985,6 +985,31 @@ ossl_sslctx_set_ciphers(VALUE self, VALUE v)
      return v;
  }
  
@@ -66,7 +66,7 @@ index cc17a0c..9f7ee0b 100644
  #if !defined(OPENSSL_NO_EC)
  /*
   * call-seq:
-@@ -2330,6 +2355,7 @@ Init_ossl_ssl(void)
+@@ -2339,6 +2364,7 @@ Init_ossl_ssl(void)
      rb_define_method(cSSLContext, "ciphers",     ossl_sslctx_get_ciphers, 0);
      rb_define_method(cSSLContext, "ciphers=",    ossl_sslctx_set_ciphers, 1);
      rb_define_method(cSSLContext, "ecdh_curves=", ossl_sslctx_set_ecdh_curves, 1);
