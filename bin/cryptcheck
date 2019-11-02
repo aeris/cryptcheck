@@ -1,0 +1,25 @@
+#!/usr/bin/env ruby
+require 'rubygems'
+require 'bundler/setup'
+require 'thor'
+require 'awesome_print'
+require 'cryptcheck'
+
+class CLI < Thor
+	option :'no-ipv4', type: :boolean, default: false, aliases: :'4'
+	option :'no-ipv6', type: :boolean, default: false, aliases: :'6'
+	option :json, type: :boolean, default: false, aliases: :j
+	option :quiet, type: :boolean, default: false, aliases: :q
+
+	desc 'https HOST [PORT]', 'Analyze HTTPS configuration for HOST:PORT'
+
+	def https(host, port = 443)
+		ENV['DISABLE_IPv4']        = 'true' if options[:'no-ipv4']
+		ENV['DISABLE_IPv6']        = 'true' if options[:'no-ipv6']
+		::CryptCheck::Logger.level = options[:quiet] ? :none : :info
+		result                     = ::CryptCheck::Tls::Https.analyze host, port
+		$stdout.isatty ? ap(result) : puts(JSON.pretty_generate(result)) if options[:json]
+	end
+end
+
+CLI.start ARGV

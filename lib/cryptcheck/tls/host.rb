@@ -78,12 +78,12 @@ module CryptCheck
 								port:     port
 						}
 						case server
-							when Server
-								host[:handshakes] = server.to_h
-								host[:states]     = server.states
-								host[:grade]     = server.grade
-							else
-								host[:error] = server.to_s
+						when Server
+							host[:handshakes] = server.to_h
+							host[:states]     = server.states
+							host[:grade]      = server.grade
+						else
+							host[:error] = server.to_s
 						end
 						host
 					end
@@ -95,12 +95,17 @@ module CryptCheck
 
 			def resolve
 				begin
-					ip = IPAddr.new @hostname
-					return [[nil, ip.to_s, ip.family, @port]]
-				rescue IPAddr::InvalidAddressError
+					begin
+						ip = IPAddr.new @hostname
+						return [[nil, ip.to_s, ip.family, @port]]
+					rescue IPAddr::InvalidAddressError
+					end
+					::Addrinfo.getaddrinfo(@hostname, nil, nil, :STREAM)
+							.collect { |a| [@hostname, a.ip_address, a.afamily, @port] }
+				end.reject do |family, *_|
+					(ENV['DISABLE_IPv6'] && family == Socket::AF_INET6) ||
+							(ENV['DISABLE_IPv4'] && family == Socket::AF_INET)
 				end
-				::Addrinfo.getaddrinfo(@hostname, nil, nil, :STREAM)
-						.collect { |a| [@hostname, a.ip_address, a.afamily, @port] }
 			end
 
 			def server(*args)
