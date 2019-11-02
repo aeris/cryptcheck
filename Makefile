@@ -29,10 +29,10 @@ build/:
 	mkdir "$@"
 
 build/chacha-poly.patch: | build/
-	wget https://github.com/cloudflare/sslconfig/raw/master/patches/openssl__chacha20_poly1305_draft_and_rfc_ossl102j.patch -O "$@"
+	wget -q https://github.com/cloudflare/sslconfig/raw/master/patches/openssl__chacha20_poly1305_draft_and_rfc_ossl102j.patch -O "$@"
 
 build/$(OPENSSL_NAME).tar.gz: | build/
-	wget "https://www.openssl.org/source/$(OPENSSL_NAME).tar.gz" -O "$@"
+	wget -q "https://www.openssl.org/source/$(OPENSSL_NAME).tar.gz" -O "$@"
 
 build/openssl/: | $(OPENSSL_DIR)/
 	ln -s "$(OPENSSL_NAME)" "build/openssl"
@@ -88,3 +88,6 @@ test-material:
 
 test: spec/faketime/libfaketime.so
 	bin/rspec
+
+docker:
+	docker build . -t aeris22/cryptcheck:v2 -t aeris22/cryptcheck:v2.1 -t aeris22/cryptcheck:latest
