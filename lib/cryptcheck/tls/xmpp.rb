@@ -17,8 +17,7 @@ module CryptCheck
 									srv.collect { |s| [s.target.to_s, s.port] }
 								end
 
-				hosts.collect { |args| Host.new *args, domain: hostname }
-				p hosts
+				Tls.aggregate hosts.collect { |args| Host.new *args, domain: hostname }
 			end
 		end
 	end
