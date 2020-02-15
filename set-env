@@ -1,4 +1,4 @@
-DIR="$(dirname "$(readlink -e "$0")")"
+DIR="$(dirname "$(readlink -e "${BASH_SOURCE:-$0}")")"
 export LIBRARY_PATH="$DIR/lib"
 export C_INCLUDE_PATH="$DIR/build/openssl/include"
 export CPLUS_INCLUDE_PATH="$DIR/build/openssl/include"
