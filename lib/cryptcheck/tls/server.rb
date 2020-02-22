@@ -1,6 +1,6 @@
 module CryptCheck
 	module Tls
-		class Server
+		class Server < CryptCheck::TcpServer
 			Method.each do |method|
 				class_eval <<-RUBY_EVAL, __FILE__, __LINE__ + 1
 					def #{method.to_sym.downcase}?
@@ -112,20 +112,6 @@ module CryptCheck
 
 			include Engine
 			include Grade
-		end
-
-		class TcpServer < Server
-			private
-			def sock_type
-				::Socket::SOCK_STREAM
-			end
-		end
-
-		class UdpServer < Server
-			private
-			def sock_type
-				::Socket::SOCK_DGRAM
-			end
 		end
 	end
 end

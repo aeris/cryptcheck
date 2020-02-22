@@ -3,7 +3,7 @@ require 'nokogiri'
 module CryptCheck
 	module Tls
 		module Xmpp
-			class Server < Tls::TcpServer
+			class Server < Tls::Server
 				attr_reader :domain
 
 				def initialize(hostname, ip, family, port = nil, domain: nil, type: :s2s)

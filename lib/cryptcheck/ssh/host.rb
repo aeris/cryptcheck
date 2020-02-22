@@ -1,10 +1,10 @@
 module CryptCheck
-  module Tls
+  module Ssh
     class Host < CryptCheck::Host
       private
 
       def server(*args)
-        Server.new *args
+        Ssh::Server.new *args
       end
     end
   end

@@ -1,7 +1,7 @@
 module CryptCheck
 	module Tls
 		module Smtp
-			class Server < Tls::TcpServer
+			class Server < Tls::Server
 				def ssl_connect(socket, context, method, &block)
 					socket.recv 1024
 					socket.write "EHLO #{Socket.gethostbyname(Socket.gethostname).first}\r\n"

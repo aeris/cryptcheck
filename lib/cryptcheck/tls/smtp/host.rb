@@ -1,7 +1,7 @@
 module CryptCheck
 	module Tls
 		module Smtp
-			class Host < Tls::Host
+			class Host < CryptCheck::Host
 				private
 
 				def server(*args)

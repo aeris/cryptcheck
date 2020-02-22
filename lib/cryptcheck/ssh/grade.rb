@@ -1,14 +1,17 @@
 module CryptCheck
-	module Ssh
-		class Grade
-			attr_reader :server
+  module Ssh
+    module Grade
+      include CryptCheck::Grade
 
-			def initialize(server)
-				@server = server
-			end
+      def states
+        {}
+      end
 
-			def display
-			end
-		end
-	end
+      private
+
+      def calculate_grade
+        :'-'
+      end
+    end
+  end
 end
