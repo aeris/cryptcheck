@@ -3,23 +3,60 @@ require 'rubygems'
 require 'bundler/setup'
 require 'thor'
 require 'awesome_print'
+begin
+  require 'pry-byebug'
+rescue LoadError
+end
 require 'cryptcheck'
 
 class CLI < Thor
-	option :'no-ipv4', type: :boolean, default: false, aliases: :'4'
-	option :'no-ipv6', type: :boolean, default: false, aliases: :'6'
-	option :json, type: :boolean, default: false, aliases: :j
-	option :quiet, type: :boolean, default: false, aliases: :q
+  LOG_LEVEL = ENV.fetch 'LOG', :info
 
-	desc 'https HOST [PORT]', 'Analyze HTTPS configuration for HOST:PORT'
+  class_option :'no-ipv4', type: :boolean, default: false, aliases: :'4'
+  class_option :'no-ipv6', type: :boolean, default: false, aliases: :'6'
+  class_option :json, type: :boolean, default: false, aliases: :j
+  class_option :quiet, type: :boolean, default: false, aliases: :q
 
-	def https(host, port = 443)
-		ENV['DISABLE_IPv4']        = 'true' if options[:'no-ipv4']
-		ENV['DISABLE_IPv6']        = 'true' if options[:'no-ipv6']
-		::CryptCheck::Logger.level = options[:quiet] ? :none : :info
-		result                     = ::CryptCheck::Tls::Https.analyze host, port
-		$stdout.isatty ? ap(result) : puts(JSON.pretty_generate(result)) if options[:json]
-	end
+  desc 'https HOST [PORT=443]', 'Analyze HTTPS configuration for HOST:PORT'
+
+  def https(host, port = 443)
+    self.check ::CryptCheck::Tls::Https, host, port
+  end
+
+  desc 'smtp HOST [PORT=25]', 'Analyze SMTP configuration for HOST:PORT'
+
+  def smtp(host, port = 25)
+    self.check ::CryptCheck::Tls::Smtp, host, port
+  end
+
+  desc 'xmpp HOST [TYPE=c2s]', 'Analyze XMPP configuration for HOST'
+
+  def xmpp(host, type = :c2s)
+    type = type.to_sym
+    self.check ::CryptCheck::Tls::Xmpp, host, type
+  end
+
+  desc 'tls HOST PORT', 'Analyze TLS configuration for HOST:PORT'
+
+  def tls(host, port)
+    self.check ::CryptCheck::Tls, host, port
+  end
+
+  desc 'ssh HOST [port=22]', 'Analyze SSH configuration for HOST:PORT'
+
+  def ssh(host, port = 22)
+    self.check ::CryptCheck::Ssh, host, port
+  end
+
+  protected
+
+  def check(clazz, *args)
+    ENV['DISABLE_IPv4']        = 'true' if options[:'no-ipv4']
+    ENV['DISABLE_IPv6']        = 'true' if options[:'no-ipv6']
+    ::CryptCheck::Logger.level = options[:quiet] ? :none : LOG_LEVEL
+    result                     = clazz.analyze *args
+    $stdout.isatty ? ap(result) : puts(JSON.pretty_generate(result)) if options[:json]
+  end
 end
 
 CLI.start ARGV
