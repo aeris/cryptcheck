@@ -32,7 +32,7 @@ build/chacha-poly.patch: | build/
 	wget -q https://github.com/cloudflare/sslconfig/raw/master/patches/openssl__chacha20_poly1305_draft_and_rfc_ossl102j.patch -O "$@"
 
 build/$(OPENSSL_NAME).tar.gz: | build/
-	wget -q "https://www.openssl.org/source/$(OPENSSL_NAME).tar.gz" -O "$@"
+	wget -q "https://www.openssl.org/source/old/1.0.2/$(OPENSSL_NAME).tar.gz" -O "$@"
 
 build/openssl/: | $(OPENSSL_DIR)/
 	ln -s "$(OPENSSL_NAME)" "build/openssl"
