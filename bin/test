@@ -1,1 +1,5 @@
-runner
+#!/usr/bin/env ruby
+require 'bundler/setup'
+require 'cryptcheck'
+require 'pry-byebug'
+CryptCheck::Tls::Https.analyze 'localhost', 443

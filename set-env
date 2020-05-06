@@ -1,5 +1,20 @@
 DIR="$(dirname "$(readlink -e "${BASH_SOURCE:-$0}")")"
-export LIBRARY_PATH="$DIR/lib"
-export C_INCLUDE_PATH="$DIR/build/openssl/include"
-export CPLUS_INCLUDE_PATH="$DIR/build/openssl/include"
-export LD_LIBRARY_PATH="$DIR/lib"
+
+case "$1" in
+1.0)
+	OPENSSL_VERSION=1.0.2j
+	export RBENV_VERSION=2.3.8-cryptcheck
+	;;
+1.1)
+	OPENSSL_VERSION=1.1.1g
+	export RBENV_VERSION=2.6.6-cryptcheck
+	;;
+*)
+	echo "You must provide OpenSSL version to use: 1.0 or 1.1"
+	exit -1
+	;;
+esac
+
+OPENSSL_PATH="$DIR/build/openssl-$OPENSSL_VERSION"
+export LIBRARY_PATH="$OPENSSL_PATH" C_INCLUDE_PATH="$OPENSSL_PATH/include"
+export LD_LIBRARY_PATH="$LIBRARY_PATH"

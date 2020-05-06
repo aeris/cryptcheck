@@ -25,17 +25,21 @@ module CryptCheck
         rc4:       %w(RC4),
         des:       %w(DES-CBC),
         des3:      %w(3DES DES-CBC3),
-        aes:       %w(AES(128|256) AES-(128|256)),
-        aes128:    %w(AES128 AES-128),
-        aes256:    %w(AES256 AES-256),
+        aes:       %w(AES(128|256) AES-(128|256) AES_(128|256)),
+        aes128:    %w(AES128 AES-128 AES_128),
+        aes256:    %w(AES256 AES-256 AES_256),
         camellia:  %w(CAMELLIA(128|256)),
         seed:      %w(SEED),
         idea:      %w(IDEA),
         chacha20:  %w(CHACHA20),
+        aria:      %w(ARIA(128|256) ARIA-(128|256) ARIA_(128|256)),
+        aria128:   %w(ARIA128 ARIA-128 ARIA_128),
+        aria256:   %w(ARIA256 ARIA-256 ARIA_256),
 
         # cbc:      %w(CBC),
-        gcm: %w(GCM),
-        ccm: %w(CCM)
+        gcm:  %w(GCM),
+        ccm:  %w(CCM CCM8),
+        ccm8: %w(CCM8)
       }.freeze
 
       attr_reader :method, :name
@@ -59,22 +63,13 @@ module CryptCheck
       TYPES.each do |name, ciphers|
         class_eval <<-RUBY_EVAL, __FILE__, __LINE__ + 1
 				def self.#{name}?(cipher)
-					#{ciphers}.any? { |c| /(^|-)#\{c\}(-|$)/ =~ cipher }
+					#{ciphers}.any? { |c| /(^|[-_])#\{c\}([-_]|$)/ =~ cipher }
 				end
 				def #{name}?
-					#{ciphers}.any? { |c| /(^|-)#\{c\}(-|$)/ =~ @name }
+					#{ciphers}.any? { |c| /(^|[-_])#\{c\}([-_]|$)/ =~ @name }
 				end
         RUBY_EVAL
       end
-
-      def self.aes?(cipher)
-        aes?(cipher) or aes?(cipher)
-      end
-
-      def aes?
-        aes128? or aes256?
-      end
-
 
       def self.cbc?(cipher)
         !aead? cipher
@@ -101,6 +96,7 @@ module CryptCheck
       end
 
       def pfs?
+        return true if self.method == :TLSv1_3
         dhe? or ecdhe?
       end
 
@@ -194,7 +190,11 @@ module CryptCheck
         when aes128?
           [:aes, 128, 128, self.mode]
         when aes256?
-          [:aes, 256, 256, self.mode]
+          [:aes, 256, 128, self.mode]
+        when aria128?
+          [:aria, 128, 128, self.mode]
+        when aria256?
+          [:aria, 256, 128, self.mode]
         when camellia?
           [:camellia, 128, 128, self.mode]
         when seed?
@@ -211,6 +211,8 @@ module CryptCheck
           [:rc2, 64, 64, self.mode]
         when null?
           [nil, 0, 0, nil]
+        else
+          raise "Unknown encryption #{@method} #{@name}"
         end
       end
 
@@ -218,8 +220,6 @@ module CryptCheck
         case
         when gcm?
           :gcm
-        when ccm?
-          :ccm
         when chacha20?
           :aead
         when rc4?
@@ -233,6 +233,10 @@ module CryptCheck
         case
         when poly1305?
           [:poly1305, 128]
+        when ccm8?
+          [:ccm, 64]
+        when ccm?
+          [:ccm, 128]
         when sha384?
           [:sha384, 384]
         when sha256?
@@ -275,11 +279,23 @@ module CryptCheck
         @name <=> other.name
       end
 
-      ALL       = 'ALL:COMPLEMENTOFALL'.freeze
-      SUPPORTED = Method.collect do |m|
-        context         = ::OpenSSL::SSL::SSLContext.new m.to_sym
-        context.ciphers = ALL
-        ciphers         = context.ciphers.collect { |c| Cipher.new m, c.first }
+      ALL         = 'ALL:COMPLEMENTOFALL'.freeze
+      ALL_TLSv1_3 = %w[
+          TLS_CHACHA20_POLY1305_SHA256
+          TLS_AES_128_GCM_SHA256
+          TLS_AES_256_GCM_SHA384
+          TLS_AES_128_CCM_SHA256
+          TLS_AES_128_CCM_8_SHA256
+        ].freeze
+      SUPPORTED   = Method.collect do |m|
+        sym     = m.to_sym
+        ciphers = if sym == :TLSv1_3
+                    ALL_TLSv1_3.collect { |c| Cipher.new m, c }
+                  else
+                    context         = ::OpenSSL::SSL::SSLContext.new sym
+                    context.ciphers = ALL
+                    context.ciphers.collect { |c| Cipher.new m, c.first }
+                  end
         [m, ciphers.sort]
       end.to_h.freeze
     end

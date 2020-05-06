@@ -10,17 +10,22 @@ module CryptCheck
 
       class TLSException < ::StandardError
       end
+
       class TLSNotAvailableException < TLSException
         def to_s
           'TLS seems not supported on this server'
         end
       end
+
       class MethodNotAvailable < TLSException
       end
+
       class CipherNotAvailable < TLSException
       end
+
       class InappropriateFallback < TLSException
       end
+
       class Timeout < ::StandardError
         def initialize(ip, port)
           @message = "Timeout when connecting to #{ip}:#{port} (max #{TCP_TIMEOUT.humanize})"
@@ -30,11 +35,13 @@ module CryptCheck
           @message
         end
       end
+
       class TLSTimeout < Timeout
         def initialize(ip, port)
           @message = "Timeout when TLS connecting to #{ip}:#{port} (max #{TLS_TIMEOUT.humanize})"
         end
       end
+
       class ConnectionError < ::StandardError
       end
 
@@ -86,9 +93,7 @@ module CryptCheck
         connection = ssl_client method, cipher
         Logger.info { "  Cipher #{cipher}" }
         dh = connection.tmp_key
-        if dh
-          Logger.info { "    PFS : #{dh}" }
-        end
+        Logger.info { "    PFS : #{dh}" } if dh
         connection
       rescue TLSException
         Logger.debug { "  Cipher #{cipher} : not supported" }
@@ -285,7 +290,7 @@ module CryptCheck
             ssl_client method, fallback: true
           rescue InappropriateFallback,
             CipherNotAvailable, # Seems some servers reply with "sslv3 alert handshake failure"…
-            MethodNotAvailable, # Seems some servers reply with "wrong version number"…
+            MethodNotAvailable # Seems some servers reply with "wrong version number"…
             @fallback_scsv = true
           end
         else
@@ -349,17 +354,13 @@ module CryptCheck
       def ssl_connect(socket, context, method, &block)
         ssl_socket          = ::OpenSSL::SSL::SSLSocket.new socket, context
         ssl_socket.hostname = @hostname if @hostname and method != :SSLv2
-        #Logger.trace { "SSL connecting to #{name}" }
         begin
           ssl_socket.connect_nonblock
-          #Logger.trace { "SSL connected to #{name}" }
           return block_given? ? block.call(ssl_socket) : nil
         rescue ::OpenSSL::SSL::SSLErrorWaitReadable
-          #Logger.trace { "Waiting for SSL read to #{name}" }
           raise TLSTimeout.new(@ip, @port) unless IO.select [ssl_socket], nil, nil, TLS_TIMEOUT
           retry
         rescue ::OpenSSL::SSL::SSLErrorWaitWritable
-          #Logger.trace { "Waiting for SSL write to #{name}" }
           raise TLSTimeout.new(@ip, @port) unless IO.select nil, [ssl_socket], nil, TLS_TIMEOUT
           retry
         rescue ::OpenSSL::SSL::SSLError => e
@@ -368,15 +369,18 @@ module CryptCheck
             /state=SSLv3 read server hello A$/,
             /state=SSLv3 read server hello A: wrong version number$/,
             /state=SSLv3 read server hello A: tlsv1 alert protocol version$/,
-            /state=SSLv3 read server key exchange A: sslv3 alert handshake failure$/
+            /state=SSLv3 read server key exchange A: sslv3 alert handshake failure$/,
+            /state=error: tlsv1 alert protocol version$/
             raise MethodNotAvailable, e
           when /state=SSLv2 read server hello A: peer error no cipher$/,
             /state=error: no ciphers available$/,
             /state=SSLv3 read server hello A: sslv3 alert handshake failure$/,
             /state=error: missing export tmp dh key$/,
-            /state=error: wrong curve$/
+            /state=error: wrong curve$/,
+            /error: sslv3 alert handshake failure$/
             raise CipherNotAvailable, e
-          when /state=SSLv3 read server hello A: tlsv1 alert inappropriate fallback$/
+          when /state=SSLv3 read server hello A: tlsv1 alert inappropriate fallback$/,
+            /state=error: tlsv1 alert inappropriate fallback$/
             raise InappropriateFallback, e
           end
           raise
@@ -393,16 +397,18 @@ module CryptCheck
 
       def ssl_client(method, ciphers = nil, curves: nil, fallback: false, &block)
         sleep SLOW_DOWN if SLOW_DOWN > 0
-        ssl_context = ::OpenSSL::SSL::SSLContext.new method.to_sym
+        method      = method.to_sym
+        ssl_context = ::OpenSSL::SSL::SSLContext.new method
         ssl_context.enable_fallback_scsv if fallback
 
-        if ciphers
-          ciphers = [ciphers] unless ciphers.is_a? Enumerable
-          ciphers = ciphers.collect(&:name).join ':'
+        ciphers = Array(ciphers).collect(&:name).join ':' if ciphers
+
+        if method == :TLSv1_3
+          ssl_context.ciphersuites = ciphers if ciphers
         else
-          ciphers = Cipher::ALL
+          ciphers             ||= Cipher::ALL
+          ssl_context.ciphers = ciphers
         end
-        ssl_context.ciphers = ciphers
 
         if curves
           curves = [curves] unless curves.is_a? Enumerable
@@ -413,16 +419,17 @@ module CryptCheck
         end
 
         Logger.trace { "Try method=#{method} / ciphers=#{ciphers} / curves=#{curves} / scsv=#{fallback}" }
-        begin
-          connect do |socket|
-            ssl_connect socket, ssl_context, method do |ssl_socket|
-              return block_given? ? block.call(ssl_socket) : ssl_socket
-            end
+        connect do |socket|
+          ssl_connect socket, ssl_context, method do |ssl_socket|
+            return block_given? ? block.call(ssl_socket) : ssl_socket
           end
-        rescue => e
-          Logger.trace { "Error occurs : #{e}" }
-          raise
         end
+      rescue TLSException => e
+        Logger.trace { "Error occurs : #{e}" }
+        raise
+      rescue => e
+        Logger.trace { "Error occurs : #{e}" }
+        raise TLSException.new e
       end
 
       def verify_certs

@@ -99,7 +99,6 @@ module CryptCheck
 			b <=> a
 		end
 
-		protected
 		def checks
 			@checks ||= self.available_checks.collect { |c| perform_check c }.flatten(1) + children.collect(&:checks).flatten(1)
 		end

@@ -3,8 +3,9 @@ require 'delegate'
 module CryptCheck
   module Tls
     class Method < SimpleDelegator
-      EXISTING  = %i(TLSv1_2 TLSv1_1 TLSv1 SSLv3 SSLv2).freeze
-      SUPPORTED = (EXISTING & ::OpenSSL::SSL::SSLContext::METHODS)
+      EXISTING = %i(TLSv1_3 TLSv1_2 TLSv1_1 TLSv1 SSLv3 SSLv2).freeze
+      # EXISTING = %i(TLSv1_3)
+      SUPPORTED = EXISTING.select { |m| ::OpenSSL::SSL::SSLContext.supported? m }
                     .collect { |m| [m, self.new(m)] }.to_h.freeze
 
       def self.[](method)
@@ -19,9 +20,9 @@ module CryptCheck
 
       def to_s
         colors = case self.to_sym
-                 when *%i(SSLv3 SSLv2)
+                 when :SSLv3, :SSLv2
                    :critical
-                 when :TLSv1_2
+                 when :TLSv1_2, :TLSv1_3
                    :good
                  end
         super.colorize colors

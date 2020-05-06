@@ -15,6 +15,8 @@ module CryptCheck
 
     def self.key_to_s(key)
       size, color = case key.type
+                    when :x25519
+                      ["#{key.curve} #{key.size}", :good]
                     when :ecc
                       ["#{key.group.curve_name} #{key.size}", :good]
                     when :rsa

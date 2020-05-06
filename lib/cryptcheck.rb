@@ -2,6 +2,7 @@ require 'colorize'
 require 'ipaddr'
 require 'timeout'
 require 'yaml'
+require 'openssl'
 
 module CryptCheck
   autoload :State, 'cryptcheck/state'
@@ -55,5 +56,5 @@ module CryptCheck
   end
 end
 
-require 'cryptcheck/fixture'
-require 'cryptcheck/tls/fixture'
+fixtures = File.join __dir__, 'fixtures', '**', '*.rb'
+Dir[fixtures].sort.each { |f| require f }
