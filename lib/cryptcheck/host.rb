@@ -75,7 +75,7 @@ module CryptCheck
         end
         ::Addrinfo.getaddrinfo(@hostname, nil, nil, :STREAM)
           .collect { |a| [@hostname, a.ip_address, a.afamily, @port] }
-      end.reject do |family, *_|
+      end.reject do |_1, _2, family, *_3|
         (ENV['DISABLE_IPv6'] && family == Socket::AF_INET6) ||
           (ENV['DISABLE_IPv4'] && family == Socket::AF_INET)
       end

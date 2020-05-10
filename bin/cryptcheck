@@ -12,6 +12,10 @@ require 'cryptcheck'
 class CLI < Thor
   LOG_LEVEL = ENV.fetch 'LOG', :info
 
+  def self.exit_on_failure?
+    true
+  end
+
   class_option :'no-ipv4', type: :boolean, default: false, aliases: :'4'
   class_option :'no-ipv6', type: :boolean, default: false, aliases: :'6'
   class_option :json, type: :boolean, default: false, aliases: :j
