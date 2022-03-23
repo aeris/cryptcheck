@@ -1,0 +1,62 @@
+diff --git a/ext/openssl/ossl_ssl.c b/ext/openssl/ossl_ssl.c
+index 7996f227b6..200e3c70ae 100644
+--- a/ext/openssl/ossl_ssl.c
++++ b/ext/openssl/ossl_ssl.c
+@@ -1043,6 +1043,49 @@ ossl_sslctx_set_ciphers(VALUE self, VALUE v)
+     return v;
+ }
+ 
++/*
++ * call-seq:
++ *    ctx.ciphersuites = "cipher1:cipher2:..."
++ *    ctx.ciphersuites = [name, ...]
++ *    ctx.ciphersuites = [[name, version, bits, alg_bits], ...]
++ *
++ * Sets the list of available cipher suites for this context.  Note in a server
++ * context some ciphers require the appropriate certificates.  For example, an
++ * RSA cipher suite can only be chosen when an RSA certificate is available.
++ * This call is only suitable for TLSv1.3.
++ */
++static VALUE
++ossl_sslctx_set_ciphersuites(VALUE self, VALUE v)
++{
++    SSL_CTX *ctx;
++    VALUE str, elem;
++    int i;
++
++    rb_check_frozen(self);
++    if (NIL_P(v))
++	return v;
++    else if (RB_TYPE_P(v, T_ARRAY)) {
++        str = rb_str_new(0, 0);
++        for (i = 0; i < RARRAY_LEN(v); i++) {
++            elem = rb_ary_entry(v, i);
++            if (RB_TYPE_P(elem, T_ARRAY)) elem = rb_ary_entry(elem, 0);
++            elem = rb_String(elem);
++            rb_str_append(str, elem);
++            if (i < RARRAY_LEN(v)-1) rb_str_cat2(str, ":");
++        }
++    } else {
++        str = v;
++        StringValue(str);
++    }
++
++    GetSSLCTX(self, ctx);
++    if (!SSL_CTX_set_ciphersuites(ctx, StringValueCStr(str))) {
++        ossl_raise(eSSLError, "SSL_CTX_set_ciphersuites");
++    }
++
++    return v;
++}
++
+ #if !defined(OPENSSL_NO_EC)
+ /*
+  * call-seq:
+@@ -2693,6 +2736,7 @@ Init_ossl_ssl(void)
+ 			     ossl_sslctx_set_minmax_proto_version, 2);
+     rb_define_method(cSSLContext, "ciphers",     ossl_sslctx_get_ciphers, 0);
+     rb_define_method(cSSLContext, "ciphers=",    ossl_sslctx_set_ciphers, 1);
++    rb_define_method(cSSLContext, "ciphersuites=", ossl_sslctx_set_ciphersuites, 1);
+     rb_define_method(cSSLContext, "ecdh_curves=", ossl_sslctx_set_ecdh_curves, 1);
+     rb_define_method(cSSLContext, "security_level", ossl_sslctx_get_security_level, 0);
+     rb_define_method(cSSLContext, "security_level=", ossl_sslctx_set_security_level, 1);
