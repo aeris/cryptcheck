@@ -1,4 +1,4 @@
-require 'awesome_print'
+require 'amazing_print'
 require 'timeout'
 
 module CryptCheck
