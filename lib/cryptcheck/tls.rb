@@ -9,7 +9,7 @@ module CryptCheck
     end
 
     def self.aggregate(hosts)
-      hosts = [hosts] unless hosts.respond_to? :collect
+      hosts = Array hosts
       hosts.inject([]) { |l, h| l + h.to_h }
     end
 
