@@ -111,7 +111,7 @@ module CryptCheck
 
       def to_h
         {
-          key:         @kex,
+          kex:         @kex,
           encryption:  @encryption,
           hmac:        @hmac,
           compression: @compression,
