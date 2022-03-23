@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+DIR="$(dirname "$(readlink -e "${BASH_SOURCE[0]}")")"
+ENGINE_DIR="$(readlink -f "$DIR/..")"
+BUILD_DIR="$ENGINE_DIR/build"
+RBENV_ROOT="$BUILD_DIR/rbenv"
+
+case "$1" in
+1.0)
+  OPENSSL_VERSION="1.0.2j"
+  RBENV_VERSION="2.3.8-cryptcheck"
+  ;;
+*)
+  OPENSSL_VERSION="1.1.1g"
+  RBENV_VERSION="2.6.6-cryptcheck"
+  ;;
+esac
+
+cat <<-EOF
+  export RBENV_ROOT="$RBENV_ROOT"
+  eval "\$("\$RBENV_ROOT/bin/rbenv" init -)"
+  export LD_LIBRARY_PATH="$BUILD_DIR/openssl-$OPENSSL_VERSION/lib"
+  export RBENV_VERSION="$RBENV_VERSION"
+EOF
