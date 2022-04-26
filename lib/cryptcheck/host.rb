@@ -22,6 +22,9 @@ module CryptCheck
                    Logger.info { "Grade : #{server.grade.to_s.colorize server.grade_status}" }
                    Logger.info { server.states.ai }
                    server
+                 rescue ::Timeout::Error => e
+                   Logger.error { e }
+                   StandardError.new "Too long analysis (max #{MAX_ANALYSIS_DURATION.humanize})"
                  rescue => e
                    Logger.error { e }
                    raise if ENV['DEV_MODE']
