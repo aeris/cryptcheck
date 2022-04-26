@@ -3,7 +3,7 @@ require 'timeout'
 
 module CryptCheck
   class Host
-    MAX_ANALYSIS_DURATION = 600
+    MAX_ANALYSIS_DURATION = ENV.fetch('MAX_ANALYSIS_DURATION', '600').to_i
 
     attr_reader :servers, :error
 

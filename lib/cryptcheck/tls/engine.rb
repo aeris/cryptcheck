@@ -5,15 +5,15 @@ module CryptCheck
   module Tls
     module Engine
       SLOW_DOWN   = ENV.fetch('SLOW_DOWN', '0').to_i
-      TCP_TIMEOUT = 10
-      TLS_TIMEOUT = 2 * TCP_TIMEOUT
+      TCP_TIMEOUT = ENV.fetch('TCP_TIMEOUT', '10').to_i
+      TLS_TIMEOUT = ENV.fetch('TLS_TIMEOUT', '10').to_i
 
       class TLSException < ::StandardError
       end
 
       class TLSNotAvailableException < TLSException
         def to_s
-          'TLS seems not supported on this server'
+          'TLS seems not supported on this server'
         end
       end
 
