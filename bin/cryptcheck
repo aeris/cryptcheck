@@ -2,7 +2,7 @@
 require 'rubygems'
 require 'bundler/setup'
 require 'thor'
-require 'awesome_print'
+require 'amazing_print'
 begin
   require 'pry-byebug'
 rescue LoadError
