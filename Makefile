@@ -2,7 +2,7 @@ ROOT_DIR := $(dir $(realpath $(firstword $(MAKEFILE_LIST))))
 BUILD_DIR := $(ROOT_DIR)/build
 
 export RBENV_ROOT ?= $(ROOT_DIR)/build/rbenv
-RBENV_VERSION := v1.2.0
+_RBENV_VERSION := v1.2.0
 RUBY_BUILD_VERSION = v20220218
 
 OPENSSL_1_0_VERSION := 1.0.2j
@@ -39,7 +39,7 @@ clean:
 	rm -rf build/
 
 $(RBENV_ROOT)/:
-	git clone https://github.com/rbenv/rbenv/ "$@" -b "$(RBENV_VERSION)" --depth 1
+	git clone https://github.com/rbenv/rbenv/ "$@" -b "$(_RBENV_VERSION)" --depth 1
 $(RBENV_ROOT)/plugins/ruby-build/: | $(RBENV_ROOT)/
 	git clone https://github.com/rbenv/ruby-build/ "$@" -b "$(RUBY_BUILD_VERSION)" --depth 1
 rbenv: | $(RBENV_ROOT)/plugins/ruby-build/
@@ -107,16 +107,18 @@ ruby-1.0: $(RBENV_ROOT)/versions/$(RUBY_1_0_VERSION)-cryptcheck
 ruby-1.1: $(RBENV_ROOT)/versions/$(RUBY_1_1_VERSION)-cryptcheck
 ruby: ruby-1.0 ruby-1.1
 
-build/libfaketime.so: spec/faketime/faketime.c spec/faketime/faketime.h
-	$(CC) $^ -o "$@" -shared -fPIC -ldl -std=c99 -Werror -Wall
-faketime: build/libfaketime.so
-.PHONY: faketime
+build/libfake.so: spec/fake/fake.c spec/fake/fake.h
+	LANG=C $(CC) $^ -g -o "$@" -shared -fPIC -ldl -std=c99 -Werror -Wall -pedantic
+fake: build/libfake.so
+
+build/test: spec/fake/test.c
+	LANG=C $(CC) $^ -g -o "$@" -Werror -Wall -pedantic
 
 test-material:
 	bin/generate-test-material.rb
 
-test: spec/faketime/libfaketime.so
-	LD_LIBRARY_PATH="$(LIBRARY_PATH_1_0):$(BUILD_DIR)" bin/rspec
+test: build/libfake.so
+	LD_LIBRARY_PATH="$(LIBRARY_PATH_1_0):$(BUILD_DIR)" LD_PRELOAD="$(ROOT_DIR)/$^" bin/rspec
 .PHONY: test
 
 docker-1.0:
