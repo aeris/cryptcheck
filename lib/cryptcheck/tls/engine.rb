@@ -62,7 +62,6 @@ module CryptCheck
         fetch_supported_ciphers
         fetch_dh
         fetch_ciphers_preferences
-        fetch_ecdsa_certs
         fetch_supported_curves
         fetch_curves_preference
 
@@ -150,133 +149,99 @@ module CryptCheck
         end.flatten.uniq &:fingerprint
       end
 
-      def fetch_ecdsa_certs
-        @ecdsa_certs = {}
-
-        @supported_ciphers.each do |method, ciphers|
-          ecdsa = ciphers.keys.detect &:ecdsa?
-          next unless ecdsa
-          ecdsa_curve = Curve.new ciphers[ecdsa].tmp_key.curve
-
-          @ecdsa_certs = Curve.collect do |curve|
-            begin
-              connection = ssl_client method, ecdsa, curves: [curve, ecdsa_curve]
-              [curve, connection]
-            rescue TLSException
-              nil
-            end
-          end.compact.to_h
-
-          break
-        end
-      end
-
       def fetch_supported_curves
         Logger.info { '' }
         Logger.info { 'Supported elliptic curves' }
         @supported_curves = []
 
-        ecdsa_curve = @ecdsa_certs.keys.first
-        if ecdsa_curve
-          # If we have an ECDSA cipher, we need at least the certificate curve to do handshake,
-          # but with lowest priority to check for ECHDE and not just ECDSA
+        ecdsa             = @supported_ciphers.find do |method, ciphers|
+          cipher, connection = ciphers.find { |c, _| c.ecdsa? }
+          break [method, cipher, connection] if cipher
+        end
+        ecdh              = @supported_ciphers.find do |method, ciphers|
+          cipher, connection = ciphers.find { |c, _| c.ecdh? or c.ecdhe? }
+          break [method, cipher, connection] if cipher
+        end
+        cipher, curves    = if ecdsa
+                              # If we have an ECDSA cipher, we need at least the
+                              # certificate curve to do handshake, but with lowest
+                              # priority to check for ECHDE and not just ECDSA
+                              _, _, connection = ecdsa
+                              key              = connection.peer_cert.public_key
+                              ecdsa_curve      = Curve.new key.group.curve_name
+                              curves           = Curve.collect { |c| [c, ecdsa_curve] }
+                              [ecdsa, curves]
+                            else
+                              # If we have no ECDSA ciphers, ECC supported are
+                              # only ECDH ones, so peak an ECDH cipher and test
+                              # all curves
+                              curves = Curve.collect { |c| [c] }
+                              [ecdh, curves]
+                            end
+        method, cipher, _ = cipher
 
-          @supported_ciphers.each do |method, ciphers|
-            ecdsa = ciphers.keys.detect &:ecdsa?
-            next unless ecdsa
-            @supported_curves = Curve.select do |curve|
-              if curve == ecdsa_curve
-                # ECDSA curve is always supported
-                Logger.info { "  ECC curve #{curve.name}" }
-                next true
-              end
-              begin
-                connection = ssl_client method, ecdsa, curves: [curve, ecdsa_curve]
-                # Not too fast !!!
-                # Handshake will **always** succeed, because ECDSA
-                # curve is always supported.
-                # So, we need to test for the real curve!
-                # Treaky case : if server preference is enforced,
-                # ECDSA curve can be prefered over ECDHE one and so
-                # really supported curve can be detected as not supported :(
+        supported_curves = curves.collect do |curve|
+          begin
+            ssl_client method, cipher, curves: curve
+            connection = ssl_client method, cipher, curves: curve
+            connection.tmp_key.curve
+          rescue TLSException
+            nil
+          end
+        end.compact.uniq
 
-                dh               = connection.tmp_key
-                negociated_curve = dh.curve
-                supported        = ecdsa_curve != negociated_curve
-                if supported
-                  Logger.info { "  ECC curve #{curve.name}" }
-                else
-                  Logger.debug { "  ECC curve #{curve.name} : not supported" }
-                end
-                supported
-              rescue TLSException
-                false
-              end
-            end
-            break
-          end
-        else
-          # If we have no ECDSA ciphers, ECC supported are only ECDH ones
-          # So peak an ECDH cipher and test all curves
-          @supported_ciphers.each do |method, ciphers|
-            ecdh = ciphers.keys.detect { |c| c.ecdh? or c.ecdhe? }
-            next unless ecdh
-            @supported_curves = Curve.select do |curve|
-              begin
-                ssl_client method, ecdh, curves: curve
-                Logger.info { "  ECC curve #{curve.name}" }
-                true
-              rescue TLSException
-                Logger.debug { "  ECC curve #{curve.name} : not supported" }
-                false
-              end
-            end
-            break
-          end
+        @supported_curves = supported_curves.collect do |curve|
+          Logger.info { "  ECC curve #{curve}" }
+          Curve.new curve
         end
       end
 
       def fetch_curves_preference
-        @curves_preference = if @supported_curves.size < 2
-                               Logger.info { 'Curves preference : ' + 'not applicable'.colorize(:unknown) }
-                               nil
-                             else
-                               method, cipher = @supported_ciphers.collect do |method, ciphers|
-                                 cipher = ciphers.keys.detect { |c| c.ecdh? or c.ecdhe? }
-                                 [method, cipher]
-                               end.detect { |n| !n.nil? }
+        @curves_preference = nil
 
-                               a, b, _ = @supported_curves
-                               ab, ba  = [a, b], [b, a]
-                               if cipher.ecdsa?
-                                 # In case of ECDSA, add the cert key at the end
-                                 # Or no negociation possible
-                                 ecdsa_curve = @ecdsa_certs.keys.first
-                                 ab << ecdsa_curve
-                                 ba << ecdsa_curve
-                               end
-                               ab = ssl_client(method, cipher, curves: ab).tmp_key.curve
-                               ba = ssl_client(method, cipher, curves: ba).tmp_key.curve
-                               if ab != ba
-                                 Logger.info { 'Curves preference : ' + 'client preference'.colorize(:warning) }
-                                 :client
-                               else
-                                 sort        = lambda do |a, b|
-                                   curves = [a, b]
-                                   if cipher.ecdsa?
-                                     # In case of ECDSA, add the cert key at the end
-                                     # Or no negociation possible
-                                     curves << ecdsa_curve
-                                   end
-                                   connection = ssl_client method, cipher, curves: curves
-                                   curve      = connection.tmp_key.curve
-                                   a == curve ? -1 : 1
-                                 end
-                                 preferences = @supported_curves.sort &sort
-                                 Logger.info { 'Curves preference : ' + preferences.collect { |c| c.name }.join(', ') }
-                                 preferences
-                               end
-                             end
+        if @supported_curves.size < 2
+          Logger.info { 'Curves preference : ' + 'not applicable'.colorize(:unknown) }
+          return
+        end
+
+        method, cipher, connection = @supported_ciphers.find do |method, ciphers|
+          cipher, connection = ciphers.find { |c, _| c.ecdh? or c.ecdhe? }
+          break [method, cipher, connection] if cipher
+        end
+
+        a, b, _ = @supported_curves
+        ab, ba  = [a, b], [b, a]
+        if cipher.ecdsa?
+          # In case of ECDSA, add the cert key at the end
+          # Or no negociation possible
+          ecdsa_curve = Curve.new connection.peer_cert.public_key.group.curve_name
+          ab << ecdsa_curve
+          ba << ecdsa_curve
+        end
+
+        ab = ssl_client(method, cipher, curves: ab).tmp_key.curve
+        ba = ssl_client(method, cipher, curves: ba).tmp_key.curve
+        if ab != ba
+          Logger.info { 'Curves preference: ' + 'client preference'.colorize(:warning) }
+          @curves_preference = :client
+          return
+        end
+
+        sort = lambda do |a, b|
+          curves     = [a, b]
+          if cipher.ecdsa?
+            # In case of ECDSA, add the cert key at the end
+            # Or no negociation possible
+            ecdsa_curve = Curve.new connection.tmp_key.curve
+            curves << ecdsa_curve
+          end
+          connection = ssl_client method, cipher, curves: curves
+          curve      = connection.tmp_key.curve
+          a == curve ? -1 : 1
+        end
+
+        @curves_preference = @supported_curves.sort &sort
+        Logger.info { 'Curves preference : ' + @curves_preference.collect { |c| c.name }.join(', ') }
       end
 
       def check_fallback_scsv
@@ -440,9 +405,6 @@ module CryptCheck
         # First, collect "standard" connections
         # { method => { cipher => connection, ... }, ... }
         certs = @supported_ciphers.values.collect(&:values).flatten 1
-        # Then, collect "ecdsa" connections
-        # { curve => connection, ... }
-        certs += @ecdsa_certs.values
         # For anonymous cipher, there is no certificate at all
         certs = certs.reject { |c| c.peer_cert.nil? }
         # Then, fetch cert
