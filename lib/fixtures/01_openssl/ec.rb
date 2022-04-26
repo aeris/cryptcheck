@@ -14,7 +14,7 @@ module Fixture
       end
 
       def to_s
-        "ECC #{self.size} bits"
+        "ECC #{self.size} bits (#{self.curve})"
       end
 
       def to_h
