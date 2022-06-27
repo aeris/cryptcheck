@@ -18,7 +18,7 @@ ENV LD_LIBRARY_PATH /cryptcheck/lib
 WORKDIR /cryptcheck/
 COPY . /cryptcheck/
 
-RUN make openssl-$OPENSSL_BINDING rbenv ruby-$OPENSSL_BINDING && \
+RUN make openssl-$OPENSSL_BINDING rbenv ruby-$OPENSSL_BINDING CC=gcc CXX=g++ && \
 	cp build/openssl-$OPENSSL_VERSION/libssl.so \
 		build/openssl-$OPENSSL_VERSION/libssl.so.$OPENSSL_LIB_VERSION \
 		build/openssl-$OPENSSL_VERSION/libcrypto.so \
