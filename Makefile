@@ -3,6 +3,7 @@ BUILD_DIR := $(ROOT_DIR)/build
 
 export RBENV_ROOT ?= $(ROOT_DIR)/build/rbenv
 _RBENV_VERSION := v1.3.0
+RUBY_BUILD_DEFINITIONS ?= $(RBENV_ROOT)/plugins/ruby-build/share/ruby-build
 RUBY_BUILD_VERSION = v20240917
 
 OPENSSL_1_0_VERSION := 1.0.2j
@@ -81,9 +82,9 @@ openssl-1.0: build/openssl-$(OPENSSL_1_0_VERSION)/lib/libssl.so
 openssl-1.1: build/openssl-$(OPENSSL_1_1_VERSION)/lib/libssl.so
 openssl: openssl-1.0 openssl-1.1
 
-build/$(RUBY_1_0_VERSION)-cryptcheck: $(RBENV_ROOT)/plugins/ruby-build/share/ruby-build/$(RUBY_1_0_VERSION) | build/
+build/$(RUBY_1_0_VERSION)-cryptcheck: $(RUBY_BUILD_DEFINITIONS)/$(RUBY_1_0_VERSION) | build/
 	cp "$<" "$@"
-build/$(RUBY_1_1_VERSION)-cryptcheck: $(RBENV_ROOT)/plugins/ruby-build/share/ruby-build/$(RUBY_1_1_VERSION) | build/
+build/$(RUBY_1_1_VERSION)-cryptcheck: $(RUBY_BUILD_DEFINITIONS)/$(RUBY_1_1_VERSION) | build/
 	cp "$<" "$@"
 
 $(RBENV_ROOT)/versions/$(RUBY_1_0_VERSION)-cryptcheck/lib/ruby/2.3.0/rubygems/ssl_certs/GlobalSignRootCA_R3.pem \
