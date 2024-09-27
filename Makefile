@@ -1,9 +1,10 @@
 ROOT_DIR := $(dir $(realpath $(firstword $(MAKEFILE_LIST))))
 BUILD_DIR := $(ROOT_DIR)/build
 
-export RBENV_ROOT ?= $(ROOT_DIR)/build/rbenv
+export RBENV_ROOT ?= "$(ROOT_DIR)/build/rbenv"
+export PATH = "/usr/bin:/usr/sbin:/bin:/sbin:$(RBENV_ROOT)/shims:$(RBENV_ROOT)/bin"
 _RBENV_VERSION := v1.3.0
-RUBY_BUILD_DEFINITIONS ?= $(RBENV_ROOT)/plugins/ruby-build/share/ruby-build
+RUBY_BUILD_DEFINITIONS ?= "$(RBENV_ROOT)/plugins/ruby-build/share/ruby-build"
 RUBY_BUILD_VERSION = v20240917
 
 OPENSSL_1_0_VERSION := 1.0.2j
@@ -12,12 +13,12 @@ OPENSSL_1_1_VERSION := 1.1.1g
 RUBY_1_0_VERSION := 2.3.8
 RUBY_1_1_VERSION := 2.6.9
 
-LIBRARY_PATH_1_0   := $(BUILD_DIR)/openssl-$(OPENSSL_1_0_VERSION)/lib
-C_INCLUDE_PATH_1_0 := $(BUILD_DIR)/openssl-$(OPENSSL_1_0_VERSION)/include
-LIBRARY_PATH_1_1   := $(BUILD_DIR)/openssl-$(OPENSSL_1_1_VERSION)/lib
-C_INCLUDE_PATH_1_1 := $(BUILD_DIR)/openssl-$(OPENSSL_1_1_VERSION)/include
+LIBRARY_PATH_1_0   := "$(BUILD_DIR)/openssl-$(OPENSSL_1_0_VERSION)/lib"
+C_INCLUDE_PATH_1_0 := "$(BUILD_DIR)/openssl-$(OPENSSL_1_0_VERSION)/include"
+LIBRARY_PATH_1_1   := "$(BUILD_DIR)/openssl-$(OPENSSL_1_1_VERSION)/lib"
+C_INCLUDE_PATH_1_1 := "$(BUILD_DIR)/openssl-$(OPENSSL_1_1_VERSION)/include"
 
-MAKE_OPTS ?= -j $(shell nproc)
+MAKE_OPTS ?= -j "$(shell nproc)"
 
 export CC := ccache gcc
 export CXX := ccache g++
@@ -101,7 +102,7 @@ $(RBENV_ROOT)/versions/$(RUBY_1_0_VERSION)-cryptcheck: build/$(RUBY_1_0_VERSION)
 	LD_LIBRARY_PATH="$(LIBRARY_PATH_1_0)" \
 	RUBY_BUILD_CACHE_PATH="$(BUILD_DIR)" \
 	RUBY_BUILD_DEFINITIONS="$(BUILD_DIR)" \
-	MAKE_OPTS="$(MAKE_OPTS)" $(RBENV_ROOT)/bin/rbenv install -fp "$(notdir $@)"
+	MAKE_OPTS="$(MAKE_OPTS)" rbenv install -fp "$(notdir $@)"
 $(RBENV_ROOT)/versions/$(RUBY_1_1_VERSION)-cryptcheck: build/$(RUBY_1_1_VERSION)-cryptcheck \
 	$(RBENV_ROOT)/versions/$(RUBY_1_1_VERSION)-cryptcheck/lib/ruby/2.6.0/rubygems/ssl_certs/GlobalSignRootCA_R3.pem openssl-1.1
 	cat patches/ciphersuites.patch | \
@@ -110,17 +111,17 @@ $(RBENV_ROOT)/versions/$(RUBY_1_1_VERSION)-cryptcheck: build/$(RUBY_1_1_VERSION)
 	LD_LIBRARY_PATH="$(LIBRARY_PATH_1_1)" \
 	RUBY_BUILD_CACHE_PATH="$(BUILD_DIR)" \
 	RUBY_BUILD_DEFINITIONS="$(BUILD_DIR)" \
-	MAKE_OPTS="$(MAKE_OPTS)" $(RBENV_ROOT)/bin/rbenv install -fp "$(notdir $@)"
+	MAKE_OPTS="$(MAKE_OPTS)" rbenv install -fp "$(notdir $@)"
 ruby-1.0: $(RBENV_ROOT)/versions/$(RUBY_1_0_VERSION)-cryptcheck
 ruby-1.1: $(RBENV_ROOT)/versions/$(RUBY_1_1_VERSION)-cryptcheck
 ruby: ruby-1.0 ruby-1.1
 
 build/libfake.so: spec/fake/fake.c spec/fake/fake.h
-	LANG=C $(CC) $^ -g -o "$@" -shared -fPIC -ldl -std=c99 -Werror -Wall -pedantic
+	LANG=C $(CC) "$^" -g -o "$@" -shared -fPIC -ldl -std=c99 -Werror -Wall -pedantic
 fake: build/libfake.so
 
 build/test: spec/fake/test.c
-	LANG=C $(CC) $^ -g -o "$@" -Werror -Wall -pedantic
+	LANG=C $(CC) "$^" -g -o "$@" -Werror -Wall -pedantic
 
 test-material:
 	bin/generate-test-material.rb
